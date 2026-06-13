@@ -1,19 +1,29 @@
+// ─── app/portfolio/page.tsx ───────────────────────────────────────────────────
+
+import EquityCurve   from "@/components/EquityCurve";
+import PortfolioCard from "@/components/PortfolioCard";
+import ExecutionLog  from "@/components/ExecutionLog";
+import Markets       from "@/components/Markets";
+
 export default function PortfolioPage() {
   return (
-    <div className="min-h-screen bg-[#030712] text-white p-8">
-      <h1 className="text-4xl font-bold mb-2">Portfolio</h1>
-
-      <p className="text-slate-400 mb-8">
-        Live portfolio allocations and performance.
-      </p>
-
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 h-96 rounded-2xl border border-slate-800 bg-[#0B1020]" />
-
-        <div className="h-96 rounded-2xl border border-slate-800 bg-[#0B1020]" />
+    <div className="p-8 space-y-6">
+      <div>
+        <h1 className="text-4xl font-bold mb-1">Portfolio</h1>
+        <p className="text-slate-400">Live allocations, performance, and risk metrics.</p>
       </div>
 
-      <div className="mt-6 h-72 rounded-2xl border border-slate-800 bg-[#0B1020]" />
+      <div className="grid grid-cols-3 gap-6">
+        <div className="col-span-2">
+          <EquityCurve />
+        </div>
+        <PortfolioCard />
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <ExecutionLog />
+        <Markets />
+      </div>
     </div>
   );
 }

@@ -1,22 +1,24 @@
 "use client";
 
-import Link from "next/link";
+// ─── NavLinks.tsx ─────────────────────────────────────────────────────────────
+
+import Link        from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/", label: "Dashboard" },
-  { href: "/agents", label: "Agents" },
-  { href: "/portfolio", label: "Portfolio" },
-  { href: "/identity", label: "Identity" },
+  { href: "/",            label: "Dashboard" },
+  { href: "/agents",      label: "Agents" },
+  { href: "/portfolio",   label: "Portfolio" },
+  { href: "/identity",    label: "Identity" },
   { href: "/attestation", label: "Attestation" },
-  { href: "/settings", label: "Settings" },
+  { href: "/settings",    label: "Settings" },
 ];
 
 export default function NavLinks() {
   const pathname = usePathname();
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {links.map((link) => (
         <Link
           key={link.href}

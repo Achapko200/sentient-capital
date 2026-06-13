@@ -1,147 +1,103 @@
 "use client";
 
-import { useState } from "react";
+// ─── Markets.tsx ──────────────────────────────────────────────────────────────
 
-type MarketItem = {
-  id: number;
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  changePct: number;
-  bias: "BULLISH" | "BEARISH" | "NEUTRAL";
+import { useEffect, useState } from "react";
+import { getFundState }        from "@/lib/fundstore";
+import { StrategyEngine }      from "@/lib/StrategyEngine";
+import { MacroAgent }          from "@/lib/agents/Macro";
+import { QuantAgent }          from "@/lib/agents/Quant";
+import { NewsAgent }           from "@/lib/agents/News";
+import { RiskAgent }           from "@/lib/agents/Risk";
+import type { AssetState }     from "@/types";
+
+type MarketRow = AssetState & {
+  bias:       "BULLISH" | "BEARISH" | "NEUTRAL";
+  biasConf:   number;
+};
+
+const BIAS_COLORS: Record<string, string> = {
+  BULLISH: "text-green-400",
+  BEARISH: "text-red-400",
+  NEUTRAL: "text-yellow-400",
 };
 
 export default function Markets() {
-  const [markets] = useState<MarketItem[]>([
-    {
-      id: 1,
-      symbol: "NVDA",
-      name: "NVIDIA",
-      price: 142.32,
-      change: 3.24,
-      changePct: 2.33,
-      bias: "BULLISH",
-    },
-    {
-      id: 2,
-      symbol: "TSLA",
-      name: "Tesla",
-      price: 248.11,
-      change: -5.67,
-      changePct: -2.23,
-      bias: "BEARISH",
-    },
-    {
-      id: 3,
-      symbol: "SPY",
-      name: "S&P 500 ETF",
-      price: 512.44,
-      change: 1.12,
-      changePct: 0.22,
-      bias: "NEUTRAL",
-    },
-    {
-      id: 4,
-      symbol: "AAPL",
-      name: "Apple",
-      price: 192.87,
-      change: 2.01,
-      changePct: 1.05,
-      bias: "BULLISH",
-    },
-    {
-      id: 5,
-      symbol: "BTC",
-      name: "Bitcoin",
-      price: 68420,
-      change: -820,
-      changePct: -1.18,
-      bias: "BEARISH",
-    },
-  ]);
+  const [rows, setRows] = useState<MarketRow[]>([]);
 
-  const getBiasColor = (bias: MarketItem["bias"]) => {
-    switch (bias) {
-      case "BULLISH":
-        return "text-green-400";
-      case "BEARISH":
-        return "text-red-400";
-      default:
-        return "text-yellow-400";
-    }
-  };
+  useEffect(() => {
+    const run = () => {
+      const state  = getFundState();
+      const assets = Object.values(state.assets);
+
+      const next: MarketRow[] = assets.map((asset) => {
+        const macro = MacroAgent.analyze(asset);
+        const quant = QuantAgent.analyze(asset);
+        const news  = NewsAgent.analyze(asset);
+        const risk  = RiskAgent.analyze(asset);
+
+        const { sentiment, confidence } = StrategyEngine.aggregate([
+          { ...macro, weight: 0.30 },
+          { ...quant, weight: 0.35 },
+          { ...news,  weight: 0.20 },
+          { ...risk,  weight: 0.15 },
+        ]);
+
+        return { ...asset, bias: sentiment, biasConf: confidence };
+      });
+
+      setRows(next);
+    };
+
+    run();
+    const interval = setInterval(run, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="bg-[#0b0f19] border border-gray-800 rounded-xl p-6 mt-6">
+    <div className="bg-[#0b0f19] border border-gray-800 rounded-xl p-6">
 
       <div className="flex justify-between items-center mb-5">
-
         <div>
-          <h2 className="text-xl font-semibold text-white">
-            Market Overview
-          </h2>
-          <p className="text-sm text-gray-400">
-            Live price action & AI bias signals
-          </p>
+          <h2 className="text-xl font-semibold text-white">Market Overview</h2>
+          <p className="text-sm text-gray-400">Live prices & AI bias signals</p>
         </div>
-
         <div className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 text-sm">
-          Market Scanner Active
+          Scanner Active
         </div>
-
       </div>
 
-      <div className="space-y-3">
-
-        {markets.map((m) => (
-          <div
-            key={m.id}
-            className="flex justify-between items-center p-4 rounded-lg bg-white/5 border border-gray-800 hover:bg-white/10 transition"
-          >
-
-            <div>
-              <div className="flex items-center gap-3">
-
-                <span className="text-white font-semibold">
-                  {m.symbol}
-                </span>
-
-                <span className="text-gray-400 text-sm">
-                  {m.name}
-                </span>
-
+      <div className="space-y-2">
+        {rows.map((row) => {
+          const isUp = row.changePct >= 0;
+          return (
+            <div key={row.symbol}
+              className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-gray-800 hover:bg-white/8 transition">
+              <div className="w-20">
+                <p className="text-white font-bold text-sm">{row.symbol}</p>
+                <p className="text-gray-500 text-xs">{row.history.length} ticks</p>
               </div>
-
-              <p className="text-xs text-gray-500 mt-1">
-                AI-driven sentiment + flow analysis
-              </p>
+              <div className="flex-1 px-4">
+                <p className="text-gray-400 text-xs">AI sentiment + flow</p>
+              </div>
+              <div className="text-right mr-6">
+                <p className="text-white font-medium text-sm">
+                  ${row.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
+                <p className={`text-xs ${isUp ? "text-green-400" : "text-red-400"}`}>
+                  {isUp ? "+" : ""}{row.changePct.toFixed(2)}%
+                </p>
+              </div>
+              <div className="text-right w-20">
+                <p className={`text-xs font-bold ${BIAS_COLORS[row.bias]}`}>{row.bias}</p>
+                <p className="text-gray-600 text-xs">{row.biasConf.toFixed(0)}% conf</p>
+              </div>
             </div>
-
-            <div className="text-right">
-
-              <p className="text-white font-medium">
-                ${m.price.toLocaleString()}
-              </p>
-
-              <p className={`text-sm ${m.change >= 0 ? "text-green-400" : "text-red-400"}`}>
-                {m.change >= 0 ? "+" : ""}
-                {m.change} ({m.changePct}%)
-              </p>
-
-            </div>
-
-            <div className="ml-6">
-
-              <span className={`text-sm font-semibold ${getBiasColor(m.bias)}`}>
-                {m.bias}
-              </span>
-
-            </div>
-
-          </div>
-        ))}
-
+          );
+        })}
+        {rows.length === 0 && (
+          <p className="text-gray-600 text-sm text-center py-4">Loading market data…</p>
+        )}
       </div>
     </div>
   );
