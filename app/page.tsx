@@ -4,20 +4,24 @@ import ExecutionLog from "@/components/ExecutionLog";
 
 export default function Home() {
   return (
-    <>
-      <TopBar />
+    <div className="flex min-h-screen bg-black text-white">
+      {/* Sidebar */}
       <Sidebar />
 
-      <main className="ml-64 p-8">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Bar */}
+        <TopBar />
 
-        <h1 className="text-3xl text-white font-bold">
-          Sentient Capital AI Fund
-        </h1>
+        {/* Page Body */}
+        <main className="p-8 space-y-6">
+          <h1 className="text-3xl font-bold">
+            Sentient Capital AI Fund
+          </h1>
 
-        <ExecutionLog />
-
-      </main>
-
-    </>
+          <ExecutionLog />
+        </main>
+      </div>
+    </div>
   );
 }
