@@ -53,8 +53,8 @@ export default function Markets() {
               <p className="text-white text-sm">
                 ${(row.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
-              <p className={row.changePct >= 0 ? "text-xs text-green-400" : "text-xs text-red-400"}>
-                {row.changePct >= 0 ? "+" : ""}{(row.changePct ?? 0).toFixed(2)}%
+              <p className={(row.changePct ?? 0) >= 0 ? "text-xs text-green-400" : "text-xs text-red-400"}>
+                {(row.changePct ?? 0) >= 0 ? "+" : ""}{(row.changePct ?? 0).toFixed(2)}%
               </p>
             </div>
             <div className="text-right w-20">
