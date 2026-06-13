@@ -1,175 +1,139 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { StrategyEngine } from "@/lib/StrategyEngine";
 
 type Execution = {
   id: number;
-  agent: string;
+  symbol: string;
   action: string;
-  ticker: string;
-  price: string;
-  status: string;
+  size: number;
+  confidence: number;
+  reason: string;
   time: string;
 };
 
 export default function ExecutionLog() {
-  const [executions] = useState<Execution[]>([
-    {
-      id: 1,
-      agent: "Alpha Agent",
-      action: "BUY",
-      ticker: "NVDA",
-      price: "$142.50",
-      status: "Executed",
-      time: "10:32:15",
-    },
-    {
-      id: 2,
-      agent: "Risk Agent",
-      action: "HEDGE",
-      ticker: "SPY PUT",
-      price: "$3.20",
-      status: "Executed",
-      time: "10:35:44",
-    },
-    {
-      id: 3,
-      agent: "Macro Agent",
-      action: "SELL",
-      ticker: "TSLA",
-      price: "$410.10",
-      status: "Pending",
-      time: "10:41:02",
-    },
-    {
-      id: 4,
-      agent: "Quant Agent",
-      action: "REBALANCE",
-      ticker: "PORTFOLIO",
-      price: "—",
-      status: "Completed",
-      time: "10:45:20",
-    },
-  ]);
+  const [executions, setExecutions] = useState<Execution[]>([]);
+
+  // Mock market data stream
+  const marketData = [
+    { symbol: "NVDA", price: 142.3, changePct: 1.8 },
+    { symbol: "TSLA", price: 248.1, changePct: -2.1 },
+    { symbol: "SPY", price: 512.4, changePct: 0.3 },
+  ];
+
+  // Mock AI insights (this will later come from InsightsPanel)
+  const insights = [
+    { symbol: "NVDA", sentiment: "BULLISH", confidence: 82 },
+    { symbol: "TSLA", sentiment: "BEARISH", confidence: 77 },
+    { symbol: "SPY", sentiment: "NEUTRAL", confidence: 55 },
+  ] as const;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+
+      // pick random asset each cycle
+      const randomIndex = Math.floor(Math.random() * marketData.length);
+
+      const market = marketData[randomIndex];
+      const insight = insights[randomIndex];
+
+      // run strategy engine
+      const decision = StrategyEngine.generateDecision(
+        market,
+        insight
+      );
+
+      // ignore HOLD trades (optional realism)
+      if (decision.action === "HOLD") return;
+
+      const newExecution: Execution = {
+        id: Date.now(),
+        symbol: decision.symbol,
+        action: decision.action,
+        size: decision.size,
+        confidence: decision.confidence,
+        reason: decision.reason,
+        time: new Date().toLocaleTimeString(),
+      };
+
+      setExecutions((prev) => [newExecution, ...prev].slice(0, 20));
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="bg-[#0b0f19] border border-gray-800 rounded-xl p-6 mt-6">
 
+      {/* Header */}
       <div className="flex justify-between items-center mb-5">
 
         <div>
           <h2 className="text-xl font-semibold text-white">
-            Execution Log
+            Execution Engine
           </h2>
-
           <p className="text-sm text-gray-400">
-            Real-time AI trading activity
+            Live AI-generated trades (Strategy Engine output)
           </p>
         </div>
 
-
-        <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm">
-          AI Engine Online
+        <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm animate-pulse">
+          AI TRADING ACTIVE
         </div>
 
       </div>
 
+      {/* Table */}
+      <div className="space-y-3">
 
-      <div className="overflow-x-auto">
+        {executions.length === 0 && (
+          <p className="text-gray-500 text-sm">
+            Waiting for strategy signals...
+          </p>
+        )}
 
-        <table className="w-full text-left">
+        {executions.map((trade) => (
+          <div
+            key={trade.id}
+            className="p-4 rounded-lg bg-white/5 border border-gray-800"
+          >
 
-          <thead className="text-gray-400 text-sm border-b border-gray-800">
+            <div className="flex justify-between items-start">
 
-            <tr>
-              <th className="py-3">Agent</th>
-              <th>Action</th>
-              <th>Ticker</th>
-              <th>Price</th>
-              <th>Status</th>
-              <th>Time</th>
-            </tr>
+              <div>
+                <p className="text-white font-semibold">
+                  {trade.symbol} — {trade.action}
+                </p>
 
-          </thead>
+                <p className="text-gray-400 text-sm mt-1">
+                  {trade.reason}
+                </p>
+              </div>
 
+              <div className="text-right">
 
-          <tbody>
+                <p className="text-white">
+                  {trade.size}% position
+                </p>
 
-            {executions.map((trade)=>(
+                <p className="text-sm text-gray-400">
+                  Conf: {trade.confidence}%
+                </p>
 
-              <tr 
-                key={trade.id}
-                className="border-b border-gray-900 hover:bg-white/5 transition"
-              >
+              </div>
 
-                <td className="py-4 text-white">
-                  {trade.agent}
-                </td>
+            </div>
 
+            <p className="text-xs text-gray-500 mt-2">
+              {trade.time}
+            </p>
 
-                <td>
-
-                  <span
-                    className={
-                      trade.action === "BUY"
-                      ? "text-green-400"
-                      : trade.action === "SELL"
-                      ? "text-red-400"
-                      : "text-yellow-400"
-                    }
-                  >
-                    {trade.action}
-                  </span>
-
-                </td>
-
-
-                <td className="text-gray-300">
-                  {trade.ticker}
-                </td>
-
-
-                <td className="text-gray-300">
-                  {trade.price}
-                </td>
-
-
-                <td>
-
-                  <span className="
-                    px-2 py-1 
-                    rounded-md
-                    text-xs
-                    bg-white/5
-                    text-gray-200
-                  ">
-
-                    {trade.status}
-
-                  </span>
-
-                </td>
-
-
-                <td className="text-gray-500">
-                  {trade.time}
-                </td>
-
-
-              </tr>
-
-            ))}
-
-
-          </tbody>
-
-
-        </table>
-
+          </div>
+        ))}
 
       </div>
-
-
     </div>
   );
 }
