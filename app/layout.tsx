@@ -34,5 +34,5 @@ export default function RootLayout({
         </FundProvider>
       </body>
     </html>
-  );
+ );
 }

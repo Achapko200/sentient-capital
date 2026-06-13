@@ -7,8 +7,7 @@ type Trade = {
   symbol: string;
   action: string;
   size: number;
-  price?: number;
-  pnl?: number;
+  price: number;
   time: string;
 };
 
@@ -18,15 +17,27 @@ type MarketTick = {
   changePct: number;
 };
 
+type Position = {
+  symbol: string;
+  size: number;
+  entryPrice: number;
+  unrealizedPnL: number;
+};
+
 type FundState = {
   cash: number;
   equity: number;
   pnl: number;
   trades: Trade[];
+  positions: Record<string, Position>;
   market: Record<string, MarketTick>;
+
+  equityHistory: number[];
+  drawdown: number;
+
   addTrade: (trade: Trade) => void;
   updateMarket: (tick: MarketTick) => void;
-  updatePnL: (value: number) => void;
+  markToMarket: () => void;
 };
 
 const FundContext = createContext<FundState | null>(null);
@@ -37,17 +48,53 @@ export function FundProvider({ children }: { children: ReactNode }) {
   const [pnl, setPnL] = useState(0);
 
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [positions, setPositions] = useState<Record<string, Position>>({});
   const [market, setMarket] = useState<Record<string, MarketTick>>({});
 
+  const [equityHistory, setEquityHistory] = useState<number[]>([]);
+  const [drawdown, setDrawdown] = useState(0);
+
+  // 🧠 TRADE EXECUTION
   const addTrade = (trade: Trade) => {
     setTrades((prev) => [trade, ...prev].slice(0, 50));
 
-    // simple PnL simulation
-    const impact = (Math.random() - 0.5) * 5000;
-    setPnL((prev) => prev + impact);
-    setEquity((prev) => prev + impact);
+    setPositions((prev) => {
+      const existing = prev[trade.symbol];
+      const price = trade.price;
+
+      let updated: Position;
+
+      if (existing) {
+        const newSize = existing.size + trade.size;
+
+        const avgPrice =
+          (existing.entryPrice * existing.size +
+            price * trade.size) /
+          newSize;
+
+        updated = {
+          symbol: trade.symbol,
+          size: newSize,
+          entryPrice: avgPrice,
+          unrealizedPnL: existing.unrealizedPnL,
+        };
+      } else {
+        updated = {
+          symbol: trade.symbol,
+          size: trade.size,
+          entryPrice: price,
+          unrealizedPnL: 0,
+        };
+      }
+
+      return {
+        ...prev,
+        [trade.symbol]: updated,
+      };
+    });
   };
 
+  // 📡 MARKET UPDATE
   const updateMarket = (tick: MarketTick) => {
     setMarket((prev) => ({
       ...prev,
@@ -55,8 +102,49 @@ export function FundProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const updatePnL = (value: number) => {
-    setPnL(value);
+  // 📊 MARK TO MARKET ENGINE
+  const markToMarket = () => {
+    let totalPnL = 0;
+
+    setPositions((prev) => {
+      const updated = { ...prev };
+
+      Object.values(updated).forEach((pos) => {
+        const currentPrice = market[pos.symbol]?.price;
+        if (!currentPrice) return;
+
+        const unrealized =
+          (currentPrice - pos.entryPrice) * pos.size;
+
+        updated[pos.symbol] = {
+          ...pos,
+          unrealizedPnL: unrealized,
+        };
+
+        totalPnL += unrealized;
+      });
+
+      const newEquity = 1000000 + totalPnL;
+
+      setPnL(totalPnL);
+      setEquity(newEquity);
+
+      // 📈 EQUITY HISTORY (FIXED)
+      setEquityHistory((prev) => {
+        const updatedHistory = [...prev, newEquity].slice(-200);
+        return updatedHistory;
+      });
+
+      // 📉 DRAWDOWN (FIXED SAFE VERSION)
+      setDrawdown((prev) => {
+        const history = [...equityHistory, newEquity];
+        const peak = Math.max(...history);
+        const dd = ((peak - newEquity) / peak) * 100;
+        return dd;
+      });
+
+      return updated;
+    });
   };
 
   return (
@@ -66,10 +154,13 @@ export function FundProvider({ children }: { children: ReactNode }) {
         equity,
         pnl,
         trades,
+        positions,
         market,
+        equityHistory,
+        drawdown,
         addTrade,
         updateMarket,
-        updatePnL,
+        markToMarket,
       }}
     >
       {children}
