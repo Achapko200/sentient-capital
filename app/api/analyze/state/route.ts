@@ -1,12 +1,8 @@
-import { NextResponse } from "next/server";
+// ─── app/api/analyze/loop/state/route.ts ─────────────────────────────────────
 
-let lastState = {
-  insight: "initializing...",
-  riskScore: 0,
-  decision: "HOLD",
-  updatedAt: new Date().toISOString(),
-};
+import { NextResponse }  from "next/server";
+import { researchStore } from "@/lib/research";
 
 export async function GET() {
-  return NextResponse.json(lastState);
+  return NextResponse.json(researchStore.get());
 }

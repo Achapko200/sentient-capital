@@ -1,50 +1,25 @@
-import { NextResponse } from "next/server";
-import { openai } from "@/lib/openai";
+// ─── app/api/analyze/risk/route.ts ───────────────────────────────────────────
+
+import { NextResponse }   from "next/server";
+import { scorePortfolio } from "@/lib/risk";
+import { getFundState }   from "@/lib/fundstore";
 
 export async function GET() {
-  const portfolio = {
-    nvda: 35,
-    msft: 25,
-    aapl: 20,
-    cash: 20,
-  };
+  const state   = getFundState();
+  const assets  = Object.values(state.assets);
 
-  const prompt = `
-You are "risk.aura.eth", a hedge fund risk manager.
+  // Build a simple portfolio snapshot from current asset prices
+  // (equal-weight for now; real implementation reads from FundContext positions)
+  const snapshot: Record<string, number> = {};
+  const perAsset = assets.length > 0 ? Math.floor(80 / assets.length) : 0;
+  for (const a of assets) snapshot[a.symbol] = perAsset;
 
-Portfolio:
-${JSON.stringify(portfolio)}
-
-Return:
-{
-  "riskScore": number (0-100),
-  "exposureWarning": "...",
-  "recommendation": "..."
-}
-`;
-
-  const res = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text = res.choices[0].message.content || "{}";
-
-  let parsed;
-
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = {
-      riskScore: 60,
-      exposureWarning: "Default risk state",
-      recommendation: "Hold",
-    };
-  }
+  const report = scorePortfolio(snapshot);
 
   return NextResponse.json({
-    agent: "risk.aura.eth",
-    portfolio,
-    ...parsed,
+    agent:     "risk.aura.eth",
+    timestamp: new Date().toISOString(),
+    portfolio: snapshot,
+    ...report,
   });
 }

@@ -1,68 +1,72 @@
-import { NextResponse } from "next/server";
-import { openai } from "@/lib/openai";
-import { getRandomNews } from "@/lib/market";
-import { stateStore } from "@/lib/state";
+// ─── app/api/analyze/loop/start/route.ts ────────────────────────────────────
+
+import { NextResponse }  from "next/server";
+import { researchStore } from "../../../../lib/research";
+import { getRandomNews } from "../../../../lib/market";
 
 let isRunning = false;
 
 export async function GET() {
   if (isRunning) {
-    return NextResponse.json({ status: "ALREADY RUNNING" });
+    return NextResponse.json({ status: "ALREADY_RUNNING", state: researchStore.get() });
   }
 
   isRunning = true;
 
-  const loop = async () => {
+  const OPENAI_KEY = process.env.OPENAI_API_KEY;
+
+  const runLoop = async () => {
     const news = getRandomNews();
 
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: `
-You are AURA Fund AI.
+    if (!OPENAI_KEY) {
+      // Rule-based fallback
+      const signal = news.toLowerCase().includes("beat") ? "bullish"
+        : news.toLowerCase().includes("fall") ? "bearish" : "neutral";
 
-Analyze this market news:
-${news}
-
-Return JSON ONLY:
-{
-  "insight": "string",
-  "riskScore": number,
-  "decision": "BUY | SELL | HOLD"
-}
-          `.trim(),
-        },
-      ],
-    });
-
-    let parsed;
-
-    try {
-      parsed = JSON.parse(res.choices[0].message.content || "{}");
-    } catch {
-      parsed = {
-        insight: "Market unstable",
-        riskScore: 50,
-        decision: "HOLD",
-      };
+      researchStore.update({
+        symbol:    "LOOP",
+        news,
+        insight:   `Autonomous rule-based: ${signal} signal`,
+        signal,
+        riskScore: signal === "bullish" ? 30 : signal === "bearish" ? 70 : 50,
+        decision:  signal === "bullish" ? "BUY" : signal === "bearish" ? "SELL" : "HOLD",
+      });
+      setTimeout(runLoop, 8000);
+      return;
     }
 
-    stateStore.update({
-      news,
-      insight: parsed.insight,
-      riskScore: parsed.riskScore,
-      decision: parsed.decision,
-      lastRun: new Date().toISOString(),
-    });
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_KEY}` },
+        body:    JSON.stringify({
+          model:    "gpt-4o-mini",
+          messages: [{
+            role:    "user",
+            content: `You are AURA Fund AI. Analyze: "${news}". Return ONLY JSON: {"insight":"...","riskScore":number,"decision":"BUY|SELL|HOLD"}`,
+          }],
+        }),
+      });
+      const data  = await res.json();
+      const text  = data.choices?.[0]?.message?.content ?? "{}";
+      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
 
-    setTimeout(loop, 8000);
+      researchStore.update({
+        symbol:    "LOOP",
+        news,
+        insight:   parsed.insight ?? "",
+        signal:    parsed.decision === "BUY" ? "bullish" : parsed.decision === "SELL" ? "bearish" : "neutral",
+        riskScore: parsed.riskScore ?? 50,
+        decision:  parsed.decision ?? "HOLD",
+      });
+    } catch {
+      researchStore.update({ news, insight: "Loop parse error", decision: "HOLD" });
+    }
+
+    setTimeout(runLoop, 8000);
   };
 
-  loop();
+  runLoop();
 
-  return NextResponse.json({
-    status: "AURA LOOP STARTED",
-  });
+  return NextResponse.json({ status: "LOOP_STARTED" });
 }
