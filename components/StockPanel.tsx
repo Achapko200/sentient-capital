@@ -20,7 +20,7 @@ export default function StockPanel({ symbol }: { symbol: string }) {
       try {
         setLoading(true);
 
-        const res = await fetch(`/api/stock?symbol=${symbol}`);
+        const res = await fetch(`/api/analyze/stock?symbol=${symbol}`)
         const json = await res.json();
 
         setData(json);

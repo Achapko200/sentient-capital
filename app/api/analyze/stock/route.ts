@@ -12,23 +12,37 @@ export async function GET(req: Request) {
     );
   }
 
-  // TEMP MOCK DATA (guaranteed to work)
-  const basePrices: Record<string, number> = {
-    TSLA: 248.12,
-    NVDA: 875.44,
-    AAPL: 192.33,
-    MSFT: 415.22,
-    BTC: 42100,
-  };
+  try {
+    const response = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${symbol.toUpperCase()}&token=${process.env.FINNHUB_API_KEY}`,
+      { cache: "no-store" }
+    );
 
-  const base =
-    basePrices[symbol.toUpperCase()] ??
-    100 + Math.random() * 200;
+    const data = await response.json();
 
-  return NextResponse.json({
-    symbol: symbol.toUpperCase(),
-    price: Number(base.toFixed(2)),
-    high: Number((base * 1.02).toFixed(2)),
-    low: Number((base * 0.98).toFixed(2)),
-  });
+    if (!response.ok || data.c === undefined) {
+      throw new Error("Failed to fetch quote");
+    }
+
+    updateFundState({
+      symbol: symbol.toUpperCase(),
+      price: data.c,
+    });
+
+    return NextResponse.json({
+      symbol: symbol.toUpperCase(),
+      price: data.c,
+      high: data.h,
+      low: data.l,
+      open: data.o,
+      previousClose: data.pc,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Failed to fetch stock data",
+      },
+      { status: 500 }
+    );
+  }
 }

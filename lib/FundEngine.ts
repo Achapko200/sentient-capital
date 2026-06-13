@@ -2,12 +2,7 @@ import { MacroAgent } from "@/lib/agents/Macro";
 import { QuantAgent } from "@/lib/agents/Quant";
 import { NewsAgent } from "@/lib/agents/News";
 import { StrategyEngine } from "@/lib/StrategyEngine";
-
-type MarketTick = {
-  symbol: string;
-  price: number;
-  changePct: number;
-};
+import { getFundState } from "@/lib/fundstore";
 
 type AgentVote = {
   sentiment: "BULLISH" | "BEARISH" | "NEUTRAL";
@@ -17,26 +12,6 @@ type AgentVote = {
 
 export class FundEngine {
   private interval: any = null;
-
-  private market: MarketTick[] = [
-    { symbol: "NVDA", price: 142.3, changePct: 1.8 },
-    { symbol: "TSLA", price: 248.1, changePct: -2.1 },
-    { symbol: "SPY", price: 512.4, changePct: 0.3 },
-    { symbol: "AAPL", price: 192.5, changePct: 0.9 },
-    { symbol: "BTC", price: 68400, changePct: -1.2 },
-  ];
-
-  private simulateMarketTick(tick: MarketTick): MarketTick {
-    const volatility = tick.symbol === "BTC" ? 5 : 0.8;
-
-    const move = (Math.random() - 0.5) * volatility;
-
-    return {
-      ...tick,
-      price: Number((tick.price + move).toFixed(2)),
-      changePct: Number((move / tick.price) * 100),
-    };
-  }
 
   private aggregateVotes(votes: AgentVote[]) {
     let score = 0;
@@ -69,34 +44,48 @@ export class FundEngine {
     if (this.interval) return;
 
     this.interval = setInterval(() => {
-      // 1. UPDATE MARKET
-      this.market = this.market.map((t) =>
-        this.simulateMarketTick(t)
-      );
+      // 1. GET LIVE STATE FROM STORE
+      const state = getFundState();
 
-      // 2. PICK RANDOM ASSET
-      const asset =
-        this.market[Math.floor(Math.random() * this.market.length)];
+      if (!state.symbol || !state.price) return;
 
-      // 3. MULTI-AGENT SYSTEM
+      const asset = {
+        symbol: state.symbol,
+        price: state.price,
+        changePct: 0,
+      };
+
+      // 2. MULTI-AGENT SYSTEM
       const macro = MacroAgent.analyze() as AgentVote;
       const quant = QuantAgent.analyze(asset) as AgentVote;
       const news = NewsAgent.analyze() as AgentVote;
 
-      const riskVote: AgentVote = (() => {
-        if (asset.changePct < -1.5)
-          return { sentiment: "BEARISH", confidence: 70, reason: "Price drawdown risk" };
-        if (asset.changePct > 1.5)
-          return { sentiment: "BULLISH", confidence: 60, reason: "Strong momentum" };
-        return { sentiment: "NEUTRAL", confidence: 50, reason: "Stable outlook" };
-      })();
+      // 3. RISK ENGINE (simple but deterministic)
+      const riskVote: AgentVote =
+        asset.price > 400
+          ? {
+              sentiment: "BEARISH",
+              confidence: 60,
+              reason: "Overheated asset level",
+            }
+          : asset.price < 200
+          ? {
+              sentiment: "BULLISH",
+              confidence: 65,
+              reason: "Undervalued zone detected",
+            }
+          : {
+              sentiment: "NEUTRAL",
+              confidence: 50,
+              reason: "Fair market range",
+            };
 
       const votes: AgentVote[] = [macro, quant, riskVote, news];
 
-      // 4. AGGREGATE CONSENSUS
+      // 4. CONSENSUS ENGINE
       const consensus = this.aggregateVotes(votes);
 
-      // 5. FINAL DECISION INPUT
+      // 5. STRATEGY DECISION
       const decision = StrategyEngine.generateDecision(asset, {
         symbol: asset.symbol,
         sentiment: consensus.sentiment,
@@ -115,7 +104,6 @@ export class FundEngine {
         reason: decision.reason,
         time: new Date().toLocaleTimeString(),
       });
-
     }, 2000);
   }
 

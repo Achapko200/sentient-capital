@@ -99,13 +99,13 @@ export default function ExecutionLog() {
 
               <div className="text-right">
 
-                <p className="text-white">
-                  {trade.size}% position
-                </p>
+              <p className="text-white">
+  {trade.size.toFixed(1)}% position
+</p>
 
-                <p className="text-sm text-gray-400">
-                  Conf: {trade.confidence}%
-                </p>
+<p className="text-sm text-gray-400">
+  Conf: {Math.round(trade.confidence)}%
+</p>
 
               </div>
 
