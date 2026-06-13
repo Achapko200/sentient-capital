@@ -1,10 +1,62 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export default function Home() {
+  const [ai, setAi] = useState<any>(null);
+  const [log, setLog] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [autonomy, setAutonomy] = useState(false);
+  const [shock, setShock] = useState(false);
+
+  const runAnalysis = async (type: "normal" | "shock" = "normal") => {
+    setLoading(true);
+
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        portfolio: {
+          NVDA: 35,
+          MSFT: 25,
+          AAPL: 20,
+          CASH: 20,
+        },
+        mode: type,
+      }),
+    });
+
+    const data = await res.json();
+    setAi(data);
+
+    setLog((prev) => [
+      type === "shock"
+        ? `[MARKET SHOCK] Volatility event triggered`
+        : `[AI] ${data.thesis}`,
+      `[RISK] ${data.risk}`,
+      `[TRADE] ${data.trades?.[0] ?? "No action"}`,
+      ...prev,
+    ]);
+
+    setLoading(false);
+  };
+
+  // AUTONOMY LOOP
+  useEffect(() => {
+    if (!autonomy) return;
+
+    const interval = setInterval(() => {
+      runAnalysis("normal");
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [autonomy]);
+
   return (
     <div className="min-h-screen bg-[#04060A] text-white flex flex-col">
 
-      {/* TOP SYSTEM BAR */}
+      {/* TOP BAR */}
       <div className="flex justify-between items-center px-6 py-3 border-b border-slate-800 bg-[#050814]">
         <div>
           <h1 className="font-semibold tracking-wide">
@@ -28,8 +80,9 @@ export default function Home() {
       {/* MAIN LAYOUT */}
       <div className="flex flex-1">
 
-        {/* LEFT NAV */}
+        {/* LEFT PANEL */}
         <aside className="w-60 border-r border-slate-800 p-4 space-y-6 bg-[#050814]">
+
           <div className="space-y-1 text-sm">
             <p className="text-slate-500 text-xs">PORTFOLIO MODE</p>
             <p className="font-medium">Autonomous Trading</p>
@@ -43,27 +96,43 @@ export default function Home() {
             <p>Execution → READY</p>
           </div>
 
-          <div className="pt-4 space-y-2">
-            <button className="w-full px-3 py-2 text-xs rounded bg-blue-600 hover:bg-blue-500">
-              Run Analysis
-            </button>
+          <button
+            onClick={() => runAnalysis("normal")}
+            className="w-full px-3 py-2 text-xs rounded bg-blue-600 hover:bg-blue-500"
+          >
+            {loading ? "Running..." : "Run Analysis"}
+          </button>
 
-            <button className="w-full px-3 py-2 text-xs rounded border border-slate-700 hover:border-slate-500">
-              Market Shock
-            </button>
+          <button
+            onClick={() => {
+              setShock(true);
+              runAnalysis("shock");
+              setTimeout(() => setShock(false), 1500);
+            }}
+            className="w-full px-3 py-2 text-xs rounded border border-slate-700 hover:border-red-500 text-red-400"
+          >
+            {shock ? "⚡ SHOCK ACTIVE" : "Market Shock"}
+          </button>
 
-            <button className="w-full px-3 py-2 text-xs rounded bg-purple-600 hover:bg-purple-500">
-              Enable Autonomy
-            </button>
-          </div>
+          <button
+            onClick={() => setAutonomy(!autonomy)}
+            className={`w-full px-3 py-2 text-xs rounded ${
+              autonomy
+                ? "bg-green-600 hover:bg-green-500"
+                : "bg-purple-600 hover:bg-purple-500"
+            }`}
+          >
+            {autonomy ? "🤖 AUTONOMY ON" : "Enable Autonomy"}
+          </button>
+
         </aside>
 
-        {/* CENTER WORKSPACE */}
+        {/* CENTER */}
         <main className="flex-1 p-6 space-y-6">
 
-          {/* GRID CARDS */}
           <div className="grid grid-cols-2 gap-4">
 
+            {/* PORTFOLIO */}
             <div className="bg-[#0B1020] border border-slate-800 rounded-xl p-4">
               <h2 className="text-sm font-semibold mb-3">
                 Portfolio Exposure
@@ -85,61 +154,50 @@ export default function Home() {
               </div>
             </div>
 
+            {/* AI ENGINE */}
             <div className="bg-[#0B1020] border border-slate-800 rounded-xl p-4">
               <h2 className="text-sm font-semibold mb-3">
                 AI Decision Engine
               </h2>
 
-              <div className="space-y-2 text-xs">
-                <p className="text-blue-400">
-                  Analyst: Macro tech trend remains bullish
+              {ai ? (
+                <div className="space-y-2 text-xs">
+                  <p className="text-blue-400">Analyst: {ai.thesis}</p>
+                  <p className="text-yellow-400">Risk: {ai.risk}</p>
+
+                  <div className="text-green-400">
+                    {ai.trades?.map((t: string, i: number) => (
+                      <p key={i}>• {t}</p>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-slate-500 text-xs">
+                  Run analysis to activate AI engine
                 </p>
-                <p className="text-yellow-400">
-                  Risk: NVDA concentration above threshold
-                </p>
-                <p className="text-green-400">
-                  Decision: Rotate 10% NVDA → MSFT
-                </p>
-              </div>
+              )}
             </div>
 
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          {/* EXECUTION LOG */}
+          <div className="bg-[#0B1020] border border-slate-800 rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3">
+              Execution Log
+            </h3>
 
-            <div className="col-span-1 bg-[#0B1020] border border-slate-800 rounded-xl p-4">
-              <h3 className="text-sm font-semibold mb-3">
-                Market Stream
-              </h3>
-
-              <div className="text-xs space-y-2 text-slate-300">
-                <p>NVDA beats earnings expectations</p>
-                <p>Fed signals potential rate cuts</p>
-                <p>AI sector volatility increasing</p>
-                <p>Institutional inflows rising</p>
-              </div>
+            <div className="text-xs space-y-2 text-slate-300">
+              {log.length === 0 ? (
+                <p>[SYSTEM] Awaiting analysis...</p>
+              ) : (
+                log.map((l, i) => <p key={i}>{l}</p>)
+              )}
             </div>
-
-            <div className="col-span-2 bg-[#0B1020] border border-slate-800 rounded-xl p-4">
-              <h3 className="text-sm font-semibold mb-3">
-                Execution Log
-              </h3>
-
-              <div className="text-xs space-y-2 text-slate-300">
-                <p>[SYSTEM] Portfolio initialized</p>
-                <p>[AI] Running risk model...</p>
-                <p>[AI] No trades executed yet</p>
-                <p className="text-green-400">
-                  [READY] Awaiting market event
-                </p>
-              </div>
-            </div>
-
           </div>
 
         </main>
 
-        {/* RIGHT INSIGHTS */}
+        {/* RIGHT PANEL */}
         <aside className="w-72 border-l border-slate-800 p-4 bg-[#050814] space-y-4">
 
           <div>
@@ -150,15 +208,6 @@ export default function Home() {
             <p className="text-xs text-slate-400">Market Sync: Active</p>
             <p className="text-xs text-green-400">
               All Systems Operational
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold mb-2">
-              Risk Summary
-            </h3>
-            <p className="text-xs text-yellow-400">
-              Moderate risk exposure detected in tech sector concentration.
             </p>
           </div>
 
@@ -177,7 +226,7 @@ export default function Home() {
 
       {/* FOOTER */}
       <div className="px-6 py-2 border-t border-slate-800 text-xs text-slate-500">
-        Sentient Portfolio OS • Autonomous Capital Simulation • v0.1 • ETHGlobal Build
+        Sentient Portfolio OS • Autonomous AI Simulation • ETHGlobal Build
       </div>
 
     </div>
