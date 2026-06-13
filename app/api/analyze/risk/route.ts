@@ -1,26 +1,25 @@
 import { NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
-import { getRandomNews } from "@/lib/market";
 
 export async function GET() {
-  const news = getRandomNews();
+  const portfolio = {
+    nvda: 35,
+    msft: 25,
+    aapl: 20,
+    cash: 20,
+  };
 
   const prompt = `
-You are "research.aura.eth", an institutional hedge fund research agent.
+You are "risk.aura.eth", a hedge fund risk manager.
 
-Analyze the following market news and produce:
-1. Insight
-2. Risk implication
-3. Action suggestion
+Portfolio:
+${JSON.stringify(portfolio)}
 
-News:
-${news}
-
-Respond in JSON:
+Return:
 {
-  "insight": "...",
-  "risk": "...",
-  "action": "..."
+  "riskScore": number (0-100),
+  "exposureWarning": "...",
+  "recommendation": "..."
 }
 `;
 
@@ -37,15 +36,15 @@ Respond in JSON:
     parsed = JSON.parse(text);
   } catch {
     parsed = {
-      insight: "Market uncertainty detected",
-      risk: "Unknown",
-      action: "Hold positions",
+      riskScore: 60,
+      exposureWarning: "Default risk state",
+      recommendation: "Hold",
     };
   }
 
   return NextResponse.json({
-    agent: "research.aura.eth",
-    news,
+    agent: "risk.aura.eth",
+    portfolio,
     ...parsed,
   });
 }
