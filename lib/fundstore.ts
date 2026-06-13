@@ -49,3 +49,4 @@ export function updateFundState(update: {
     },
   };
 }
+export const updateAssetPrice = updateFundState;
