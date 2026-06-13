@@ -19,5 +19,8 @@ export async function GET(req: Request) {
     price: data.c,
     high: data.h,
     low: data.l,
+    open: data.o,
+    previousClose: data.pc,
+    timestamp: Date.now(),
   });
 }
