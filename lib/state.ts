@@ -6,10 +6,25 @@ type LoopState = {
   decision: string;
 };
 
-export const state: LoopState = {
-  lastRun: null,
-  news: "",
-  insight: "",
-  riskScore: 0,
-  decision: "INITIALIZING",
-};
+class StateStore {
+  private state: LoopState = {
+    lastRun: null,
+    news: "",
+    insight: "",
+    riskScore: 0,
+    decision: "INITIALIZING",
+  };
+
+  get() {
+    return this.state;
+  }
+
+  update(partial: Partial<LoopState>) {
+    this.state = {
+      ...this.state,
+      ...partial,
+    };
+  }
+}
+
+export const stateStore = new StateStore();
