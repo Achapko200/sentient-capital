@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
 import { getRandomNews } from "@/lib/market";
-import { state } from "@/lib/state";
+import { stateStore } from "@/lib/state";
+
+let isRunning = false;
 
 export async function GET() {
-  setInterval(async () => {
+  if (isRunning) {
+    return NextResponse.json({ status: "ALREADY RUNNING" });
+  }
+
+  isRunning = true;
+
+  const loop = async () => {
     const news = getRandomNews();
 
     const res = await openai.chat.completions.create({
@@ -15,16 +23,16 @@ export async function GET() {
           content: `
 You are AURA Fund AI.
 
-Analyze:
+Analyze this market news:
 ${news}
 
-Return JSON:
+Return JSON ONLY:
 {
-  "insight": "...",
+  "insight": "string",
   "riskScore": number,
   "decision": "BUY | SELL | HOLD"
 }
-`,
+          `.trim(),
         },
       ],
     });
@@ -41,12 +49,18 @@ Return JSON:
       };
     }
 
-    state.lastRun = new Date().toISOString();
-    state.news = news;
-    state.insight = parsed.insight;
-    state.riskScore = parsed.riskScore;
-    state.decision = parsed.decision;
-  }, 8000);
+    stateStore.update({
+      news,
+      insight: parsed.insight,
+      riskScore: parsed.riskScore,
+      decision: parsed.decision,
+      lastRun: new Date().toISOString(),
+    });
+
+    setTimeout(loop, 8000);
+  };
+
+  loop();
 
   return NextResponse.json({
     status: "AURA LOOP STARTED",
