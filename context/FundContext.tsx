@@ -31,12 +31,22 @@ type FundState = {
   trades: Trade[];
   positions: Record<string, Position>;
   market: Record<string, MarketTick>;
+  agentStats: {
+    Macro: { correct: number; total: number };
+    Quant: { correct: number; total: number };
+    Risk: { correct: number; total: number };
+    News: { correct: number; total: number };
+  };
 
   equityHistory: number[];
   drawdown: number;
 
   addTrade: (trade: Trade) => void;
   updateMarket: (tick: MarketTick) => void;
+  updateAgentStats: (
+    agent: "Macro" | "Quant" | "Risk" | "News",
+    wasRight: boolean
+  ) => void;
   markToMarket: () => void;
 };
 
@@ -50,6 +60,45 @@ export function FundProvider({ children }: { children: ReactNode }) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [positions, setPositions] = useState<Record<string, Position>>({});
   const [market, setMarket] = useState<Record<string, MarketTick>>({});
+  const [agentStats, setAgentStats] = useState({
+  Macro: {
+    correct: 0,
+    total: 0,
+  },
+  Quant: {
+    correct: 0,
+    total: 0,
+  },
+  Risk: {
+    correct: 0,
+    total: 0,
+  },
+  News: {
+    correct: 0,
+    total: 0,
+  },
+});
+
+
+  const [agentStats, setAgentStats] = useState({
+    Macro: {
+      correct: 0,
+      total: 0,
+    },
+    Quant: {
+      correct: 0,
+      total: 0,
+    },
+    Risk: {
+      correct: 0,
+      total: 0,
+    },
+    News: {
+      correct: 0,
+      total: 0,
+    },
+  });
+
 
   const [equityHistory, setEquityHistory] = useState<number[]>([]);
   const [drawdown, setDrawdown] = useState(0);
@@ -101,7 +150,31 @@ export function FundProvider({ children }: { children: ReactNode }) {
       [tick.symbol]: tick,
     }));
   };
+  const updateAgentStats = (
+    agent: "Macro" | "Quant" | "Risk" | "News",
+    wasRight: boolean
+  ) => {
 
+    setAgentStats((prev) => {
+
+      const current = prev[agent];
+
+      return {
+        ...prev,
+
+        [agent]: {
+          correct:
+            current.correct + (wasRight ? 1 : 0),
+
+          total:
+            current.total + 1,
+        },
+
+      };
+
+    });
+
+  };
   // 📊 MARK TO MARKET ENGINE
   const markToMarket = () => {
     let totalPnL = 0;
@@ -156,8 +229,10 @@ export function FundProvider({ children }: { children: ReactNode }) {
         trades,
         positions,
         market,
+        agentStats,
         equityHistory,
         drawdown,
+        updateAgentStats,
         addTrade,
         updateMarket,
         markToMarket,
