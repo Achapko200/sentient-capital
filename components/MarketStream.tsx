@@ -1,9 +1,5 @@
 "use client";
 
-// ─── MarketStream.tsx ─────────────────────────────────────────────────────────
-// Simulates live tick data. Updates both fundstore (for DecisionEngine)
-// and FundContext.market (for mark-to-market).
-
 import { useEffect, useState } from "react";
 import { updateAssetPrice }    from "@/lib/fundstore";
 import { useFund }             from "@/context/FundContext";
@@ -16,11 +12,11 @@ type Tick = {
 };
 
 const SEEDS: Tick[] = [
-  { symbol: "NVDA", price: 142.10, change: 0,  changePct: 0 },
-  { symbol: "TSLA", price: 248.50, change: 0,  changePct: 0 },
-  { symbol: "SPY",  price: 512.00, change: 0,  changePct: 0 },
-  { symbol: "AAPL", price: 192.30, change: 0,  changePct: 0 },
-  { symbol: "BTC",  price: 68400,  change: 0,  changePct: 0 },
+  { symbol: "NVDA", price: 142.10, change: 0, changePct: 0 },
+  { symbol: "TSLA", price: 248.50, change: 0, changePct: 0 },
+  { symbol: "SPY",  price: 512.00, change: 0, changePct: 0 },
+  { symbol: "AAPL", price: 192.30, change: 0, changePct: 0 },
+  { symbol: "BTC",  price: 68400,  change: 0, changePct: 0 },
 ];
 
 const VOLATILITY: Record<string, number> = {
@@ -28,24 +24,24 @@ const VOLATILITY: Record<string, number> = {
 };
 
 export default function MarketStream() {
-  const [ticks, setTicks]   = useState<Tick[]>(SEEDS);
-  const { updateMarket }    = useFund();
+  const [ticks, setTicks] = useState<Tick[]>(SEEDS);
+  const { updateMarket }  = useFund();
 
-useEffect(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       setTicks((prev) => {
         const next = prev.map((t) => {
-          const vol = VOLATILITY[t.symbol] ?? 0.5;
-          const move = (Math.random() - 0.5) * vol;
-          const newPrice = Math.max(0.01, Number((t.price + move).toFixed(2)));
-          const change = Number((newPrice - t.price).toFixed(2));
+          const vol       = VOLATILITY[t.symbol] ?? 0.5;
+          const move      = (Math.random() - 0.5) * vol;
+          const newPrice  = Math.max(0.01, Number((t.price + move).toFixed(2)));
+          const change    = Number((newPrice - t.price).toFixed(2));
           const changePct = Number(((change / t.price) * 100).toFixed(3));
           return { ...t, price: newPrice, change, changePct };
         });
 
         setTimeout(() => {
           next.forEach((t) => {
-            updateAssetPrice(t.symbol, t.price, t.changePct);
+            updateAssetPrice({ symbol: t.symbol, price: t.price });
             updateMarket({ symbol: t.symbol, price: t.price, changePct: t.changePct });
           });
         }, 0);
@@ -57,12 +53,8 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [updateMarket]);
 
-    return () => clearInterval(interval);
-  }, [updateMarket]);
-
   return (
     <div className="bg-[#0b0f19] border border-gray-800 rounded-xl p-6">
-
       <div className="flex justify-between items-center mb-4">
         <div>
           <h2 className="text-xl font-semibold text-white">Market Stream</h2>
