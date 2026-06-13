@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StrategyEngine } from "@/lib/StrategyEngine";
+import { FundEngine } from "@/lib/FundEngine";
+import { useFund } from "@/context/FundContext";
 
 type Execution = {
   id: number;
@@ -15,59 +16,44 @@ type Execution = {
 
 export default function ExecutionLog() {
   const [executions, setExecutions] = useState<Execution[]>([]);
-
-  // Mock market data stream
-  const marketData = [
-    { symbol: "NVDA", price: 142.3, changePct: 1.8 },
-    { symbol: "TSLA", price: 248.1, changePct: -2.1 },
-    { symbol: "SPY", price: 512.4, changePct: 0.3 },
-  ];
-
-  // Mock AI insights (this will later come from InsightsPanel)
-  const insights = [
-    { symbol: "NVDA", sentiment: "BULLISH", confidence: 82 },
-    { symbol: "TSLA", sentiment: "BEARISH", confidence: 77 },
-    { symbol: "SPY", sentiment: "NEUTRAL", confidence: 55 },
-  ] as const;
+  const { addTrade } = useFund();
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const engine = new FundEngine();
 
-      // pick random asset each cycle
-      const randomIndex = Math.floor(Math.random() * marketData.length);
+    engine.start((trade) => {
 
-      const market = marketData[randomIndex];
-      const insight = insights[randomIndex];
+      // 1. UI state (execution feed)
+      setExecutions((prev) => [
+        {
+          id: trade.id,
+          symbol: trade.symbol,
+          action: trade.action,
+          size: trade.size,
+          confidence: trade.confidence,
+          reason: trade.reason,
+          time: trade.time,
+        },
+        ...prev,
+      ].slice(0, 25));
 
-      // run strategy engine
-      const decision = StrategyEngine.generateDecision(
-        market,
-        insight
-      );
+      // 2. GLOBAL FUND STATE UPDATE
+      addTrade({
+        id: trade.id,
+        symbol: trade.symbol,
+        action: trade.action,
+        size: trade.size,
+        time: trade.time,
+      });
 
-      // ignore HOLD trades (optional realism)
-      if (decision.action === "HOLD") return;
+    });
 
-      const newExecution: Execution = {
-        id: Date.now(),
-        symbol: decision.symbol,
-        action: decision.action,
-        size: decision.size,
-        confidence: decision.confidence,
-        reason: decision.reason,
-        time: new Date().toLocaleTimeString(),
-      };
-
-      setExecutions((prev) => [newExecution, ...prev].slice(0, 20));
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, []);
+    return () => engine.stop();
+  }, [addTrade]);
 
   return (
     <div className="bg-[#0b0f19] border border-gray-800 rounded-xl p-6 mt-6">
 
-      {/* Header */}
       <div className="flex justify-between items-center mb-5">
 
         <div>
@@ -75,17 +61,16 @@ export default function ExecutionLog() {
             Execution Engine
           </h2>
           <p className="text-sm text-gray-400">
-            Live AI-generated trades (Strategy Engine output)
+            Live AI-generated trades (Fund-connected)
           </p>
         </div>
 
         <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-sm animate-pulse">
-          AI TRADING ACTIVE
+          FUND CONNECTED
         </div>
 
       </div>
 
-      {/* Table */}
       <div className="space-y-3">
 
         {executions.length === 0 && (
