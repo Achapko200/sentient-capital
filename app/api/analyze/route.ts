@@ -1,25 +1,25 @@
 import { NextResponse } from "next/server";
+import {
+  runResearchAgent,
+  runRiskAgent,
+  runTraderAgent,
+} from "@/lib/engine";
 
 export async function POST(req: Request) {
-  const { portfolio } = await req.json();
+  const { portfolio, mode } = await req.json();
 
-  const nvda = portfolio.NVDA || 0;
-
-  // simple “AI-like” logic for now (we replace with OpenAI later)
-  const risk =
-    nvda > 40 ? "HIGH" :
-    nvda > 30 ? "MODERATE" :
-    "LOW";
-
-  const trades =
-    nvda > 35
-      ? ["Reduce NVDA by 10%", "Increase MSFT by 5%"]
-      : ["Maintain positions", "Monitor volatility"];
+  const research = runResearchAgent(portfolio);
+  const risk = runRiskAgent(portfolio);
+  const trader = runTraderAgent(portfolio, risk);
 
   return NextResponse.json({
-    thesis: "AI detected shifting semiconductor risk exposure.",
-    risk,
-    trades,
-    timestamp: Date.now(),
+    mode,
+    agents: {
+      research,
+      risk,
+      trader,
+    },
+    finalPortfolio: trader.portfolio,
+    summary: `${research.reasoning}. ${risk.reasoning}. ${trader.reasoning}`,
   });
 }
