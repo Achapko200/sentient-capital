@@ -31,24 +31,31 @@ export default function MarketStream() {
   const [ticks, setTicks]   = useState<Tick[]>(SEEDS);
   const { updateMarket }    = useFund();
 
-  useEffect(() => {
+useEffect(() => {
     const interval = setInterval(() => {
-      setTicks((prev) =>
-        prev.map((t) => {
-          const vol       = VOLATILITY[t.symbol] ?? 0.5;
-          const move      = (Math.random() - 0.5) * vol;
-          const newPrice  = Math.max(0.01, Number((t.price + move).toFixed(2)));
-          const change    = Number((newPrice - t.price).toFixed(2));
+      setTicks((prev) => {
+        const next = prev.map((t) => {
+          const vol = VOLATILITY[t.symbol] ?? 0.5;
+          const move = (Math.random() - 0.5) * vol;
+          const newPrice = Math.max(0.01, Number((t.price + move).toFixed(2)));
+          const change = Number((newPrice - t.price).toFixed(2));
           const changePct = Number(((change / t.price) * 100).toFixed(3));
-
-          // ← Update both stores
-          updateAssetPrice(t.symbol, newPrice, changePct);
-          updateMarket({ symbol: t.symbol, price: newPrice, changePct });
-
           return { ...t, price: newPrice, change, changePct };
-        })
-      );
+        });
+
+        setTimeout(() => {
+          next.forEach((t) => {
+            updateAssetPrice(t.symbol, t.price, t.changePct);
+            updateMarket({ symbol: t.symbol, price: t.price, changePct: t.changePct });
+          });
+        }, 0);
+
+        return next;
+      });
     }, 1200);
+
+    return () => clearInterval(interval);
+  }, [updateMarket]);
 
     return () => clearInterval(interval);
   }, [updateMarket]);
