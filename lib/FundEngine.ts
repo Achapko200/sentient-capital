@@ -1,3 +1,6 @@
+import { MacroAgent } from "@/lib/agents/Macro";
+import { QuantAgent } from "@/lib/agents/Quant";
+import { NewsAgent } from "@/lib/agents/News";
 import { StrategyEngine } from "@/lib/StrategyEngine";
 
 type MarketTick = {
@@ -6,10 +9,10 @@ type MarketTick = {
   changePct: number;
 };
 
-type Insight = {
-  symbol: string;
+type AgentVote = {
   sentiment: "BULLISH" | "BEARISH" | "NEUTRAL";
   confidence: number;
+  reason?: string;
 };
 
 export class FundEngine {
@@ -23,21 +26,6 @@ export class FundEngine {
     { symbol: "BTC", price: 68400, changePct: -1.2 },
   ];
 
-  private generateInsight(symbol: string): Insight {
-    const rand = Math.random();
-
-    let sentiment: Insight["sentiment"] = "NEUTRAL";
-
-    if (rand > 0.6) sentiment = "BULLISH";
-    if (rand < 0.3) sentiment = "BEARISH";
-
-    return {
-      symbol,
-      sentiment,
-      confidence: Math.floor(50 + Math.random() * 50),
-    };
-  }
-
   private simulateMarketTick(tick: MarketTick): MarketTick {
     const volatility = tick.symbol === "BTC" ? 5 : 0.8;
 
@@ -50,31 +38,74 @@ export class FundEngine {
     };
   }
 
+  private aggregateVotes(votes: AgentVote[]) {
+    let score = 0;
+    let confidenceSum = 0;
+
+    votes.forEach((v) => {
+      const weight = v.confidence / 100;
+
+      confidenceSum += v.confidence;
+
+      if (v.sentiment === "BULLISH") score += weight;
+      if (v.sentiment === "BEARISH") score -= weight;
+    });
+
+    const avgConfidence = confidenceSum / votes.length;
+
+    let sentiment: "BULLISH" | "BEARISH" | "NEUTRAL" = "NEUTRAL";
+
+    if (score > 0.8) sentiment = "BULLISH";
+    else if (score < -0.8) sentiment = "BEARISH";
+
+    return {
+      sentiment,
+      confidence: avgConfidence,
+      score,
+    };
+  }
+
   start(onTrade: (trade: any) => void) {
     if (this.interval) return;
 
     this.interval = setInterval(() => {
-      // 1. update market
+      // 1. UPDATE MARKET
       this.market = this.market.map((t) =>
         this.simulateMarketTick(t)
       );
 
-      // 2. pick random asset
+      // 2. PICK RANDOM ASSET
       const asset =
         this.market[Math.floor(Math.random() * this.market.length)];
 
-      // 3. generate insight
-      const insight = this.generateInsight(asset.symbol);
+      // 3. MULTI-AGENT SYSTEM
+      const macro = MacroAgent.analyze() as AgentVote;
+      const quant = QuantAgent.analyze(asset) as AgentVote;
+      const news = NewsAgent.analyze() as AgentVote;
 
-      // 4. run strategy engine
-      const decision = StrategyEngine.generateDecision(
-        asset,
-        insight
-      );
+      const riskVote: AgentVote = (() => {
+        if (asset.changePct < -1.5)
+          return { sentiment: "BEARISH", confidence: 70, reason: "Price drawdown risk" };
+        if (asset.changePct > 1.5)
+          return { sentiment: "BULLISH", confidence: 60, reason: "Strong momentum" };
+        return { sentiment: "NEUTRAL", confidence: 50, reason: "Stable outlook" };
+      })();
+
+      const votes: AgentVote[] = [macro, quant, riskVote, news];
+
+      // 4. AGGREGATE CONSENSUS
+      const consensus = this.aggregateVotes(votes);
+
+      // 5. FINAL DECISION INPUT
+      const decision = StrategyEngine.generateDecision(asset, {
+        symbol: asset.symbol,
+        sentiment: consensus.sentiment,
+        confidence: consensus.confidence,
+      });
 
       if (decision.action === "HOLD") return;
 
-      // 5. emit trade
+      // 6. EMIT TRADE
       onTrade({
         id: Date.now(),
         symbol: decision.symbol,
