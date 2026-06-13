@@ -14,10 +14,15 @@ export default function StockPanel({ symbol }: { symbol: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
+
     const load = async () => {
       try {
+        setLoading(true);
+
         const res = await fetch(`/api/stock?symbol=${symbol}`);
         const json = await res.json();
+
         setData(json);
       } catch (err) {
         console.error("Stock fetch error:", err);
@@ -27,7 +32,7 @@ export default function StockPanel({ symbol }: { symbol: string }) {
     };
 
     load();
-    const interval = setInterval(load, 5000);
+    interval = setInterval(load, 5000);
 
     return () => clearInterval(interval);
   }, [symbol]);
@@ -42,7 +47,7 @@ export default function StockPanel({ symbol }: { symbol: string }) {
 
   return (
     <div className="p-4 rounded-xl border border-slate-800 bg-[#0B1020]">
-      <h2 className="text-white font-bold">{data.symbol}</h2>
+      <h2 className="text-white font-semibold">{data.symbol}</h2>
 
       <p className="text-green-400 text-2xl">
         ${data.price}
