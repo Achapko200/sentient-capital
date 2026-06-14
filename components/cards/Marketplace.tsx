@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import type { Listing }       from "@/lib/listings";
-import BuyWithCrypto          from "@/components/cards/BuywithCrypto";
+import type { Listing } from "@/lib/listings";
+import DynamicBuyButton from "@/components/cards/DynamicBuyButton";
 
 export default function Marketplace() {
-  const [listings,  setListings]  = useState<Listing[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [buying,    setBuying]    = useState<Listing | null>(null);
-  const [soldIds,   setSoldIds]   = useState<Set<string>>(new Set());
+  const [listings,  setListings] = useState<Listing[]>([]);
+  const [loading,   setLoading]  = useState(true);
+  const [soldIds,   setSoldIds]  = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const load = async () => {
@@ -26,18 +25,12 @@ export default function Marketplace() {
     load();
   }, []);
 
-  const handleSuccess = (listingId: string) => {
-    setSoldIds((prev) => new Set([...prev, listingId]));
-    setBuying(null);
-  };
-
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-
       <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
         <div>
           <h3 className="text-gray-900 font-black text-base">Marketplace</h3>
-          <p className="text-gray-400 text-xs mt-0.5">Buy cards with USDC · Base network</p>
+          <p className="text-gray-400 text-xs mt-0.5">Buy cards with USDC · Dynamic wallet</p>
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold border border-purple-200">
           <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
@@ -79,26 +72,13 @@ export default function Marketplace() {
                   {isSold ? (
                     <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-gray-100 text-gray-400">SOLD</span>
                   ) : (
-                    <button
-                      onClick={() => setBuying(listing)}
-                      className="text-xs font-black px-3 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
-                    >
-                      Buy Now ⟠
-                    </button>
+                    <DynamicBuyButton listing={listing} />
                   )}
                 </div>
               </div>
             );
           })}
         </div>
-      )}
-
-      {buying && (
-        <BuyWithCrypto
-          listing={buying}
-          onClose={() => setBuying(null)}
-          onSuccess={() => handleSuccess(buying.id)}
-        />
       )}
     </div>
   );
