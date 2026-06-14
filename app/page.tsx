@@ -1,78 +1,105 @@
-// ─── app/page.tsx ─────────────────────────────────────────────────────────────
+// ─── app/cards/page.tsx ──────────────────────────────────────────────────────
+"use client";
 
-import TopBar       from "@/components/TopBar";
-import Sidebar      from "@/components/Sidebar";
-import Footer       from "@/components/Footer";
-import StockPanel   from "@/components/StockPanel";
-import ExecutionLog from "@/components/ExecutionLog";
-import EquityCurve  from "@/components/EquityCurve";
-import PortfolioCard from "@/components/PortfolioCard";
-import AgentPanel   from "@/components/AgentPanel";
-import MarketStream from "@/components/MarketStream";
-import InsightsPanel from "@/components/InsightsPanel";
-import Markets      from "@/components/Markets";
+import { useState }       from "react";
+import { WATCHLIST }      from "@/lib/players";
+import PlayerCard         from "@/components/cards/PlayerCard";
+import NewsTickerCard     from "@/components/cards/NewsTickerCard";
 
-export default function Home() {
+type Filter = "ALL" | "BUY" | "SELL" | "HOLD";
+
+export default function CardsPage() {
+  const [filter, setFilter] = useState<Filter>("ALL");
+
+  const filters: Filter[] = ["ALL", "BUY", "HOLD", "SELL"];
+
+  const FILTER_STYLES: Record<Filter, string> = {
+    ALL:  "bg-white/10 text-white",
+    BUY:  "bg-green-500/20 text-green-400 border border-green-500/30",
+    HOLD: "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30",
+    SELL: "bg-red-500/20 text-red-400 border border-red-500/30",
+  };
+
   return (
-    <div className="flex h-screen bg-[#030712] text-white overflow-hidden">
+    <div className="min-h-screen bg-[#030712] text-white p-8">
 
-      {/* Sidebar */}
-      <Sidebar />
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-3xl">⚾</span>
+          <h1 className="text-4xl font-bold">Baseball Card Tracker</h1>
+        </div>
+        <p className="text-gray-400">
+          Real MLB performance data · eBay price tracking · AI buy/sell signals
+        </p>
+      </div>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Filter bar */}
+      <div className="flex gap-2 mb-6">
+        {filters.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+              filter === f ? FILTER_STYLES[f] : "text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
 
-        <TopBar />
+      {/* Main grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Left: cards */}
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {WATCHLIST.map((player) => (
+            <PlayerCard key={player.id} player={player} />
+          ))}
+        </div>
 
-          {/* Section: Live Prices */}
-          <section>
-            <h2 className="text-xs text-slate-500 uppercase tracking-widest mb-3">Live Prices</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <StockPanel symbol="TSLA" />
-              <StockPanel symbol="NVDA" />
-            </div>
-          </section>
+        {/* Right: news + info */}
+        <div className="space-y-4">
+          <NewsTickerCard />
 
-          {/* Section: Agents */}
-          <section>
-            <h2 className="text-xs text-slate-500 uppercase tracking-widest mb-3">AI Committee</h2>
-            <AgentPanel />
-          </section>
-
-          {/* Section: Equity + Portfolio */}
-          <section>
-            <h2 className="text-xs text-slate-500 uppercase tracking-widest mb-3">Fund Performance</h2>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <EquityCurve />
+          {/* How it works */}
+          <div className="bg-[#0b0f19] border border-gray-800 rounded-xl p-5">
+            <h3 className="text-white font-semibold mb-3">How signals work</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex gap-3">
+                <span className="text-green-400 font-bold w-10 shrink-0">BUY</span>
+                <p className="text-gray-400">Strong recent performance + price hasn't moved yet. Early window before collectors pile in.</p>
               </div>
-              <PortfolioCard />
+              <div className="flex gap-3">
+                <span className="text-yellow-400 font-bold w-10 shrink-0">HOLD</span>
+                <p className="text-gray-400">Mixed signals or price already reflects performance. Wait for clearer entry/exit.</p>
+              </div>
+              <div className="flex gap-3">
+                <span className="text-red-400 font-bold w-10 shrink-0">SELL</span>
+                <p className="text-gray-400">Slump detected or price elevated vs. recent performance. Sell into current demand.</p>
+              </div>
             </div>
-          </section>
+          </div>
 
-          {/* Section: Execution + Market Stream */}
-          <section>
-            <h2 className="text-xs text-slate-500 uppercase tracking-widest mb-3">Trade Execution</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <ExecutionLog />
-              <MarketStream />
+          {/* Data sources */}
+          <div className="bg-[#0b0f19] border border-gray-800 rounded-xl p-5">
+            <h3 className="text-white font-semibold mb-3">Data sources</h3>
+            <div className="space-y-2 text-sm">
+              {[
+                { name: "MLB Stats API",  status: "LIVE",  color: "text-green-400" },
+                { name: "ESPN News",      status: "LIVE",  color: "text-green-400" },
+                { name: "eBay Sales",     status: "MOCK",  color: "text-yellow-400" },
+                { name: "X Sentiment",    status: "SOON",  color: "text-gray-500" },
+              ].map((s) => (
+                <div key={s.name} className="flex justify-between items-center">
+                  <span className="text-gray-400">{s.name}</span>
+                  <span className={`text-xs font-bold ${s.color}`}>{s.status}</span>
+                </div>
+              ))}
             </div>
-          </section>
-
-          {/* Section: Markets + Insights */}
-          <section>
-            <h2 className="text-xs text-slate-500 uppercase tracking-widest mb-3">Intelligence</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <Markets />
-              <InsightsPanel />
-            </div>
-          </section>
-
-        </main>
-
-        <Footer />
+          </div>
+        </div>
       </div>
     </div>
   );
