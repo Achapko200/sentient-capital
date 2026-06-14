@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import type { Trader } from "@/lib/traders";
 
 export default function TraderLeaderboard() {
-  const [traders, setTraders] = useState<Trader[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [traders,  setTraders]  = useState<Trader[]>([]);
+  const [ensNames, setEnsNames] = useState<Record<string, string>>({});
+  const [loading,  setLoading]  = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -13,7 +14,19 @@ export default function TraderLeaderboard() {
       try {
         const res  = await fetch("/api/cards/leaderboard");
         const json = await res.json();
-        setTraders(json.traders ?? []);
+        const list: Trader[] = json.traders ?? [];
+        setTraders(list);
+
+        // Resolve ENS names for all wallets
+        const ensRes = await fetch("/api/cards/ens", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ addresses: list.map((t) => t.wallet) }),
+        });
+        if (ensRes.ok) {
+          const ensJson = await ensRes.json();
+          setEnsNames(ensJson.names ?? {});
+        }
       } catch {
         setTraders([]);
       } finally {
@@ -23,18 +36,27 @@ export default function TraderLeaderboard() {
     load();
   }, []);
 
+  const displayWallet = (trader: Trader) => {
+    const ens = ensNames[trader.wallet];
+    if (ens) return ens;
+    return `${trader.wallet.slice(0, 6)}...${trader.wallet.slice(-4)}`;
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-
-      {/* Header */}
       <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
         <div>
           <h3 className="text-gray-900 font-black text-base">Trader Leaderboard</h3>
-          <p className="text-gray-400 text-xs mt-0.5">Unrealized gains · ranked by profit</p>
+          <p className="text-gray-400 text-xs mt-0.5">Unrealized gains · ENS names resolved</p>
         </div>
-        <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
-          LIVE P&L
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+            ENS
+          </span>
+          <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+            LIVE P&L
+          </span>
+        </div>
       </div>
 
       {loading ? (
@@ -49,34 +71,27 @@ export default function TraderLeaderboard() {
                 className="w-full px-5 py-4 flex items-center gap-3 hover:bg-gray-50 transition text-left"
                 onClick={() => setExpanded(expanded === trader.id ? null : trader.id)}
               >
-                {/* Rank */}
-                <span className={`text-lg font-black w-6 shrink-0 ${
-                  idx === 0 ? "text-yellow-500" :
-                  idx === 1 ? "text-gray-400" :
-                  idx === 2 ? "text-orange-500" : "text-gray-300"
-                }`}>
+                <span className="text-lg font-black w-6 shrink-0">
                   {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
                 </span>
 
-                {/* Avatar + name */}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span className="text-2xl">{trader.avatar}</span>
                   <div className="min-w-0">
                     <p className="text-gray-900 font-bold text-sm truncate">{trader.name}</p>
-                    <p className="text-gray-400 text-xs font-mono">{trader.wallet}</p>
+                    <p className="text-blue-600 text-xs font-mono">
+                      {displayWallet(trader)}
+                    </p>
                   </div>
                 </div>
 
-                {/* Gains */}
                 <div className="text-right shrink-0">
                   <p className="text-green-600 font-black text-base">+${trader.unrealizedGain.toLocaleString()}</p>
                   <p className="text-green-500 text-xs font-semibold">+{trader.unrealizedPct.toFixed(1)}%</p>
                 </div>
-
                 <span className="text-gray-300 ml-1">{expanded === trader.id ? "▲" : "▼"}</span>
               </button>
 
-              {/* Expanded positions */}
               {expanded === trader.id && (
                 <div className="px-5 pb-4 bg-gray-50 border-t border-gray-100">
                   <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3 pt-3">
