@@ -1,4 +1,5 @@
-const hre = require("hardhat");
+import "dotenv/config";
+import hre from "hardhat";
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
@@ -14,9 +15,7 @@ async function main() {
 
   const address = await escrow.getAddress();
   console.log("CardEscrow deployed to:", address);
-  console.log("USDC address:", USDC_ARC_TESTNET);
-  console.log("Platform wallet:", PLATFORM_WALLET);
-  console.log("\nAdd to .env.local: NEXT_PUBLIC_ESCROW_ADDRESS=" + address);
+  console.log("Add to .env.local: NEXT_PUBLIC_ESCROW_ADDRESS=" + address);
 }
 
 main().catch((err) => {
