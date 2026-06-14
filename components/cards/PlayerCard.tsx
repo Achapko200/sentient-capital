@@ -20,83 +20,61 @@ const SIGNAL_BORDER: Record<string, string> = {
   HOLD: "border-yellow-400",
 };
 
-const SIGNAL_GLOW: Record<string, string> = {
-  BUY:  "shadow-green-200",
-  SELL: "shadow-red-200",
-  HOLD: "shadow-yellow-200",
-};
-
 function BaseballCard({ player, signal }: { player: Player; signal: string }) {
   const [imgError, setImgError] = useState(false);
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden mx-auto"
+      className="relative rounded-lg overflow-hidden shrink-0"
       style={{
-        width: "100%",
-        maxWidth: 280,
-        aspectRatio: "2.5/3.5",
+        width: 90,
+        height: 126,
         background: `linear-gradient(145deg, ${player.cardColor}, ${player.teamColor})`,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
       }}
     >
-      {/* Card shine overlay */}
+      {/* Shine */}
       <div className="absolute inset-0 opacity-20"
-        style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%, rgba(255,255,255,0.1) 100%)"
-        }}
+        style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%)" }}
       />
 
-      {/* Top label */}
-      <div className="absolute top-0 left-0 right-0 flex justify-between items-center px-3 py-2 z-10">
-        <span className="text-white text-xs font-black opacity-90 uppercase tracking-widest"
-          style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>
-          {player.cardName.split(" ")[0]} {player.cardName.split(" ")[1]}
-        </span>
-        <span className="text-white text-xs font-bold opacity-80 bg-black/30 px-1.5 py-0.5 rounded">
-          PSA 10
-        </span>
+      {/* PSA badge */}
+      <div className="absolute top-1 right-1 bg-black/40 text-white font-black px-1 rounded"
+        style={{ fontSize: 7 }}>
+        PSA 10
       </div>
 
-      {/* Player photo */}
-      <div className="absolute inset-0 flex items-center justify-center pt-6 pb-14">
+      {/* Photo */}
+      <div className="absolute inset-0 flex items-start justify-center pt-3 pb-8">
         {!imgError ? (
           <Image
             src={player.cardImage}
             alt={player.name}
-            width={200}
-            height={220}
-            className="object-contain drop-shadow-2xl"
-            style={{ maxHeight: "75%", width: "auto" }}
+            width={70}
+            height={80}
+            className="object-contain drop-shadow-lg"
+            style={{ maxHeight: "65%", width: "auto" }}
             onError={() => setImgError(true)}
             unoptimized
           />
         ) : (
-          <div className="flex flex-col items-center justify-center opacity-60">
-            <span className="text-6xl">⚾</span>
-            <span className="text-white text-sm font-bold mt-2 opacity-80">
-              {player.name.split(" ").pop()}
-            </span>
-          </div>
+          <span className="text-4xl mt-2">⚾</span>
         )}
       </div>
 
-      {/* Bottom info bar */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 py-2"
-        style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}>
-        <p className="text-white font-black text-sm leading-tight">{player.name}</p>
-        <div className="flex justify-between items-center">
-          <p className="text-white/70 text-xs">{player.team}</p>
-          <p className="text-white/70 text-xs font-bold">{player.position}</p>
-        </div>
+      {/* Name bar */}
+      <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1"
+        style={{ background: "rgba(0,0,0,0.65)" }}>
+        <p className="text-white font-black leading-tight truncate" style={{ fontSize: 8 }}>{player.name}</p>
+        <p className="text-white/60" style={{ fontSize: 7 }}>{player.position}</p>
       </div>
 
       {/* Signal ribbon */}
-      <div className={`absolute top-3 -right-6 rotate-45 px-8 py-0.5 text-xs font-black ${
+      <div className={`absolute top-4 -left-5 -rotate-45 px-6 py-px font-black ${
         signal === "BUY"  ? "bg-green-500 text-white" :
         signal === "SELL" ? "bg-red-500 text-white" :
         "bg-yellow-400 text-yellow-900"
-      }`}>
+      }`} style={{ fontSize: 7 }}>
         {signal}
       </div>
     </div>
@@ -114,7 +92,7 @@ export default function PlayerCard({ player }: { player: Player }) {
       const json = await res.json();
       setData(json);
     } catch {
-      // retry on next interval
+      // retry
     } finally {
       setLoading(false);
     }
@@ -128,12 +106,14 @@ export default function PlayerCard({ player }: { player: Player }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm overflow-hidden animate-pulse">
-        <div className="h-64 bg-gray-100" />
-        <div className="p-4 space-y-2">
-          <div className="h-4 bg-gray-100 rounded w-32" />
-          <div className="h-8 bg-gray-100 rounded w-20" />
-          <div className="h-3 bg-gray-100 rounded w-full" />
+      <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-4 animate-pulse">
+        <div className="flex gap-3">
+          <div className="shrink-0 rounded-lg bg-gray-100" style={{ width: 90, height: 126 }} />
+          <div className="flex-1 space-y-2 pt-1">
+            <div className="h-4 bg-gray-100 rounded w-24" />
+            <div className="h-6 bg-gray-100 rounded w-16" />
+            <div className="h-3 bg-gray-100 rounded w-full" />
+          </div>
         </div>
       </div>
     );
@@ -144,93 +124,103 @@ export default function PlayerCard({ player }: { player: Player }) {
   const { stats, sales, sentiment, cardSignal, avgPrice, priceChange } = data;
   const isUp        = priceChange >= 0;
   const borderClass = SIGNAL_BORDER[cardSignal.signal] ?? "border-gray-200";
-  const glowClass   = SIGNAL_GLOW[cardSignal.signal]  ?? "";
 
   return (
-    <div className={`bg-white rounded-2xl border-2 ${borderClass} shadow-lg ${glowClass} overflow-hidden flex flex-col hover:shadow-xl transition-shadow`}>
+    <div className={`bg-white rounded-2xl border-2 ${borderClass} shadow-sm hover:shadow-md transition-shadow overflow-hidden`}>
 
-      {/* Card visual */}
-      <div className="p-4 pb-2 bg-gray-50 border-b border-gray-100">
+      {/* TOP ROW: card image top-left, % gain top-right */}
+      <div className="flex items-start gap-3 p-4 pb-3">
+
+        {/* Baseball card — top left, fixed size, no centering */}
         <BaseballCard player={player} signal={cardSignal.signal} />
-      </div>
 
-      {/* Info section */}
-      <div className="p-4 flex flex-col gap-3">
+        {/* Right of card */}
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
 
-        {/* Name + signal */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="text-gray-900 font-black text-base">{player.name}</h3>
-            <p className="text-gray-400 text-xs">{player.cardName}</p>
+          {/* Name row + % gain top-right */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="text-gray-900 font-black text-sm leading-tight truncate">{player.name}</h3>
+              <p className="text-gray-400 text-xs truncate">{player.team}</p>
+              <p className="text-gray-300 text-xs truncate">{player.cardName}</p>
+            </div>
+
+            {/* % gain — hard top right */}
+            <div className="text-right shrink-0">
+              <p className={`text-2xl font-black leading-none ${isUp ? "text-green-600" : "text-red-600"}`}>
+                {isUp ? "+" : ""}{priceChange}%
+              </p>
+              <p className="text-gray-400 text-xs mt-0.5">14-day</p>
+            </div>
           </div>
+
+          {/* Signal badge */}
           <SignalBadge signal={cardSignal.signal} confidence={cardSignal.confidence} />
-        </div>
 
-        {/* Price row */}
-        <div className="flex items-end gap-4">
-          <div>
-            <p className="text-gray-400 text-xs">Avg PSA 10 sale</p>
-            <p className="text-gray-900 text-2xl font-black">${avgPrice}</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-xs">14-day</p>
-            <p className={`text-lg font-bold ${isUp ? "text-green-600" : "text-red-600"}`}>
-              {isUp ? "+" : ""}{priceChange}%
-            </p>
-          </div>
-          <div className="ml-auto text-right">
+          {/* Price + target */}
+          <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <p className="text-gray-400 text-xs">Avg PSA 10</p>
+              <p className="text-gray-900 text-xl font-black">${avgPrice}</p>
+            </div>
             {cardSignal.buyBelow && (
-              <>
+              <div>
                 <p className="text-gray-400 text-xs">Buy below</p>
-                <p className="text-green-600 font-black text-lg">${cardSignal.buyBelow}</p>
-              </>
+                <p className="text-green-600 font-black text-sm">${cardSignal.buyBelow}</p>
+              </div>
             )}
             {cardSignal.sellAbove && !cardSignal.buyBelow && (
-              <>
+              <div>
                 <p className="text-gray-400 text-xs">Sell above</p>
-                <p className="text-red-600 font-black text-lg">${cardSignal.sellAbove}</p>
-              </>
+                <p className="text-red-600 font-black text-sm">${cardSignal.sellAbove}</p>
+              </div>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Chart */}
-        {sales.length > 0 && <PriceChart sales={sales} />}
-
-        {/* Sentiment bar */}
-        <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-          <div className="flex justify-between items-center mb-1.5">
-            <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Sentiment</span>
-            <span className={`text-xs font-black ${SENTIMENT_COLOR[sentiment.label] ?? "text-gray-600"}`}>
-              {sentiment.label}
-            </span>
-          </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                sentiment.score >= 60 ? "bg-green-500" :
-                sentiment.score >= 40 ? "bg-yellow-400" : "bg-red-500"
-              }`}
-              style={{ width: `${sentiment.score}%` }}
-            />
-          </div>
-          <ul className="space-y-0.5">
-            {sentiment.reasons.slice(0, 2).map((r, i) => (
-              <li key={i} className="text-gray-500 text-xs">• {r}</li>
-            ))}
-          </ul>
+      {/* Sentiment */}
+      <div className="mx-4 mb-3 rounded-lg p-3 bg-gray-50 border border-gray-200">
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Sentiment</span>
+          <span className={`text-xs font-black ${SENTIMENT_COLOR[sentiment.label] ?? "text-gray-600"}`}>
+            {sentiment.label}
+          </span>
         </div>
+        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1.5">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${
+              sentiment.score >= 60 ? "bg-green-500" :
+              sentiment.score >= 40 ? "bg-yellow-400" : "bg-red-500"
+            }`}
+            style={{ width: `${sentiment.score}%` }}
+          />
+        </div>
+        <ul className="space-y-0.5">
+          {sentiment.reasons.slice(0, 2).map((r, i) => (
+            <li key={i} className="text-gray-500 text-xs">• {r}</li>
+          ))}
+        </ul>
+      </div>
 
-        {/* Expand */}
+      {/* Chart */}
+      {sales.length > 0 && (
+        <div className="mx-4 mb-3">
+          <PriceChart sales={sales} />
+        </div>
+      )}
+
+      {/* Expand */}
+      <div className="px-4 pb-4">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-blue-600 text-xs font-semibold hover:text-blue-700 transition text-left"
+          className="text-blue-600 text-xs font-semibold hover:text-blue-700 transition"
         >
           {expanded ? "▲ Hide details" : "▼ Show stats & reasoning"}
         </button>
 
         {expanded && (
-          <div className="space-y-3">
+          <div className="space-y-3 mt-3">
             {stats && (
               <div className="grid grid-cols-4 gap-2">
                 {[
