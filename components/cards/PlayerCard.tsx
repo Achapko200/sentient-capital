@@ -4,8 +4,31 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { CardData, Player }            from "@/lib/cardTypes";
-import SignalBadge  from "@/components/cards/SignalBadge";
-import PriceChart   from "@/components/cards/PriceChart";
+import SignalBadge  from "./SignalBadge";
+
+// Local lightweight PriceChart fallback to avoid import errors when the
+// external component is not present. Renders a simple sparkline-like bar
+// visualization for the provided sales data.
+function PriceChart({ sales }: { sales: { price: number; date?: string; id?: string }[] }) {
+  if (!sales || sales.length === 0) return null;
+  const prices = sales.map((s) => s.price);
+  const max = Math.max(...prices);
+  const min = Math.min(...prices);
+  const range = Math.max(1, max - min);
+
+  return (
+    <div className="w-full h-20 flex items-end gap-1">
+      {prices.map((p, i) => (
+        <div
+          key={i}
+          style={{ height: `${((p - min) / range) * 100}%` }}
+          className="flex-1 bg-white/10 rounded"
+          title={`$${p}`}
+        />
+      ))}
+    </div>
+  );
+}
 
 const SENTIMENT_COLOR: Record<string, string> = {
   "VERY BULLISH": "text-green-400",

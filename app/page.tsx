@@ -2,9 +2,9 @@
 "use client";
 
 import { useState }       from "react";
-import { WATCHLIST }      from "@/lib/players";
-import PlayerCard         from "@/components/cards/PlayerCard";
-import NewsTickerCard     from "@/components/cards/NewsTickerCard";
+import { WATCHLIST }      from "../lib/players";
+import PlayerCard         from "../components/cards/PlayerCard";
+import NewsTickerCard     from "../components/cards/NewsTickerCard";
 
 type Filter = "ALL" | "BUY" | "SELL" | "HOLD";
 

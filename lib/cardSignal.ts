@@ -1,8 +1,8 @@
 // ─── lib/cardSignal.ts ───────────────────────────────────────────────────────
 // Combines sentiment + price momentum + eBay sales to generate BUY/SELL/HOLD.
 
-import type { MLBStats, EbaySale, SentimentScore, CardSignal } from "@/lib/cardTypes";
-import { calcAvgPrice, calcPriceChange } from "@/lib/ebay";
+import type { MLBStats, EbaySale, SentimentScore, CardSignal } from "./cardTypes";
+import { calcAvgPrice, calcPriceChange } from "./ebay";
 
 export function generateSignal(
   stats:     MLBStats | null,

@@ -1,11 +1,11 @@
 // ─── app/api/cards/[playerId]/route.ts ───────────────────────────────────────
 
 import { NextResponse }       from "next/server";
-import { fetchMLBStats }      from "@/lib/mlb";
-import { fetchEbaySales, calcAvgPrice, calcPriceChange } from "@/lib/ebay";
-import { calcSentiment }      from "@/lib/sentiment";
-import { generateSignal }     from "@/lib/cardSignal";
-import { WATCHLIST }          from "@/lib/players";
+import { fetchMLBStats }      from "../../../../lib/mlb";
+import { fetchEbaySales, calcAvgPrice, calcPriceChange } from "../../../../lib/ebay";
+import { calcSentiment }      from "../../../../lib/sentiment";
+import { generateSignal }     from "../../../../lib/cardSignal";
+import { WATCHLIST }          from "../../../../lib/players";
 
 export async function GET(
   _req: Request,
