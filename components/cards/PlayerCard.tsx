@@ -72,7 +72,7 @@ export default function PlayerCard({ player }: { player: Player }) {
     );
   }
 
-  if (!data) return null;
+  if (!data || !data.cardSignal) return null;
 
   const { stats, sales, sentiment, cardSignal, avgPrice, priceChange } = data;
   const isUp = priceChange >= 0;

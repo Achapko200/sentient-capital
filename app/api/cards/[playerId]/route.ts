@@ -1,5 +1,3 @@
-// ─── app/api/cards/[playerId]/route.ts ───────────────────────────────────────
-
 import { NextResponse }       from "next/server";
 import { fetchMLBStats }      from "../../../../lib/mlb";
 import { fetchEbaySales, calcAvgPrice, calcPriceChange } from "../../../../lib/ebay";
@@ -9,9 +7,10 @@ import { WATCHLIST }          from "../../../../lib/players";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { playerId: string } },
+  context: { params: Promise<{ playerId: string }> },
 ) {
-  const player = WATCHLIST.find((p) => p.id === params.playerId);
+  const { playerId } = await context.params;
+  const player = WATCHLIST.find((p) => p.id === playerId);
 
   if (!player) {
     return NextResponse.json({ error: "Player not found" }, { status: 404 });
