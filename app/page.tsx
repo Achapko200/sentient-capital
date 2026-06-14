@@ -6,16 +6,18 @@ import PlayerCard            from "@/components/cards/PlayerCard";
 import NewsTickerCard        from "@/components/cards/NewsTickerCard";
 import TraderLeaderboard     from "@/components/cards/TraderLeaderboard";
 import AnalystPanel          from "@/components/cards/AnalystPanel";
+import Marketplace from "@/components/cards/Marketplace";
 
-type Tab = "cards" | "traders" | "analysts";
+type Tab = "cards" | "traders" | "analysts" | "marketplace";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("cards");
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id: "cards",   label: "Card Tracker",  icon: "⚾" },
-    { id: "traders", label: "Trader Gains",  icon: "📈" },
-    { id: "analysts",label: "Analyst Picks", icon: "🎓" },
+    { id: "cards",       label: "Card Tracker",  icon: "⚾" },
+    { id: "marketplace", label: "Buy Cards",     icon: "🛒" },
+    { id: "traders",     label: "Trader Gains",  icon: "📈" },
+    { id: "analysts",    label: "Analyst Picks", icon: "🎓" },
   ];
 
   return (
@@ -40,10 +42,10 @@ export default function Home() {
           </div>
           <div className="flex gap-2">
             {[
-              { label: "MLB Live",   color: "bg-green-100 text-green-700 border-green-200" },
-              { label: "ESPN Live",  color: "bg-green-100 text-green-700 border-green-200" },
-              { label: "eBay Mock",  color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-              { label: "⟠ ETH · ◎ SOL · ₿ BTC", color: "bg-purple-100 text-purple-700 border-purple-200" },
+              { label: "MLB Live",          color: "bg-green-100 text-green-700 border-green-200" },
+              { label: "ESPN Live",         color: "bg-green-100 text-green-700 border-green-200" },
+              { label: "eBay Mock",         color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+              { label: "USDC · Base",       color: "bg-purple-100 text-purple-700 border-purple-200" },
             ].map((s) => (
               <span key={s.label} className={`text-xs font-semibold px-3 py-1 rounded-full border ${s.color}`}>
                 {s.label}
@@ -60,7 +62,9 @@ export default function Home() {
               onClick={() => setTab(t.id)}
               className={`px-5 py-2 rounded-xl text-sm font-bold transition ${
                 tab === t.id
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? t.id === "marketplace"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "bg-blue-600 text-white shadow-sm"
                   : "text-gray-500 hover:bg-gray-100"
               }`}
             >
@@ -86,9 +90,9 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold text-base mb-4">How signals work</h3>
                 <div className="space-y-4">
                   {[
-                    { signal: "BUY",  color: "bg-green-100 text-green-700 border-green-200",  desc: "Strong performance + price hasn't moved yet. Early window before collectors pile in." },
+                    { signal: "BUY",  color: "bg-green-100 text-green-700 border-green-200",   desc: "Strong performance + price hasn't moved yet. Early window before collectors pile in." },
                     { signal: "HOLD", color: "bg-yellow-100 text-yellow-700 border-yellow-200", desc: "Mixed signals or price already reflects performance. Wait for a clearer window." },
-                    { signal: "SELL", color: "bg-red-100 text-red-700 border-red-200",         desc: "Slump or price elevated vs. performance. Sell into current demand now." },
+                    { signal: "SELL", color: "bg-red-100 text-red-700 border-red-200",          desc: "Slump or price elevated vs. performance. Sell into current demand now." },
                   ].map((s) => (
                     <div key={s.signal} className="flex gap-3 items-start">
                       <span className={`text-xs font-black px-2 py-1 rounded-lg border shrink-0 ${s.color}`}>{s.signal}</span>
@@ -98,21 +102,69 @@ export default function Home() {
                 </div>
               </div>
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-                <h3 className="text-gray-900 font-bold text-base mb-3">Crypto payments</h3>
-                <p className="text-gray-500 text-sm mb-3">Pay or receive payment for cards in crypto. Click any card and tap the crypto button.</p>
-                <div className="flex gap-3 flex-wrap">
+                <h3 className="text-gray-900 font-bold text-base mb-3">Buy with crypto</h3>
+                <p className="text-gray-500 text-sm mb-3">Go to the 🛒 Buy Cards tab to purchase cards with USDC on Base network.</p>
+                <button
+                  onClick={() => setTab("marketplace")}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 transition"
+                >
+                  🛒 Go to Marketplace
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MARKETPLACE TAB */}
+        {tab === "marketplace" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Marketplace />
+            </div>
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-3">How buying works</h3>
+                <div className="space-y-3">
                   {[
-                    { icon: "⟠", label: "ETH",  color: "text-blue-500" },
-                    { icon: "◎", label: "SOL",  color: "text-purple-500" },
-                    { icon: "$", label: "USDC", color: "text-blue-400" },
-                    { icon: "₿", label: "BTC",  color: "text-orange-500" },
-                  ].map((t) => (
-                    <div key={t.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
-                      <span className={`font-bold ${t.color}`}>{t.icon}</span>
-                      <span className="text-gray-700 text-xs font-bold">{t.label}</span>
+                    { step: "1", text: "Click Buy Now on any card" },
+                    { step: "2", text: "Connect your Coinbase Wallet" },
+                    { step: "3", text: "Confirm the USDC payment on Base" },
+                    { step: "4", text: "Transaction confirms in seconds" },
+                    { step: "5", text: "Seller ships the card to you" },
+                  ].map((s) => (
+                    <div key={s.step} className="flex gap-3 items-center">
+                      <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 text-xs font-black flex items-center justify-center shrink-0">
+                        {s.step}
+                      </span>
+                      <p className="text-gray-600 text-sm">{s.text}</p>
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-3">Payment info</h3>
+                <div className="space-y-2 text-sm">
+                  {[
+                    { label: "Token",   value: "USDC (stable $1)" },
+                    { label: "Network", value: "Base by Coinbase" },
+                    { label: "Gas fee", value: "~$0.01 per tx" },
+                    { label: "Speed",   value: "~2 seconds" },
+                    { label: "Wallet",  value: "Coinbase Wallet" },
+                  ].map((r) => (
+                    <div key={r.label} className="flex justify-between">
+                      <span className="text-gray-400">{r.label}</span>
+                      <span className="text-gray-700 font-semibold">{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-purple-50 rounded-xl p-5 border border-purple-200">
+                <p className="text-purple-700 font-bold text-sm mb-1">Test before going live</p>
+                <p className="text-purple-600 text-xs leading-relaxed">
+                  Switch Coinbase Wallet to Base Sepolia testnet and get free test USDC at faucet.circle.com to test without real money.
+                </p>
               </div>
             </div>
           </div>
@@ -128,12 +180,12 @@ export default function Home() {
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-2">What is unrealized gain?</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">
-                  Unrealized gain is profit on cards you still own — the difference between what you paid and what they're worth today. It becomes real when you sell.
+                  Unrealized gain is profit on cards you still own — the difference between what you paid and what they are worth today. It becomes real when you sell.
                 </p>
               </div>
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-3">Avg hold times</h3>
-                <p className="text-gray-500 text-sm">Short-term traders flip in 2–4 weeks around performance spikes. Long-term holders average 3–6 months waiting for a full season story to develop.</p>
+                <p className="text-gray-500 text-sm">Short-term traders flip in 2-4 weeks around performance spikes. Long-term holders average 3-6 months waiting for a full season story to develop.</p>
               </div>
             </div>
           </div>
@@ -150,11 +202,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">Rating guide</h3>
                 <div className="space-y-2">
                   {[
-                    { r: "STRONG BUY",  color: "bg-green-100 text-green-700 border-green-200",   desc: "High conviction, buy immediately" },
+                    { r: "STRONG BUY",  color: "bg-green-100 text-green-700 border-green-200",      desc: "High conviction, buy immediately" },
                     { r: "BUY",         color: "bg-emerald-50 text-emerald-700 border-emerald-200", desc: "Good entry, favorable risk/reward" },
-                    { r: "HOLD",        color: "bg-yellow-100 text-yellow-700 border-yellow-200", desc: "Keep if you own, don't add" },
-                    { r: "SELL",        color: "bg-orange-100 text-orange-700 border-orange-200", desc: "Reduce position, take profits" },
-                    { r: "STRONG SELL", color: "bg-red-100 text-red-700 border-red-200",          desc: "Exit immediately" },
+                    { r: "HOLD",        color: "bg-yellow-100 text-yellow-700 border-yellow-200",   desc: "Keep if you own, do not add" },
+                    { r: "SELL",        color: "bg-orange-100 text-orange-700 border-orange-200",   desc: "Reduce position, take profits" },
+                    { r: "STRONG SELL", color: "bg-red-100 text-red-700 border-red-200",            desc: "Exit immediately" },
                   ].map((s) => (
                     <div key={s.r} className="flex items-center gap-3">
                       <span className={`text-xs font-black px-2 py-0.5 rounded-full border shrink-0 ${s.color}`}>{s.r}</span>
@@ -170,4 +222,3 @@ export default function Home() {
     </div>
   );
 }
-
