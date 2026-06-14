@@ -1,9 +1,9 @@
 import { NextResponse }       from "next/server";
-import { fetchMLBStats }      from "../../../../lib/mlb";
-import { fetchEbaySales, calcAvgPrice, calcPriceChange } from "../../../../lib/ebay";
-import { calcSentiment }      from "../../../../lib/sentiment";
-import { generateSignal }     from "../../../../lib/cardSignal";
-import { WATCHLIST }          from "../../../../lib/players";
+import { fetchMLBStats }      from "@/lib/mlb";
+import { fetchEbaySales, calcAvgPrice, calcPriceChange, calcPriceHistory, calcLiquidity } from "@/lib/ebay";
+import { calcSentiment }      from "@/lib/sentiment";
+import { generateSignal }     from "@/lib/cardSignal";
+import { WATCHLIST }          from "@/lib/players";
 
 export async function GET(
   _req: Request,
@@ -23,6 +23,8 @@ export async function GET(
 
   const avgPrice    = calcAvgPrice(sales);
   const priceChange = calcPriceChange(sales);
+  const priceHistory = calcPriceHistory(player.id);
+  const liquidity   = calcLiquidity(player.id);
   const sentiment   = calcSentiment(stats, priceChange);
   const cardSignal  = generateSignal(stats, sales, sentiment);
 
@@ -32,6 +34,8 @@ export async function GET(
     sales,
     avgPrice,
     priceChange,
+    priceHistory,
+    liquidity,
     sentiment,
     cardSignal,
   });

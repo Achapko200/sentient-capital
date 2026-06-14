@@ -10,8 +10,8 @@ export type Player = {
   cardName:  string;
   image:     string;
   cardImage: string;
-  cardColor: string;   // team primary color for card design
-  teamColor: string;   // team secondary color
+  cardColor: string;
+  teamColor: string;
 };
 
 export type MLBStats = {
@@ -22,11 +22,11 @@ export type MLBStats = {
   hits:    number;
   games:   number;
   lastGame: {
-    date:  string;
-    hits:  number;
-    hr:    number;
-    rbi:   number;
-    avg:   number;
+    date: string;
+    hits: number;
+    hr:   number;
+    rbi:  number;
+    avg:  number;
   } | null;
 };
 
@@ -36,6 +36,20 @@ export type EbaySale = {
   price:     number;
   date:      string;
   condition: string;
+};
+
+export type PriceHistory = {
+  week:       { current: number; previous: number; changePct: number };
+  threeMonth: { current: number; previous: number; changePct: number };
+  year:       { current: number; previous: number; changePct: number };
+};
+
+export type LiquidityScore = {
+  score:         number;
+  label:         "VERY LIQUID" | "LIQUID" | "MODERATE" | "THIN" | "ILLIQUID";
+  salesPerMonth: number;
+  daysToSell:    number;
+  color:         string;
 };
 
 export type SentimentScore = {
@@ -53,13 +67,15 @@ export type CardSignal = {
 };
 
 export type CardData = {
-  player:      Player;
-  stats:       MLBStats | null;
-  sales:       EbaySale[];
-  sentiment:   SentimentScore;
-  cardSignal:  CardSignal;
-  avgPrice:    number;
-  priceChange: number;
-  loading:     boolean;
-  error:       string | null;
+  player:       Player;
+  stats:        MLBStats | null;
+  sales:        EbaySale[];
+  priceHistory: PriceHistory;
+  liquidity:    LiquidityScore;
+  sentiment:    SentimentScore;
+  cardSignal:   CardSignal;
+  avgPrice:     number;
+  priceChange:  number;
+  loading:      boolean;
+  error:        string | null;
 };

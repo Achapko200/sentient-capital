@@ -20,6 +20,23 @@ const SIGNAL_BORDER: Record<string, string> = {
   HOLD: "border-yellow-400",
 };
 
+const LIQUIDITY_BG: Record<string, string> = {
+  "VERY LIQUID": "bg-green-50 border-green-200",
+  "LIQUID":      "bg-blue-50 border-blue-200",
+  "MODERATE":    "bg-yellow-50 border-yellow-200",
+  "THIN":        "bg-orange-50 border-orange-200",
+  "ILLIQUID":    "bg-red-50 border-red-200",
+};
+
+function PctChange({ value }: { value: number }) {
+  const isUp = value >= 0;
+  return (
+    <span className={`font-black text-sm ${isUp ? "text-green-600" : "text-red-600"}`}>
+      {isUp ? "+" : ""}{value}%
+    </span>
+  );
+}
+
 function BaseballCard({ player, signal }: { player: Player; signal: string }) {
   const [imgError, setImgError] = useState(false);
 
@@ -33,18 +50,12 @@ function BaseballCard({ player, signal }: { player: Player; signal: string }) {
         boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
       }}
     >
-      {/* Shine */}
       <div className="absolute inset-0 opacity-20"
-        style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%)" }}
-      />
+        style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%)" }} />
 
-      {/* PSA badge */}
       <div className="absolute top-1 right-1 bg-black/40 text-white font-black px-1 rounded"
-        style={{ fontSize: 7 }}>
-        PSA 10
-      </div>
+        style={{ fontSize: 7 }}>PSA 10</div>
 
-      {/* Photo */}
       <div className="absolute inset-0 flex items-start justify-center pt-3 pb-8">
         {!imgError ? (
           <Image
@@ -62,14 +73,12 @@ function BaseballCard({ player, signal }: { player: Player; signal: string }) {
         )}
       </div>
 
-      {/* Name bar */}
       <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1"
         style={{ background: "rgba(0,0,0,0.65)" }}>
         <p className="text-white font-black leading-tight truncate" style={{ fontSize: 8 }}>{player.name}</p>
         <p className="text-white/60" style={{ fontSize: 7 }}>{player.position}</p>
       </div>
 
-      {/* Signal ribbon */}
       <div className={`absolute top-4 -left-5 -rotate-45 px-6 py-px font-black ${
         signal === "BUY"  ? "bg-green-500 text-white" :
         signal === "SELL" ? "bg-red-500 text-white" :
@@ -121,31 +130,30 @@ export default function PlayerCard({ player }: { player: Player }) {
 
   if (!data || !data.cardSignal) return null;
 
-  const { stats, sales, sentiment, cardSignal, avgPrice, priceChange } = data;
+  const { stats, sales, sentiment, cardSignal, avgPrice, priceChange, priceHistory, liquidity } = data;
   const isUp        = priceChange >= 0;
   const borderClass = SIGNAL_BORDER[cardSignal.signal] ?? "border-gray-200";
+  const liqBg       = LIQUIDITY_BG[liquidity.label] ?? "bg-gray-50 border-gray-200";
 
   return (
     <div className={`bg-white rounded-2xl border-2 ${borderClass} shadow-sm hover:shadow-md transition-shadow overflow-hidden`}>
 
-      {/* TOP ROW: card image top-left, % gain top-right */}
+      {/* TOP ROW */}
       <div className="flex items-start gap-3 p-4 pb-3">
 
-        {/* Baseball card — top left, fixed size, no centering */}
+        {/* Card image — top left */}
         <BaseballCard player={player} signal={cardSignal.signal} />
 
-        {/* Right of card */}
+        {/* Right content */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
 
-          {/* Name row + % gain top-right */}
+          {/* Name + % gain top right */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h3 className="text-gray-900 font-black text-sm leading-tight truncate">{player.name}</h3>
               <p className="text-gray-400 text-xs truncate">{player.team}</p>
               <p className="text-gray-300 text-xs truncate">{player.cardName}</p>
             </div>
-
-            {/* % gain — hard top right */}
             <div className="text-right shrink-0">
               <p className={`text-2xl font-black leading-none ${isUp ? "text-green-600" : "text-red-600"}`}>
                 {isUp ? "+" : ""}{priceChange}%
@@ -154,10 +162,10 @@ export default function PlayerCard({ player }: { player: Player }) {
             </div>
           </div>
 
-          {/* Signal badge */}
+          {/* Signal */}
           <SignalBadge signal={cardSignal.signal} confidence={cardSignal.confidence} />
 
-          {/* Price + target */}
+          {/* Avg price + target */}
           <div className="flex items-end gap-3 flex-wrap">
             <div>
               <p className="text-gray-400 text-xs">Avg PSA 10</p>
@@ -179,7 +187,52 @@ export default function PlayerCard({ player }: { player: Player }) {
         </div>
       </div>
 
-      {/* Sentiment */}
+      {/* PRICE HISTORY — 1W / 3M / 1Y */}
+      <div className="mx-4 mb-3 rounded-lg border border-gray-200 overflow-hidden">
+        <div className="grid grid-cols-3 divide-x divide-gray-200">
+          {[
+            { label: "1 Week",   data: priceHistory.week },
+            { label: "3 Months", data: priceHistory.threeMonth },
+            { label: "1 Year",   data: priceHistory.year },
+          ].map((period) => {
+            const up = period.data.changePct >= 0;
+            return (
+              <div key={period.label} className="p-3 text-center">
+                <p className="text-gray-400 text-xs mb-1">{period.label}</p>
+                <PctChange value={period.data.changePct} />
+                <p className="text-gray-400 text-xs mt-0.5">
+                  ${period.data.previous} → ${period.data.current}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* LIQUIDITY */}
+      <div className={`mx-4 mb-3 rounded-lg p-3 border ${liqBg}`}>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Liquidity</span>
+          <span className={`text-xs font-black ${liquidity.color}`}>{liquidity.label}</span>
+        </div>
+        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-2">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${
+              liquidity.score >= 80 ? "bg-green-500" :
+              liquidity.score >= 55 ? "bg-blue-500" :
+              liquidity.score >= 35 ? "bg-yellow-400" :
+              liquidity.score >= 18 ? "bg-orange-400" : "bg-red-500"
+            }`}
+            style={{ width: `${liquidity.score}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>~{liquidity.salesPerMonth} sales/month</span>
+          <span>~{liquidity.daysToSell} days to sell</span>
+        </div>
+      </div>
+
+      {/* SENTIMENT */}
       <div className="mx-4 mb-3 rounded-lg p-3 bg-gray-50 border border-gray-200">
         <div className="flex justify-between items-center mb-1.5">
           <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Sentiment</span>
@@ -203,14 +256,14 @@ export default function PlayerCard({ player }: { player: Player }) {
         </ul>
       </div>
 
-      {/* Chart */}
+      {/* CHART */}
       {sales.length > 0 && (
         <div className="mx-4 mb-3">
           <PriceChart sales={sales} />
         </div>
       )}
 
-      {/* Expand */}
+      {/* EXPAND */}
       <div className="px-4 pb-4">
         <button
           onClick={() => setExpanded(!expanded)}
