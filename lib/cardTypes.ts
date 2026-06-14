@@ -3,12 +3,15 @@
 export type Signal = "BUY" | "SELL" | "HOLD";
 
 export type Player = {
-  id:       string;   // MLB player ID
-  name:     string;
-  team:     string;
-  position: string;
-  cardName: string;   // e.g. "2023 Topps Chrome PSA 10"
-  image:    string;   // emoji fallback
+  id:        string;
+  name:      string;
+  team:      string;
+  position:  string;
+  cardName:  string;
+  image:     string;
+  cardImage: string;
+  cardColor: string;   // team primary color for card design
+  teamColor: string;   // team secondary color
 };
 
 export type MLBStats = {
@@ -28,17 +31,17 @@ export type MLBStats = {
 };
 
 export type EbaySale = {
-  id:       string;
-  title:    string;
-  price:    number;
-  date:     string;
+  id:        string;
+  title:     string;
+  price:     number;
+  date:      string;
   condition: string;
 };
 
 export type SentimentScore = {
-  score:    number;   // 0-100
-  label:    "VERY BULLISH" | "BULLISH" | "NEUTRAL" | "BEARISH" | "VERY BEARISH";
-  reasons:  string[];
+  score:   number;
+  label:   "VERY BULLISH" | "BULLISH" | "NEUTRAL" | "BEARISH" | "VERY BEARISH";
+  reasons: string[];
 };
 
 export type CardSignal = {
@@ -50,13 +53,13 @@ export type CardSignal = {
 };
 
 export type CardData = {
-  player:     Player;
-  stats:      MLBStats | null;
-  sales:      EbaySale[];
-  sentiment:  SentimentScore;
-  cardSignal: CardSignal;
-  avgPrice:   number;
-  priceChange: number; // % change last 7 days
-  loading:    boolean;
-  error:      string | null;
+  player:      Player;
+  stats:       MLBStats | null;
+  sales:       EbaySale[];
+  sentiment:   SentimentScore;
+  cardSignal:  CardSignal;
+  avgPrice:    number;
+  priceChange: number;
+  loading:     boolean;
+  error:       string | null;
 };

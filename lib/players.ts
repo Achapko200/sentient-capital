@@ -10,6 +10,9 @@ export const WATCHLIST: Player[] = [
     position: "SP",
     cardName: "2024 Topps Chrome Rookie PSA 10",
     image:    "⚾",
+    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/683002/headshot/67/current",
+    cardColor: "#FDB827",
+    teamColor: "#27251F",
   },
   {
     id:       "682998",
@@ -18,6 +21,9 @@ export const WATCHLIST: Player[] = [
     position: "SS",
     cardName: "2024 Bowman Chrome Auto PSA 10",
     image:    "⚾",
+    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/682998/headshot/67/current",
+    cardColor: "#DF4601",
+    teamColor: "#000000",
   },
   {
     id:       "671939",
@@ -26,6 +32,9 @@ export const WATCHLIST: Player[] = [
     position: "SS",
     cardName: "2023 Topps Chrome PSA 10",
     image:    "⚾",
+    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/671939/headshot/67/current",
+    cardColor: "#DF4601",
+    teamColor: "#000000",
   },
   {
     id:       "660670",
@@ -34,6 +43,9 @@ export const WATCHLIST: Player[] = [
     position: "OF",
     cardName: "2018 Topps Update Rookie PSA 10",
     image:    "⚾",
+    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/660670/headshot/67/current",
+    cardColor: "#CE1141",
+    teamColor: "#13274F",
   },
   {
     id:       "808967",
@@ -42,6 +54,9 @@ export const WATCHLIST: Player[] = [
     position: "OF",
     cardName: "2024 Topps Chrome Rookie PSA 10",
     image:    "⚾",
+    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/808967/headshot/67/current",
+    cardColor: "#003278",
+    teamColor: "#C0111F",
   },
   {
     id:       "694973",
@@ -50,5 +65,8 @@ export const WATCHLIST: Player[] = [
     position: "OF",
     cardName: "2022 Topps Chrome Rookie PSA 10",
     image:    "⚾",
+    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/694973/headshot/67/current",
+    cardColor: "#0C2C56",
+    teamColor: "#005C5C",
   },
 ];
