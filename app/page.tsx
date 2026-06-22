@@ -11,7 +11,7 @@ import Marketplace                from "@/components/cards/Marketplace";
 import ListCardForm               from "@/components/cards/ListCardForm";
 import TradingPanel               from "@/components/cards/TradingPanel";
 import Portfolio                  from "@/components/cards/Portfolio";
-import SearchPlayers              from "@/components/cards/SearchPlayers";
+import SearchPlayers              from "@/components/cards/Searchplayers";
 
 type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts";
 
