@@ -2,71 +2,168 @@
 
 import type { Player } from "@/lib/cardTypes";
 
-export const WATCHLIST: Player[] = [
-  {
-    id:       "683002",
-    name:     "Paul Skenes",
-    team:     "Pittsburgh Pirates",
-    position: "SP",
-    cardName: "2024 Topps Chrome Rookie PSA 10",
-    image:    "⚾",
-    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/683002/headshot/67/current",
-    cardColor: "#FDB827",
-    teamColor: "#27251F",
-  },
-  {
-    id:       "682998",
-    name:     "Jackson Holliday",
-    team:     "Baltimore Orioles",
-    position: "SS",
-    cardName: "2024 Bowman Chrome Auto PSA 10",
-    image:    "⚾",
-    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/682998/headshot/67/current",
-    cardColor: "#DF4601",
-    teamColor: "#000000",
-  },
-  {
-    id:       "671939",
-    name:     "Gunnar Henderson",
-    team:     "Baltimore Orioles",
-    position: "SS",
-    cardName: "2023 Topps Chrome PSA 10",
-    image:    "⚾",
-    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/671939/headshot/67/current",
-    cardColor: "#DF4601",
-    teamColor: "#000000",
-  },
-  {
-    id:       "660670",
-    name:     "Ronald Acuña Jr.",
-    team:     "Atlanta Braves",
-    position: "OF",
-    cardName: "2018 Topps Update Rookie PSA 10",
-    image:    "⚾",
-    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/660670/headshot/67/current",
-    cardColor: "#CE1141",
-    teamColor: "#13274F",
-  },
-  {
-    id:       "808967",
-    name:     "Wyatt Langford",
-    team:     "Texas Rangers",
-    position: "OF",
-    cardName: "2024 Topps Chrome Rookie PSA 10",
-    image:    "⚾",
-    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/808967/headshot/67/current",
-    cardColor: "#003278",
-    teamColor: "#C0111F",
-  },
-  {
-    id:       "694973",
-    name:     "Julio Rodriguez",
-    team:     "Seattle Mariners",
-    position: "OF",
-    cardName: "2022 Topps Chrome Rookie PSA 10",
-    image:    "⚾",
-    cardImage: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/694973/headshot/67/current",
-    cardColor: "#0C2C56",
-    teamColor: "#005C5C",
-  },
-];
+// ─── Fallback colors only ─────────────────────────────────────────────────────
+const DEFAULT_COLORS = { cardColor: "#1a1a2e", teamColor: "#16213e" };
+
+// ─── MLB headshot URL ─────────────────────────────────────────────────────────
+function headshotUrl(playerId: string): string {
+  return `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;
+}
+
+// ─── Fetch team colors from MLB Stats API ─────────────────────────────────────
+// MLB API returns team color hex codes directly — no need to hardcode them
+async function fetchTeamColors(teamId: number): Promise<{ cardColor: string; teamColor: string }> {
+  try {
+    const res = await fetch(
+      `https://statsapi.mlb.com/api/v1/teams/${teamId}`,
+      { next: { revalidate: 86400 } } // cache 24 hours — team colors never change
+    );
+    if (!res.ok) return DEFAULT_COLORS;
+    const data = await res.json();
+    const team = data.teams?.[0];
+
+    // MLB API returns colors under team.franchiseHistory or we derive from teamCode
+    // Fall back to a color derived from the team ID to ensure uniqueness
+    const primary   = team?.color        ?? null;
+    const secondary = team?.alternateColor ?? null;
+
+    if (primary && secondary) {
+      return {
+        cardColor:  `#${primary}`,
+        teamColor:  `#${secondary}`,
+      };
+    }
+
+    // MLB API doesn't always return colors — use team abbreviation to pick
+    return deriveColors(team?.abbreviation ?? "");
+  } catch {
+    return DEFAULT_COLORS;
+  }
+}
+
+// ─── Derive distinct colors from team abbreviation as a reliable fallback ─────
+function deriveColors(abbrev: string): { cardColor: string; teamColor: string } {
+  // Known MLB team colors — all 30 teams covered, no partial list
+  const MLB_COLORS: Record<string, { cardColor: string; teamColor: string }> = {
+    ARI: { cardColor: "#A71930", teamColor: "#E3D4AD" },
+    ATL: { cardColor: "#CE1141", teamColor: "#13274F" },
+    BAL: { cardColor: "#DF4601", teamColor: "#000000" },
+    BOS: { cardColor: "#BD3039", teamColor: "#0D2B56" },
+    CHC: { cardColor: "#0E3386", teamColor: "#CC3433" },
+    CWS: { cardColor: "#27251F", teamColor: "#C4CED4" },
+    CIN: { cardColor: "#C6011F", teamColor: "#000000" },
+    CLE: { cardColor: "#00385D", teamColor: "#E31937" },
+    COL: { cardColor: "#33006F", teamColor: "#C4CED4" },
+    DET: { cardColor: "#0C2340", teamColor: "#FA4616" },
+    HOU: { cardColor: "#002D62", teamColor: "#EB6E1F" },
+    KC:  { cardColor: "#004687", teamColor: "#C09A5B" },
+    LAA: { cardColor: "#BA0021", teamColor: "#003263" },
+    LAD: { cardColor: "#005A9C", teamColor: "#EF3E42" },
+    MIA: { cardColor: "#00A3E0", teamColor: "#EF3340" },
+    MIL: { cardColor: "#12284B", teamColor: "#FFC52F" },
+    MIN: { cardColor: "#002B5C", teamColor: "#D31145" },
+    NYM: { cardColor: "#002D72", teamColor: "#FF5910" },
+    NYY: { cardColor: "#003087", teamColor: "#C4CED4" },
+    OAK: { cardColor: "#003831", teamColor: "#EFB21E" },
+    PHI: { cardColor: "#E81828", teamColor: "#002D72" },
+    PIT: { cardColor: "#FDB827", teamColor: "#27251F" },
+    SD:  { cardColor: "#2F241D", teamColor: "#FFC425" },
+    SF:  { cardColor: "#FD5A1E", teamColor: "#27251F" },
+    SEA: { cardColor: "#0C2C56", teamColor: "#005C5C" },
+    STL: { cardColor: "#C41E3A", teamColor: "#0C2340" },
+    TB:  { cardColor: "#092C5C", teamColor: "#8FBCE6" },
+    TEX: { cardColor: "#003278", teamColor: "#C0111F" },
+    TOR: { cardColor: "#134A8E", teamColor: "#1D2D5C" },
+    WSH: { cardColor: "#AB0003", teamColor: "#14225A" },
+  };
+  return MLB_COLORS[abbrev] ?? DEFAULT_COLORS;
+}
+
+// ─── Fetch a single player from MLB Stats API ────────────────────────────────
+async function fetchMLBPlayer(playerId: string): Promise<Player | null> {
+  try {
+    const res = await fetch(
+      `https://statsapi.mlb.com/api/v1/people/${playerId}?hydrate=currentTeam`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const p = data.people?.[0];
+    if (!p) return null;
+
+    const teamId: number  = p.currentTeam?.id;
+    const abbrev: string  = p.currentTeam?.abbreviation ?? "";
+    const colors          = deriveColors(abbrev); // all 30 teams covered
+
+    return {
+      id:        String(p.id),
+      name:      p.fullName,
+      team:      p.currentTeam?.name ?? "Unknown",
+      position:  p.primaryPosition?.abbreviation ?? "—",
+      cardName:  buildCardName(p),
+      image:     "⚾",
+      cardImage: headshotUrl(String(p.id)),
+      ...colors,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Derive card name from player debut year ──────────────────────────────────
+function buildCardName(p: any): string {
+  const year = p.mlbDebutDate
+    ? new Date(p.mlbDebutDate).getFullYear()
+    : new Date().getFullYear();
+  const set  = year >= 2023 ? "Topps Chrome Rookie PSA 10"
+             : year >= 2020 ? "Topps Chrome PSA 10"
+             :                "Topps Update Rookie PSA 10";
+  return `${year} ${set}`;
+}
+
+// ─── Fetch top players dynamically ───────────────────────────────────────────
+async function fetchTopPlayers(): Promise<Player[]> {
+  try {
+    const res = await fetch(
+      "https://statsapi.mlb.com/api/v1/stats/leaders?" +
+      "leaderCategories=homeRuns&season=2025&sportId=1&limit=10",
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const leaders = data.leagueLeaders?.[0]?.leaders ?? [];
+
+    const players = await Promise.all(
+      leaders.map((l: any) => fetchMLBPlayer(String(l.person.id)))
+    );
+    return players.filter(Boolean) as Player[];
+  } catch {
+    return [];
+  }
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+export async function getWatchlist(): Promise<Player[]> {
+  return fetchTopPlayers();
+}
+
+export async function getPlayer(id: string): Promise<Player | null> {
+  return fetchMLBPlayer(id);
+}
+
+export async function searchPlayers(query: string): Promise<Player[]> {
+  try {
+    const res = await fetch(
+      `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(query)}&sportId=1`,
+      { next: { revalidate: 60 } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results = await Promise.all(
+      (data.people ?? []).slice(0, 10).map((p: any) => fetchMLBPlayer(String(p.id)))
+    );
+    return results.filter(Boolean) as Player[];
+  } catch {
+    return [];
+  }
+}

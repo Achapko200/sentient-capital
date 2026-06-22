@@ -1,18 +1,29 @@
 "use client";
 
-import { useState }          from "react";
-import { WATCHLIST }         from "@/lib/players";
-import PlayerCard            from "@/components/cards/PlayerCard";
-import NewsTickerCard        from "@/components/cards/NewsTickerCard";
-import TraderLeaderboard     from "@/components/cards/TraderLeaderboard";
-import AnalystPanel          from "@/components/cards/AnalystPanel";
-import Marketplace           from "@/components/cards/Marketplace";
-import ListCardForm          from "@/components/cards/ListCardForm";
+import { useState, useEffect }  from "react";
+import type { Player }           from "@/lib/cardTypes";
+import PlayerCard                from "@/components/cards/PlayerCard";
+import NewsTickerCard            from "@/components/cards/NewsTickerCard";
+import TraderLeaderboard         from "@/components/cards/TraderLeaderboard";
+import AnalystPanel              from "@/components/cards/AnalystPanel";
+import Marketplace               from "@/components/cards/Marketplace";
+import ListCardForm from "@/components/cards/ListCardForm";
+
 
 type Tab = "cards" | "traders" | "analysts" | "marketplace";
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab>("cards");
+  const [tab,     setTab]     = useState<Tab>("cards");
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/cards/players")
+      .then((r) => r.json())
+      .then((data: Player[]) => setPlayers(data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id: "cards",       label: "Card Tracker",  icon: "⚾" },
@@ -43,10 +54,10 @@ export default function Home() {
           </div>
           <div className="flex gap-2">
             {[
-              { label: "MLB Live",    color: "bg-green-100 text-green-700 border-green-200" },
-              { label: "ESPN Live",   color: "bg-green-100 text-green-700 border-green-200" },
-              { label: "eBay Mock",   color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-              { label: "USDC · Base", color: "bg-purple-100 text-purple-700 border-purple-200" },
+              { label: "MLB Live",    color: "bg-green-100 text-green-700 border-green-200"   },
+              { label: "ESPN Live",   color: "bg-green-100 text-green-700 border-green-200"   },
+              { label: "eBay Mock",   color: "bg-yellow-100 text-yellow-700 border-yellow-200"},
+              { label: "USDC · Base", color: "bg-purple-100 text-purple-700 border-purple-200"},
             ].map((s) => (
               <span key={s.label} className={`text-xs font-semibold px-3 py-1 rounded-full border ${s.color}`}>
                 {s.label}
@@ -80,10 +91,24 @@ export default function Home() {
         {/* CARDS TAB */}
         {tab === "cards" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {WATCHLIST.map((player) => (
-                <PlayerCard key={player.id} player={player} />
-              ))}
+            <div className="lg:col-span-2">
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="rounded-xl bg-gray-100 animate-pulse h-48" />
+                  ))}
+                </div>
+              ) : players.length === 0 ? (
+                <div className="rounded-xl bg-white border border-gray-200 p-10 text-center">
+                  <p className="text-gray-400 text-sm">No players found — check your MLB API connection.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {players.map((player) => (
+                    <PlayerCard key={player.id} player={player} />
+                  ))}
+                </div>
+              )}
             </div>
             <div className="space-y-4">
               <NewsTickerCard />
@@ -91,9 +116,9 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold text-base mb-4">How signals work</h3>
                 <div className="space-y-4">
                   {[
-                    { signal: "BUY",  color: "bg-green-100 text-green-700 border-green-200",   desc: "Strong performance + price hasn't moved yet. Early window before collectors pile in." },
-                    { signal: "HOLD", color: "bg-yellow-100 text-yellow-700 border-yellow-200", desc: "Mixed signals or price already reflects performance. Wait for a clearer window." },
-                    { signal: "SELL", color: "bg-red-100 text-red-700 border-red-200",          desc: "Slump or price elevated vs. performance. Sell into current demand now." },
+                    { signal: "BUY",  color: "bg-green-100 text-green-700 border-green-200",    desc: "Strong performance + price hasn't moved yet. Early window before collectors pile in." },
+                    { signal: "HOLD", color: "bg-yellow-100 text-yellow-700 border-yellow-200", desc: "Mixed signals or price already reflects performance. Wait for a clearer window."      },
+                    { signal: "SELL", color: "bg-red-100 text-red-700 border-red-200",           desc: "Slump or price elevated vs. performance. Sell into current demand now."               },
                   ].map((s) => (
                     <div key={s.signal} className="flex gap-3 items-start">
                       <span className={`text-xs font-black px-2 py-1 rounded-lg border shrink-0 ${s.color}`}>{s.signal}</span>
@@ -104,7 +129,9 @@ export default function Home() {
               </div>
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold text-base mb-3">Buy with crypto</h3>
-                <p className="text-gray-500 text-sm mb-3">Go to the 🛒 Buy Cards tab to purchase cards with USDC on Base network.</p>
+                <p className="text-gray-500 text-sm mb-3">
+                  Go to the 🛒 Buy Cards tab to purchase cards with USDC on Base network.
+                </p>
                 <button
                   onClick={() => setTab("marketplace")}
                   className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-sm hover:bg-purple-700 transition"
@@ -128,11 +155,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">How buying works</h3>
                 <div className="space-y-3">
                   {[
-                    { step: "1", text: "Click Buy Now on any card" },
-                    { step: "2", text: "Connect your Coinbase Wallet" },
-                    { step: "3", text: "Confirm the USDC payment on Base" },
-                    { step: "4", text: "Transaction confirms in seconds" },
-                    { step: "5", text: "Seller ships the card to you" },
+                    { step: "1", text: "Click Buy Now on any card"              },
+                    { step: "2", text: "Connect your Coinbase Wallet"           },
+                    { step: "3", text: "Confirm the USDC payment on Base"       },
+                    { step: "4", text: "Transaction confirms in seconds"        },
+                    { step: "5", text: "Seller ships the card to you"           },
                   ].map((s) => (
                     <div key={s.step} className="flex gap-3 items-center">
                       <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 text-xs font-black flex items-center justify-center shrink-0">
@@ -147,11 +174,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">Payment info</h3>
                 <div className="space-y-2 text-sm">
                   {[
-                    { label: "Token",   value: "USDC (stable $1)" },
-                    { label: "Network", value: "Base by Coinbase" },
-                    { label: "Gas fee", value: "~$0.01 per tx" },
-                    { label: "Speed",   value: "~2 seconds" },
-                    { label: "Wallet",  value: "Coinbase Wallet" },
+                    { label: "Token",   value: "USDC (stable $1)"  },
+                    { label: "Network", value: "Base by Coinbase"   },
+                    { label: "Gas fee", value: "~$0.01 per tx"      },
+                    { label: "Speed",   value: "~2 seconds"         },
+                    { label: "Wallet",  value: "Coinbase Wallet"    },
                   ].map((r) => (
                     <div key={r.label} className="flex justify-between">
                       <span className="text-gray-400">{r.label}</span>
@@ -174,12 +201,16 @@ export default function Home() {
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-2">What is unrealized gain?</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">
-                  Unrealized gain is profit on cards you still own — the difference between what you paid and what they are worth today. It becomes real when you sell.
+                  Unrealized gain is profit on cards you still own — the difference between what you paid
+                  and what they are worth today. It becomes real when you sell.
                 </p>
               </div>
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-3">Avg hold times</h3>
-                <p className="text-gray-500 text-sm">Short-term traders flip in 2-4 weeks around performance spikes. Long-term holders average 3-6 months waiting for a full season story to develop.</p>
+                <p className="text-gray-500 text-sm">
+                  Short-term traders flip in 2–4 weeks around performance spikes. Long-term holders
+                  average 3–6 months waiting for a full season story to develop.
+                </p>
               </div>
             </div>
           </div>
@@ -196,11 +227,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">Rating guide</h3>
                 <div className="space-y-2">
                   {[
-                    { r: "STRONG BUY",  color: "bg-green-100 text-green-700 border-green-200",      desc: "High conviction, buy immediately" },
-                    { r: "BUY",         color: "bg-emerald-50 text-emerald-700 border-emerald-200", desc: "Good entry, favorable risk/reward" },
-                    { r: "HOLD",        color: "bg-yellow-100 text-yellow-700 border-yellow-200",   desc: "Keep if you own, do not add" },
-                    { r: "SELL",        color: "bg-orange-100 text-orange-700 border-orange-200",   desc: "Reduce position, take profits" },
-                    { r: "STRONG SELL", color: "bg-red-100 text-red-700 border-red-200",            desc: "Exit immediately" },
+                    { r: "STRONG BUY",  color: "bg-green-100 text-green-700 border-green-200",       desc: "High conviction, buy immediately"     },
+                    { r: "BUY",         color: "bg-emerald-50 text-emerald-700 border-emerald-200",  desc: "Good entry, favorable risk/reward"     },
+                    { r: "HOLD",        color: "bg-yellow-100 text-yellow-700 border-yellow-200",    desc: "Keep if you own, do not add"           },
+                    { r: "SELL",        color: "bg-orange-100 text-orange-700 border-orange-200",    desc: "Reduce position, take profits"         },
+                    { r: "STRONG SELL", color: "bg-red-100 text-red-700 border-red-200",             desc: "Exit immediately"                      },
                   ].map((s) => (
                     <div key={s.r} className="flex items-center gap-3">
                       <span className={`text-xs font-black px-2 py-0.5 rounded-full border shrink-0 ${s.color}`}>{s.r}</span>
@@ -212,6 +243,7 @@ export default function Home() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

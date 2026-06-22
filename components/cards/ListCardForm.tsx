@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { WATCHLIST } from "@/lib/players";
+
+const PLAYERS = [
+  { id: "683002", name: "Paul Skenes",      image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/683002/headshot/67/current" },
+  { id: "660670", name: "Ronald Acuña Jr.", image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/660670/headshot/67/current" },
+  { id: "671939", name: "Gunnar Henderson", image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/671939/headshot/67/current" },
+  { id: "682998", name: "Jackson Holliday", image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/682998/headshot/67/current" },
+  { id: "808967", name: "Wyatt Langford",   image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/808967/headshot/67/current" },
+  { id: "694973", name: "Julio Rodriguez",  image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/694973/headshot/67/current" },
+];
 
 const GRADES = ["PSA 10", "PSA 9", "PSA 8", "BGS 9.5", "BGS 9", "Raw"];
 
@@ -10,15 +18,15 @@ type Props = { onSuccess: () => void };
 
 export default function ListCardForm({ onSuccess }: Props) {
   const { primaryWallet, user } = useDynamicContext();
-  const [playerId,  setPlayerId]  = useState(WATCHLIST[0].id);
-  const [cardName,  setCardName]  = useState(WATCHLIST[0].cardName);
+  const [playerId,  setPlayerId]  = useState(PLAYERS[0].id);
+  const [cardName,  setCardName]  = useState("");
   const [grade,     setGrade]     = useState("PSA 10");
   const [priceUSD,  setPriceUSD]  = useState("");
   const [loading,   setLoading]   = useState(false);
   const [success,   setSuccess]   = useState(false);
   const [error,     setError]     = useState("");
 
-  const selectedPlayer = WATCHLIST.find((p) => p.id === playerId)!;
+  const selectedPlayer = PLAYERS.find((p) => p.id === playerId)!;
 
   const handleSubmit = async () => {
     if (!user || !primaryWallet) {
@@ -45,7 +53,7 @@ export default function ListCardForm({ onSuccess }: Props) {
           priceUSD:     parseFloat(priceUSD),
           sellerWallet: primaryWallet.address,
           sellerName:   primaryWallet.address.slice(0, 6) + "...",
-          imageUrl:     selectedPlayer.cardImage,
+          imageUrl:     selectedPlayer.image,
         }),
       });
 
@@ -93,14 +101,10 @@ export default function ListCardForm({ onSuccess }: Props) {
           <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1 block">Player</label>
           <select
             value={playerId}
-            onChange={(e) => {
-              setPlayerId(e.target.value);
-              const player = WATCHLIST.find((p) => p.id === e.target.value);
-              if (player) setCardName(player.cardName);
-            }}
+            onChange={(e) => setPlayerId(e.target.value)}
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-400"
           >
-            {WATCHLIST.map((p) => (
+            {PLAYERS.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
