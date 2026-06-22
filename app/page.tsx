@@ -6,7 +6,8 @@ import PlayerCard            from "@/components/cards/PlayerCard";
 import NewsTickerCard        from "@/components/cards/NewsTickerCard";
 import TraderLeaderboard     from "@/components/cards/TraderLeaderboard";
 import AnalystPanel          from "@/components/cards/AnalystPanel";
-import Marketplace from "@/components/cards/Marketplace";
+import Marketplace           from "@/components/cards/Marketplace";
+import ListCardForm          from "@/components/cards/ListCardForm";
 
 type Tab = "cards" | "traders" | "analysts" | "marketplace";
 
@@ -42,10 +43,10 @@ export default function Home() {
           </div>
           <div className="flex gap-2">
             {[
-              { label: "MLB Live",          color: "bg-green-100 text-green-700 border-green-200" },
-              { label: "ESPN Live",         color: "bg-green-100 text-green-700 border-green-200" },
-              { label: "eBay Mock",         color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-              { label: "USDC · Base",       color: "bg-purple-100 text-purple-700 border-purple-200" },
+              { label: "MLB Live",    color: "bg-green-100 text-green-700 border-green-200" },
+              { label: "ESPN Live",   color: "bg-green-100 text-green-700 border-green-200" },
+              { label: "eBay Mock",   color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+              { label: "USDC · Base", color: "bg-purple-100 text-purple-700 border-purple-200" },
             ].map((s) => (
               <span key={s.label} className={`text-xs font-semibold px-3 py-1 rounded-full border ${s.color}`}>
                 {s.label}
@@ -122,6 +123,7 @@ export default function Home() {
               <Marketplace />
             </div>
             <div className="space-y-4">
+              <ListCardForm onSuccess={() => window.location.reload()} />
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-3">How buying works</h3>
                 <div className="space-y-3">
@@ -141,7 +143,6 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-3">Payment info</h3>
                 <div className="space-y-2 text-sm">
@@ -158,13 +159,6 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              </div>
-
-              <div className="bg-purple-50 rounded-xl p-5 border border-purple-200">
-                <p className="text-purple-700 font-bold text-sm mb-1">Test before going live</p>
-                <p className="text-purple-600 text-xs leading-relaxed">
-                  Switch Coinbase Wallet to Base Sepolia testnet and get free test USDC at faucet.circle.com to test without real money.
-                </p>
               </div>
             </div>
           </div>
