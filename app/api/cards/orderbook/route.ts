@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       ]);
       const avgCardPrice   = calcAvgPrice(sales) || 150;
       const pricePerShare  = priceFromStats(stats, avgCardPrice);
-      const book           = getOrderBook(player.id);
+      const book           = await getOrderBook(player.id);
 
       return {
         id:            player.id,

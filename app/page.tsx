@@ -11,11 +11,11 @@ import Marketplace                from "@/components/cards/Marketplace";
 import ListCardForm               from "@/components/cards/ListCardForm";
 import TradingPanel               from "@/components/cards/TradingPanel";
 import Portfolio                  from "@/components/cards/Portfolio";
-import SearchPlayers              from "@/components/cards/Searchplayers";
+import SearchPlayers              from "@/components/cards/SearchPlayers";
+import PriceAlerts                from "@/components/cards/PriceAlerts";
 
-type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts";
+type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts";
 
-// ─── Loads token data then renders TradingPanel ───────────────────────────────
 function TradingPanelLoader({ player }: { player: Player }) {
   const [token, setToken] = useState<CardToken | null>(null);
 
@@ -39,7 +39,10 @@ export default function Home() {
   useEffect(() => {
     fetch("/api/cards/players")
       .then((r) => r.json())
-      .then((data: Player[]) => setPlayers(data))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : (data.players ?? []);
+        setPlayers(list);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -51,6 +54,7 @@ export default function Home() {
     { id: "marketplace", label: "Buy Cards",     icon: "🛒" },
     { id: "traders",     label: "Trader Gains",  icon: "📈" },
     { id: "analysts",    label: "Analyst Picks", icon: "🎓" },
+    { id: "alerts",      label: "Alerts",        icon: "🔔" },
   ];
 
   const tabColor = (id: Tab, active: boolean) => {
@@ -58,6 +62,7 @@ export default function Home() {
     if (id === "marketplace") return "bg-purple-600 text-white shadow-sm";
     if (id === "trade")       return "bg-gray-950 text-white shadow-sm";
     if (id === "portfolio")   return "bg-gray-800 text-white shadow-sm";
+    if (id === "alerts")      return "bg-orange-500 text-white shadow-sm";
     return "bg-blue-600 text-white shadow-sm";
   };
 
@@ -80,19 +85,6 @@ export default function Home() {
                 Real MLB data · eBay prices · AI signals · Crypto payments
               </p>
             </div>
-          </div>
-          <div className="flex gap-2 flex-wrap justify-end">
-            {[
-              { label: "MLB Live",    color: "bg-green-100 text-green-700 border-green-200"    },
-              { label: "ESPN Live",   color: "bg-green-100 text-green-700 border-green-200"    },
-              { label: "eBay Mock",   color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-              { label: "USDC · Base", color: "bg-purple-100 text-purple-700 border-purple-200" },
-              { label: "Order Book",  color: "bg-gray-100 text-gray-700 border-gray-200"       },
-            ].map((s) => (
-              <span key={s.label} className={`text-xs font-semibold px-3 py-1 rounded-full border ${s.color}`}>
-                {s.label}
-              </span>
-            ))}
           </div>
         </div>
 
@@ -170,8 +162,6 @@ export default function Home() {
         {/* ── TRADE TAB ──────────────────────────────────────────────────────── */}
         {tab === "trade" && (
           <div className="space-y-4">
-
-            {/* Search bar */}
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <SearchPlayers onSelect={(p) => setTradePlayer(p)} />
@@ -233,11 +223,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">How trading works</h3>
                 <div className="space-y-3">
                   {[
-                    { step: "1", text: "Go to Trade tab, pick a player"           },
-                    { step: "2", text: "Place a limit BUY order at your price"    },
-                    { step: "3", text: "Order fills when a seller matches"        },
-                    { step: "4", text: "Your shares appear here in Portfolio"     },
-                    { step: "5", text: "Sell anytime with a limit SELL order"     },
+                    { step: "1", text: "Go to Trade tab, pick a player"            },
+                    { step: "2", text: "Place a limit BUY order at your price"     },
+                    { step: "3", text: "Order fills when a seller matches"         },
+                    { step: "4", text: "Your shares appear here in Portfolio"      },
+                    { step: "5", text: "Sell anytime with a limit SELL order"      },
                     { step: "6", text: "Redeem shares to receive the physical card" },
                   ].map((s) => (
                     <div key={s.step} className="flex gap-3 items-center">
@@ -256,7 +246,7 @@ export default function Home() {
                 </p>
                 <div className="space-y-2 text-xs">
                   {[
-                    { label: "Min shares to redeem", value: "100%" },
+                    { label: "Min shares to redeem", value: "100%"              },
                     { label: "Processing time",      value: "3–5 business days" },
                     { label: "Shipping",             value: "Insured & tracked" },
                     { label: "Vault partner",        value: "PSA (coming soon)" },
@@ -290,11 +280,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">How buying works</h3>
                 <div className="space-y-3">
                   {[
-                    { step: "1", text: "Click Buy Now on any card"         },
-                    { step: "2", text: "Connect your Coinbase Wallet"      },
-                    { step: "3", text: "Confirm the USDC payment on Base"  },
-                    { step: "4", text: "Transaction confirms in seconds"   },
-                    { step: "5", text: "Seller ships the card to you"      },
+                    { step: "1", text: "Click Buy Now on any card"        },
+                    { step: "2", text: "Connect your Coinbase Wallet"     },
+                    { step: "3", text: "Confirm the USDC payment on Base" },
+                    { step: "4", text: "Transaction confirms in seconds"  },
+                    { step: "5", text: "Seller ships the card to you"     },
                   ].map((s) => (
                     <div key={s.step} className="flex gap-3 items-center">
                       <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 text-xs font-black flex items-center justify-center shrink-0">
@@ -309,11 +299,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">Payment info</h3>
                 <div className="space-y-2 text-sm">
                   {[
-                    { label: "Token",   value: "USDC (stable $1)"  },
-                    { label: "Network", value: "Base by Coinbase"   },
-                    { label: "Gas fee", value: "~$0.01 per tx"      },
-                    { label: "Speed",   value: "~2 seconds"         },
-                    { label: "Wallet",  value: "Coinbase Wallet"    },
+                    { label: "Token",   value: "USDC (stable $1)" },
+                    { label: "Network", value: "Base by Coinbase"  },
+                    { label: "Gas fee", value: "~$0.01 per tx"     },
+                    { label: "Speed",   value: "~2 seconds"        },
+                    { label: "Wallet",  value: "Coinbase Wallet"   },
                   ].map((r) => (
                     <div key={r.label} className="flex justify-between">
                       <span className="text-gray-400">{r.label}</span>
@@ -368,11 +358,11 @@ export default function Home() {
                 <h3 className="text-gray-900 font-bold mb-3">Rating guide</h3>
                 <div className="space-y-2">
                   {[
-                    { r: "STRONG BUY",  color: "bg-green-100 text-green-700 border-green-200",      desc: "High conviction, buy immediately"     },
-                    { r: "BUY",         color: "bg-emerald-50 text-emerald-700 border-emerald-200", desc: "Good entry, favorable risk/reward"     },
-                    { r: "HOLD",        color: "bg-yellow-100 text-yellow-700 border-yellow-200",   desc: "Keep if you own, do not add"           },
-                    { r: "SELL",        color: "bg-orange-100 text-orange-700 border-orange-200",   desc: "Reduce position, take profits"         },
-                    { r: "STRONG SELL", color: "bg-red-100 text-red-700 border-red-200",            desc: "Exit immediately"                      },
+                    { r: "STRONG BUY",  color: "bg-green-100 text-green-700 border-green-200",      desc: "High conviction, buy immediately"  },
+                    { r: "BUY",         color: "bg-emerald-50 text-emerald-700 border-emerald-200", desc: "Good entry, favorable risk/reward"  },
+                    { r: "HOLD",        color: "bg-yellow-100 text-yellow-700 border-yellow-200",   desc: "Keep if you own, do not add"        },
+                    { r: "SELL",        color: "bg-orange-100 text-orange-700 border-orange-200",   desc: "Reduce position, take profits"      },
+                    { r: "STRONG SELL", color: "bg-red-100 text-red-700 border-red-200",            desc: "Exit immediately"                   },
                   ].map((s) => (
                     <div key={s.r} className="flex items-center gap-3">
                       <span className={`text-xs font-black px-2 py-0.5 rounded-full border shrink-0 ${s.color}`}>{s.r}</span>
@@ -392,6 +382,61 @@ export default function Home() {
                 className="w-full py-2.5 rounded-xl bg-gray-950 text-white font-bold text-sm hover:bg-gray-800 transition"
               >
                 📊 Trade on this signal
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── ALERTS TAB ─────────────────────────────────────────────────────── */}
+        {tab === "alerts" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <PriceAlerts players={players} />
+            </div>
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-3">About alerts</h3>
+                <p className="text-gray-500 text-sm leading-relaxed mb-3">
+                  Set a target price for any card share. We check prices every 5 minutes and notify you the moment your target is hit.
+                </p>
+                <div className="space-y-2 text-xs">
+                  {[
+                    { label: "In-app",  value: "Always on"   },
+                    { label: "Email",   value: "Optional"    },
+                    { label: "Checks",  value: "Every 5 min" },
+                    { label: "Cost",    value: "Free"        },
+                  ].map(r => (
+                    <div key={r.label} className="flex justify-between">
+                      <span className="text-gray-400">{r.label}</span>
+                      <span className="text-gray-700 font-semibold">{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-2">Email alerts</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Add your email when creating an alert to get notified instantly. No spam — one email per trigger.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-2">Price alert ideas</h3>
+                <div className="space-y-2 text-xs text-gray-500">
+                  {[
+                    "📈 Alert above $5 — take profits on a BUY",
+                    "📉 Alert below $2 — buy the dip",
+                    "🎯 Alert above analyst target price",
+                    "⚡ Alert on HR day price spike",
+                  ].map((tip, i) => (
+                    <p key={i}>{tip}</p>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => setTab("trade")}
+                className="w-full py-2.5 rounded-xl bg-gray-950 text-white font-bold text-sm hover:bg-gray-800 transition"
+              >
+                📊 Go to Trade
               </button>
             </div>
           </div>

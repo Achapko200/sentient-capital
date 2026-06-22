@@ -10,11 +10,11 @@ export async function GET(req: Request) {
   const wallet = searchParams.get("wallet") ?? "";
   if (!wallet) return Response.json({ positions: [] });
 
-  const positionMap = getUserPositions(wallet);
+  const userPositions = await getUserPositions(wallet);
   const positions = await Promise.all(
-    Array.from(positionMap.entries())
-      .filter(([, shares]) => shares > 0)
-      .map(async ([cardId, shares]) => {
+    userPositions
+      .filter(({ shares }) => shares > 0)
+      .map(async ({ cardId, shares }) => {
         const player = await getPlayer(cardId);
         if (!player) return null;
         const [stats, sales] = await Promise.all([

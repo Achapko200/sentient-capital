@@ -1,8 +1,11 @@
+// ─── lib/traders.ts ──────────────────────────────────────────────────────────
 import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
+import { mainnet }                  from "viem/chains";
+import { supabase }                 from "@/lib/supabase";
+import { fetchEbaySales, calcAvgPrice } from "@/lib/ebay";
 
 const ensClient = createPublicClient({
-  chain: mainnet,
+  chain:     mainnet,
   transport: http("https://cloudflare-eth.com"),
 });
 
@@ -20,7 +23,7 @@ export type Position = {
   playerId:     string;
   playerName:   string;
   buyPrice:     number;
-  currentPrice: number; // fetched live
+  currentPrice: number;
   quantity:     number;
   buyDate:      string;
 };
@@ -32,115 +35,108 @@ export type Trader = {
   wallet:         string;
   ensName:        string | null;
   positions:      Position[];
-  totalInvested:  number;   // computed
-  unrealizedGain: number;   // computed
-  unrealizedPct:  number;   // computed
+  totalInvested:  number;
+  unrealizedGain: number;
+  unrealizedPct:  number;
   holdDays:       number;
 };
 
-// ─── Only static data: identity + what they bought/when ───────────────────────
-// Prices, gains, ENS — all resolved at runtime
-const RAW_TRADERS = [
-  {
-    id: "1", name: "CardKing_ETH", avatar: "👑",
-    wallet: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-    holdDays: 47,
-    positions: [
-      { playerId: "683002", playerName: "Paul Skenes",      cardName: "2024 Topps Chrome Rookie PSA 10", buyPrice: 180, quantity: 3,  buyDate: "Jan 2025" },
-      { playerId: "660670", playerName: "Ronald Acuña Jr.", cardName: "2018 Topps Update Rookie PSA 10", buyPrice: 310, quantity: 2,  buyDate: "Feb 2025" },
-    ],
-  },
-  {
-    id: "2", name: "DiamondHands_BB", avatar: "💎",
-    wallet: "0x983110309620D911731Ac0932219af06091b6744",
-    holdDays: 91,
-    positions: [
-      { playerId: "671939", playerName: "Gunnar Henderson", cardName: "2023 Topps Chrome PSA 10",        buyPrice: 110, quantity: 5,  buyDate: "Nov 2024" },
-      { playerId: "694973", playerName: "Julio Rodriguez",  cardName: "2022 Topps Chrome Rookie PSA 10", buyPrice: 95,  quantity: 4,  buyDate: "Dec 2024" },
-    ],
-  },
-  {
-    id: "3", name: "BaseballVC", avatar: "📈",
-    wallet: "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B",
-    holdDays: 23,
-    positions: [
-      { playerId: "682998", playerName: "Jackson Holliday", cardName: "2024 Bowman Chrome Auto PSA 10",  buyPrice: 65,  quantity: 8,  buyDate: "Mar 2025" },
-      { playerId: "808967", playerName: "Wyatt Langford",   cardName: "2024 Topps Chrome Rookie PSA 10", buyPrice: 55,  quantity: 6,  buyDate: "Mar 2025" },
-    ],
-  },
-  {
-    id: "4", name: "RookieHunter", avatar: "🎯",
-    wallet: "0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8",
-    holdDays: 134,
-    positions: [
-      { playerId: "683002", playerName: "Paul Skenes",      cardName: "2024 Topps Chrome Rookie PSA 10", buyPrice: 120, quantity: 10, buyDate: "Sep 2024" },
-      { playerId: "682998", playerName: "Jackson Holliday", cardName: "2024 Bowman Chrome Auto PSA 10",  buyPrice: 45,  quantity: 12, buyDate: "Oct 2024" },
-    ],
-  },
-  {
-    id: "5", name: "CryptoCardClub", avatar: "⚡",
-    wallet: "0x00000000219ab540356cBB839Cbe05303d7705Fa",
-    holdDays: 68,
-    positions: [
-      { playerId: "660670", playerName: "Ronald Acuña Jr.", cardName: "2018 Topps Update Rookie PSA 10", buyPrice: 280, quantity: 3,  buyDate: "Dec 2024" },
-      { playerId: "671939", playerName: "Gunnar Henderson", cardName: "2023 Topps Chrome PSA 10",        buyPrice: 130, quantity: 4,  buyDate: "Jan 2025" },
-    ],
-  },
+// ─── Seed traders on first run if table is empty ──────────────────────────────
+const SEED_TRADERS = [
+  { id: "1", name: "CardKing_ETH",    avatar: "👑", wallet: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", holdDays: 47 },
+  { id: "2", name: "DiamondHands_BB", avatar: "💎", wallet: "0x983110309620D911731Ac0932219af06091b6744", holdDays: 91 },
+  { id: "3", name: "BaseballVC",      avatar: "📈", wallet: "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B", holdDays: 23 },
+  { id: "4", name: "RookieHunter",    avatar: "🎯", wallet: "0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8", holdDays: 134 },
+  { id: "5", name: "CryptoCardClub",  avatar: "⚡", wallet: "0x00000000219ab540356cBB839Cbe05303d7705Fa", holdDays: 68 },
 ];
 
-// ─── Fetch live card price from your price API ─────────────────────────────────
-async function fetchCurrentPrice(playerId: string, cardName: string): Promise<number> {
-  try {
-    const res = await fetch(
-      `/api/cards/price?playerId=${playerId}&cardName=${encodeURIComponent(cardName)}`
-    );
-    const data = await res.json();
-    return data.price ?? 0;
-  } catch {
-    return 0;
-  }
+const SEED_POSITIONS = [
+  { id: "p1",  trader_id: "1", player_id: "683002", player_name: "Paul Skenes",      card_name: "2024 Topps Chrome Rookie PSA 10", buy_price: 180, quantity: 3,  buy_date: "Jan 2025" },
+  { id: "p2",  trader_id: "1", player_id: "660670", player_name: "Ronald Acuña Jr.", card_name: "2018 Topps Update Rookie PSA 10", buy_price: 310, quantity: 2,  buy_date: "Feb 2025" },
+  { id: "p3",  trader_id: "2", player_id: "671939", player_name: "Gunnar Henderson", card_name: "2023 Topps Chrome PSA 10",        buy_price: 110, quantity: 5,  buy_date: "Nov 2024" },
+  { id: "p4",  trader_id: "2", player_id: "694973", player_name: "Julio Rodriguez",  card_name: "2022 Topps Chrome Rookie PSA 10", buy_price: 95,  quantity: 4,  buy_date: "Dec 2024" },
+  { id: "p5",  trader_id: "3", player_id: "682998", player_name: "Jackson Holliday", card_name: "2024 Bowman Chrome Auto PSA 10",  buy_price: 65,  quantity: 8,  buy_date: "Mar 2025" },
+  { id: "p6",  trader_id: "3", player_id: "808967", player_name: "Wyatt Langford",   card_name: "2024 Topps Chrome Rookie PSA 10", buy_price: 55,  quantity: 6,  buy_date: "Mar 2025" },
+  { id: "p7",  trader_id: "4", player_id: "683002", player_name: "Paul Skenes",      card_name: "2024 Topps Chrome Rookie PSA 10", buy_price: 120, quantity: 10, buy_date: "Sep 2024" },
+  { id: "p8",  trader_id: "4", player_id: "682998", player_name: "Jackson Holliday", card_name: "2024 Bowman Chrome Auto PSA 10",  buy_price: 45,  quantity: 12, buy_date: "Oct 2024" },
+  { id: "p9",  trader_id: "5", player_id: "660670", player_name: "Ronald Acuña Jr.", card_name: "2018 Topps Update Rookie PSA 10", buy_price: 280, quantity: 3,  buy_date: "Dec 2024" },
+  { id: "p10", trader_id: "5", player_id: "671939", player_name: "Gunnar Henderson", card_name: "2023 Topps Chrome PSA 10",        buy_price: 130, quantity: 4,  buy_date: "Jan 2025" },
+];
+
+async function seedIfEmpty(): Promise<void> {
+  const { count } = await supabase
+    .from("traders")
+    .select("*", { count: "exact", head: true });
+  if (count && count > 0) return;
+  await supabase.from("traders").insert(
+    SEED_TRADERS.map(t => ({
+      id: t.id, name: t.name, avatar: t.avatar,
+      wallet: t.wallet, hold_days: t.holdDays,
+    }))
+  );
+  await supabase.from("trader_positions").insert(SEED_POSITIONS);
 }
 
-// ─── Compute totals from positions (no hardcoding) ────────────────────────────
 function computeStats(positions: Position[]) {
   const totalInvested  = positions.reduce((s, p) => s + p.buyPrice * p.quantity, 0);
   const currentValue   = positions.reduce((s, p) => s + p.currentPrice * p.quantity, 0);
   const unrealizedGain = currentValue - totalInvested;
-  const unrealizedPct  = totalInvested > 0 ? (unrealizedGain / totalInvested) * 100 : 0;
-  return { totalInvested, unrealizedGain, unrealizedPct: Math.round(unrealizedPct * 10) / 10 };
+  const unrealizedPct  = totalInvested > 0
+    ? Math.round((unrealizedGain / totalInvested) * 1000) / 10 : 0;
+  return { totalInvested, unrealizedGain, unrealizedPct };
 }
 
-// ─── Hydrate: resolve ENS + live prices + compute stats ───────────────────────
-export async function hydrateTraders(): Promise<Trader[]> {
-  return Promise.all(
-    RAW_TRADERS.map(async (raw) => {
-      // Resolve ENS and all position prices in parallel
+export async function getLeaderboard(): Promise<Trader[]> {
+  await seedIfEmpty();
+
+  const { data: traderRows } = await supabase
+    .from("traders")
+    .select("*, trader_positions(*)");
+
+  if (!traderRows) return [];
+
+  const traders = await Promise.all(
+    traderRows.map(async (row) => {
+      const rawPositions: any[] = row.trader_positions ?? [];
+
+      // Resolve ENS + live prices in parallel
       const [ensName, ...prices] = await Promise.all([
-        resolveENS(raw.wallet).then(n => n !== raw.wallet ? n : null),
-        ...raw.positions.map(p => fetchCurrentPrice(p.playerId, p.cardName)),
+        resolveENS(row.wallet).then(n => n !== row.wallet ? n : null),
+        ...rawPositions.map(p => fetchEbaySales(p.player_id, p.card_name)
+          .then(sales => calcAvgPrice(sales) || p.buy_price)),
       ]);
 
-      const positions: Position[] = raw.positions.map((p, i) => ({
-        ...p,
+      const positions: Position[] = rawPositions.map((p, i) => ({
+        cardName:     p.card_name,
+        playerId:     p.player_id,
+        playerName:   p.player_name,
+        buyPrice:     p.buy_price,
         currentPrice: prices[i] as number,
+        quantity:     p.quantity,
+        buyDate:      p.buy_date,
       }));
 
       return {
-        ...raw,
-        ensName,
+        id:       row.id,
+        name:     row.name,
+        avatar:   row.avatar,
+        wallet:   row.wallet,
+        holdDays: row.hold_days,
+        ensName:  ensName as string | null,
         positions,
         ...computeStats(positions),
       };
     })
   );
-}
 
-export async function getLeaderboard(): Promise<Trader[]> {
-  const traders = await hydrateTraders();
   return traders.sort((a, b) => b.unrealizedGain - a.unrealizedGain);
 }
 
-export async function getTrader(id: string): Promise<Trader | undefined> {
-  const traders = await hydrateTraders();
-  return traders.find(t => t.id === id);
+export async function addTrader(
+  name: string, avatar: string, wallet: string
+): Promise<void> {
+  const id = `trader_${Date.now()}`;
+  await supabase.from("traders").insert({
+    id, name, avatar, wallet, hold_days: 0,
+  });
 }

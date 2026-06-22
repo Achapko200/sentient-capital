@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   const { action, cardId, type, price, shares, wallet, orderId } = body;
 
   if (action === "cancel") {
-    const success = cancelOrder(orderId, cardId, wallet);
+    const success = cancelOrder(orderId, cardId);
     return Response.json({ success });
   }
 
