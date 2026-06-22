@@ -1,16 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-
-const PLAYERS = [
-  { id: "683002", name: "Paul Skenes",      image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/683002/headshot/67/current" },
-  { id: "660670", name: "Ronald Acuña Jr.", image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/660670/headshot/67/current" },
-  { id: "671939", name: "Gunnar Henderson", image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/671939/headshot/67/current" },
-  { id: "682998", name: "Jackson Holliday", image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/682998/headshot/67/current" },
-  { id: "808967", name: "Wyatt Langford",   image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/808967/headshot/67/current" },
-  { id: "694973", name: "Julio Rodriguez",  image: "https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/694973/headshot/67/current" },
-];
+import type { Player } from "@/lib/cardTypes";
 
 const GRADES = ["PSA 10", "PSA 9", "PSA 8", "BGS 9.5", "BGS 9", "Raw"];
 
@@ -18,25 +10,42 @@ type Props = { onSuccess: () => void };
 
 export default function ListCardForm({ onSuccess }: Props) {
   const { primaryWallet, user } = useDynamicContext();
-  const [playerId,  setPlayerId]  = useState(PLAYERS[0].id);
-  const [cardName,  setCardName]  = useState("");
-  const [grade,     setGrade]     = useState("PSA 10");
-  const [priceUSD,  setPriceUSD]  = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [success,   setSuccess]   = useState(false);
-  const [error,     setError]     = useState("");
 
-  const selectedPlayer = PLAYERS.find((p) => p.id === playerId)!;
+  const [players,       setPlayers]       = useState<Player[]>([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(true);
+  const [playerId,      setPlayerId]      = useState("");
+  const [cardName,      setCardName]      = useState("");
+  const [grade,         setGrade]         = useState("PSA 10");
+  const [priceUSD,      setPriceUSD]      = useState("");
+  const [loading,       setLoading]       = useState(false);
+  const [success,       setSuccess]       = useState(false);
+  const [error,         setError]         = useState("");
+
+  useEffect(() => {
+    fetch("/api/cards/players")
+      .then((r) => r.json())
+      .then((data: Player[]) => {
+        setPlayers(data);
+        if (data.length > 0) {
+          setPlayerId(data[0].id);
+          setCardName(data[0].cardName);
+        }
+      })
+      .catch(() => setError("Failed to load players"))
+      .finally(() => setLoadingPlayers(false));
+  }, []);
+
+  const selectedPlayer = players.find((p) => p.id === playerId);
+
+  const handlePlayerChange = (id: string) => {
+    setPlayerId(id);
+    const player = players.find((p) => p.id === id);
+    if (player) setCardName(player.cardName);
+  };
 
   const handleSubmit = async () => {
-    if (!user || !primaryWallet) {
-      setError("Connect your wallet first");
-      return;
-    }
-    if (!cardName || !priceUSD) {
-      setError("Fill in all fields");
-      return;
-    }
+    if (!user || !primaryWallet) { setError("Connect your wallet first"); return; }
+    if (!selectedPlayer || !cardName || !priceUSD) { setError("Fill in all fields"); return; }
 
     setLoading(true);
     setError("");
@@ -52,18 +61,15 @@ export default function ListCardForm({ onSuccess }: Props) {
           grade,
           priceUSD:     parseFloat(priceUSD),
           sellerWallet: primaryWallet.address,
-          sellerName:   primaryWallet.address.slice(0, 6) + "...",
-          imageUrl:     selectedPlayer.image,
+          sellerName:   `${primaryWallet.address.slice(0, 6)}...`,
+          imageUrl:     selectedPlayer.cardImage,
         }),
       });
 
       if (!res.ok) throw new Error("Failed to list card");
 
       setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        onSuccess();
-      }, 2000);
+      setTimeout(() => { setSuccess(false); onSuccess(); }, 2000);
     } catch {
       setError("Failed to list card — try again");
     } finally {
@@ -96,21 +102,25 @@ export default function ListCardForm({ onSuccess }: Props) {
 
       <div className="space-y-4">
 
-        {/* Player */}
         <div>
           <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1 block">Player</label>
-          <select
-            value={playerId}
-            onChange={(e) => setPlayerId(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-400"
-          >
-            {PLAYERS.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+          {loadingPlayers ? (
+            <div className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-400 bg-gray-50">
+              Loading players...
+            </div>
+          ) : (
+            <select
+              value={playerId}
+              onChange={(e) => handlePlayerChange(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-400"
+            >
+              {players.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
-        {/* Card name */}
         <div>
           <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1 block">Card name</label>
           <input
@@ -122,7 +132,6 @@ export default function ListCardForm({ onSuccess }: Props) {
           />
         </div>
 
-        {/* Grade */}
         <div>
           <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1 block">Grade</label>
           <select
@@ -136,7 +145,6 @@ export default function ListCardForm({ onSuccess }: Props) {
           </select>
         </div>
 
-        {/* Price */}
         <div>
           <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1 block">Price (USDC)</label>
           <input
@@ -152,7 +160,7 @@ export default function ListCardForm({ onSuccess }: Props) {
 
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || loadingPlayers}
           className="w-full py-3 rounded-xl bg-blue-600 text-white font-black text-sm hover:bg-blue-700 transition disabled:opacity-50"
         >
           {loading ? "Listing..." : "List Card for Sale"}
