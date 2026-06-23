@@ -1,26 +1,46 @@
 // ─── app/api/cards/listings/route.ts ─────────────────────────────────────────
 import { getListings, addListing } from "@/lib/listings";
+import { ListingSchema }           from "@/lib/validators";
 
 export async function GET() {
-  const listings = await getListings();
-  return Response.json({ listings });
+  try {
+    const listings = await getListings();
+    return Response.json({ listings });
+  } catch {
+    return Response.json({ listings: [] }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { playerId, playerName, cardName, grade, priceUSD,
-          sellerWallet, sellerName, imageUrl } = body;
-
-  if (!playerId || !playerName || !cardName || !priceUSD || !sellerWallet) {
-    return Response.json({ error: "Missing fields" }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const listing = await addListing({
-    playerId, playerName, cardName, grade,
-    priceUSD, sellerWallet, sellerName,
-    condition: "Mint",
-    imageUrl,
-  });
+  const parsed = ListingSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
 
-  return Response.json({ listing });
+  const { playerId, playerName, cardName, grade, priceUSD,
+          sellerWallet, sellerName, imageUrl } = parsed.data;
+
+  try {
+    const listing = await addListing({
+      playerId,
+      playerName,
+      cardName,
+      grade,
+      priceUSD,
+      sellerWallet,
+      sellerName,
+      condition: "Mint",
+      imageUrl,
+    });
+    return Response.json({ listing });
+  } catch {
+    return Response.json({ error: "Failed to create listing" }, { status: 500 });
+  }
 }

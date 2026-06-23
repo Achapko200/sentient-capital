@@ -10,21 +10,30 @@ export async function GET(
   context: { params: Promise<{ playerId: string }> },
 ) {
   const { playerId } = await context.params;
-  const player = await getPlayer(playerId);
 
+  // Validate playerId — digits only
+  if (!playerId || !/^\d+$/.test(playerId)) {
+    return NextResponse.json({ error: "Invalid player ID" }, { status: 400 });
+  }
+
+  const player = await getPlayer(playerId);
   if (!player) {
     return NextResponse.json({ error: "Player not found" }, { status: 404 });
   }
 
-  const [stats, sales] = await Promise.all([
-    fetchMLBStats(player.id),
-    fetchEbaySales(player.id, player.cardName),
-  ]);
+  // Fetch stats first so we can estimate card price for mock eBay sales
+  const stats = await fetchMLBStats(player.id);
+
+  const estimatedPrice = stats
+    ? Math.round(50 + (stats.hr ?? 0) * 8 + (stats.ops ?? 0) * 200)
+    : 150;
+
+  const sales = await fetchEbaySales(player.id, player.cardName);
 
   const avgPrice     = calcAvgPrice(sales);
   const priceChange  = calcPriceChange(sales);
-  const priceHistory = calcPriceHistory(player.id);
-  const liquidity    = calcLiquidity(player.id);
+  const priceHistory = calcPriceHistory(playerId);
+  const liquidity    = calcLiquidity(String(sales.length * 2)); // ← count, not playerId
   const sentiment    = calcSentiment(stats, priceChange);
   const cardSignal   = generateSignal(stats, sales, sentiment);
 

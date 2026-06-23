@@ -1,5 +1,5 @@
 // ─── lib/listings.ts ─────────────────────────────────────────────────────────
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-server";
 
 export type Listing = {
   id:           string;
@@ -36,21 +36,25 @@ function toListing(row: any): Listing {
 }
 
 export async function getListings(): Promise<Listing[]> {
-  const { data } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("listings")
     .select()
     .eq("sold", false)
     .order("listed_at", { ascending: false });
+
+  if (error) return [];
   return (data ?? []).map(toListing);
 }
 
 export async function getListing(id: string): Promise<Listing | null> {
-  const { data } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("listings")
     .select()
     .eq("id", id)
     .single();
-  return data ? toListing(data) : null;
+
+  if (error || !data) return null;
+  return toListing(data);
 }
 
 export async function addListing(
@@ -71,12 +75,17 @@ export async function addListing(
     sold:          false,
     tx_hash:       null,
   };
-  await supabase.from("listings").insert(row);
+
+  const { error } = await supabaseAdmin.from("listings").insert(row);
+  if (error) throw new Error(error.message);
   return toListing(row);
 }
 
 export async function markSold(id: string, txHash: string): Promise<void> {
-  await supabase.from("listings")
+  const { error } = await supabaseAdmin
+    .from("listings")
     .update({ sold: true, tx_hash: txHash })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("sold", false); // prevent double-selling
+  if (error) throw new Error(error.message);
 }

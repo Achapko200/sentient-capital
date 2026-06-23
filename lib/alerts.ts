@@ -1,5 +1,5 @@
 // ─── lib/alerts.ts ───────────────────────────────────────────────────────────
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-server";
 
 export type Alert = {
   id:          string;
@@ -28,7 +28,8 @@ export async function createAlert(
     triggered:    false,
     created_at:   new Date().toISOString(),
   };
-  await supabase.from("alerts").insert(alert);
+  const { error } = await supabaseAdmin.from("alerts").insert(alert);
+  if (error) throw new Error(error.message);
   return {
     id: alert.id, wallet, cardId, playerName,
     targetPrice, direction, email: alert.email,
@@ -37,27 +38,39 @@ export async function createAlert(
 }
 
 export async function getAlerts(wallet: string): Promise<Alert[]> {
-  const { data } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("alerts")
     .select()
     .eq("wallet", wallet)
     .order("created_at", { ascending: false });
 
+  if (error) return [];
+
   return (data ?? []).map(a => ({
-    id: a.id, wallet: a.wallet, cardId: a.card_id,
-    playerName: a.player_name, targetPrice: a.target_price,
-    direction: a.direction, email: a.email,
-    triggered: a.triggered, createdAt: a.created_at,
+    id:          a.id,
+    wallet:      a.wallet,
+    cardId:      a.card_id,
+    playerName:  a.player_name,
+    targetPrice: a.target_price,
+    direction:   a.direction,
+    email:       a.email,
+    triggered:   a.triggered,
+    createdAt:   a.created_at,
   }));
 }
 
 export async function deleteAlert(id: string, wallet: string): Promise<void> {
-  await supabase.from("alerts").delete().eq("id", id).eq("wallet", wallet);
+  // Wallet check ensures users can only delete their own alerts
+  const { error } = await supabaseAdmin
+    .from("alerts")
+    .delete()
+    .eq("id", id)
+    .eq("wallet", wallet);
+  if (error) throw new Error(error.message);
 }
 
-// ─── Called by a cron job or on each price fetch ──────────────────────────────
 export async function checkAlerts(cardId: string, currentPrice: number): Promise<void> {
-  const { data: alerts } = await supabase
+  const { data: alerts } = await supabaseAdmin
     .from("alerts")
     .select()
     .eq("card_id", cardId)
@@ -69,19 +82,21 @@ export async function checkAlerts(cardId: string, currentPrice: number): Promise
       (alert.direction === "BELOW" && currentPrice <= alert.target_price);
 
     if (triggered) {
-      await supabase.from("alerts").update({ triggered: true }).eq("id", alert.id);
+      await supabaseAdmin
+        .from("alerts")
+        .update({ triggered: true })
+        .eq("id", alert.id);
       if (alert.email) await sendAlertEmail(alert, currentPrice);
     }
   }
 }
 
 async function sendAlertEmail(alert: any, currentPrice: number): Promise<void> {
-  // Uses Resend (free tier — 3000 emails/month)
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
 
   await fetch("https://api.resend.com/emails", {
-    method: "POST",
+    method:  "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from:    "alerts@cardtracker.app",
@@ -89,7 +104,7 @@ async function sendAlertEmail(alert: any, currentPrice: number): Promise<void> {
       subject: `🚨 ${alert.player_name} card hit $${currentPrice}`,
       html: `
         <h2>Price Alert Triggered</h2>
-        <p><strong>${alert.player_name}</strong> card share price hit <strong>$${currentPrice}</strong></p>
+        <p><strong>${alert.player_name}</strong> share price hit <strong>$${currentPrice}</strong></p>
         <p>Your alert: ${alert.direction === "ABOVE" ? "above" : "below"} $${alert.target_price}</p>
         <a href="https://sentient-capital.vercel.app">View on Card Tracker →</a>
       `,

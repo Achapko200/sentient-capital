@@ -2,48 +2,13 @@
 
 import type { Player } from "@/lib/cardTypes";
 
-// ─── Fallback colors only ─────────────────────────────────────────────────────
 const DEFAULT_COLORS = { cardColor: "#1a1a2e", teamColor: "#16213e" };
 
-// ─── MLB headshot URL ─────────────────────────────────────────────────────────
 function headshotUrl(playerId: string): string {
   return `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;
 }
 
-// ─── Fetch team colors from MLB Stats API ─────────────────────────────────────
-// MLB API returns team color hex codes directly — no need to hardcode them
-async function fetchTeamColors(teamId: number): Promise<{ cardColor: string; teamColor: string }> {
-  try {
-    const res = await fetch(
-      `https://statsapi.mlb.com/api/v1/teams/${teamId}`,
-      { next: { revalidate: 86400 } } // cache 24 hours — team colors never change
-    );
-    if (!res.ok) return DEFAULT_COLORS;
-    const data = await res.json();
-    const team = data.teams?.[0];
-
-    // MLB API returns colors under team.franchiseHistory or we derive from teamCode
-    // Fall back to a color derived from the team ID to ensure uniqueness
-    const primary   = team?.color        ?? null;
-    const secondary = team?.alternateColor ?? null;
-
-    if (primary && secondary) {
-      return {
-        cardColor:  `#${primary}`,
-        teamColor:  `#${secondary}`,
-      };
-    }
-
-    // MLB API doesn't always return colors — use team abbreviation to pick
-    return deriveColors(team?.abbreviation ?? "");
-  } catch {
-    return DEFAULT_COLORS;
-  }
-}
-
-// ─── Derive distinct colors from team abbreviation as a reliable fallback ─────
 function deriveColors(abbrev: string): { cardColor: string; teamColor: string } {
-  // Known MLB team colors — all 30 teams covered, no partial list
   const MLB_COLORS: Record<string, { cardColor: string; teamColor: string }> = {
     ARI: { cardColor: "#A71930", teamColor: "#E3D4AD" },
     ATL: { cardColor: "#CE1141", teamColor: "#13274F" },
@@ -79,7 +44,16 @@ function deriveColors(abbrev: string): { cardColor: string; teamColor: string } 
   return MLB_COLORS[abbrev] ?? DEFAULT_COLORS;
 }
 
-// ─── Fetch a single player from MLB Stats API ────────────────────────────────
+function buildCardName(p: any): string {
+  const year = p.mlbDebutDate
+    ? new Date(p.mlbDebutDate).getFullYear()
+    : new Date().getFullYear();
+  const set  = year >= 2023 ? "Topps Chrome Rookie PSA 10"
+             : year >= 2020 ? "Topps Chrome PSA 10"
+             :                "Topps Update Rookie PSA 10";
+  return `${year} ${set}`;
+}
+
 async function fetchMLBPlayer(playerId: string): Promise<Player | null> {
   try {
     const res = await fetch(
@@ -88,12 +62,11 @@ async function fetchMLBPlayer(playerId: string): Promise<Player | null> {
     );
     if (!res.ok) return null;
     const data = await res.json();
-    const p = data.people?.[0];
+    const p    = data.people?.[0];
     if (!p) return null;
 
-    const teamId: number  = p.currentTeam?.id;
-    const abbrev: string  = p.currentTeam?.abbreviation ?? "";
-    const colors          = deriveColors(abbrev); // all 30 teams covered
+    const abbrev = p.currentTeam?.abbreviation ?? "";
+    const colors = deriveColors(abbrev);
 
     return {
       id:        String(p.id),
@@ -110,39 +83,56 @@ async function fetchMLBPlayer(playerId: string): Promise<Player | null> {
   }
 }
 
-// ─── Derive card name from player debut year ──────────────────────────────────
-function buildCardName(p: any): string {
-  const year = p.mlbDebutDate
-    ? new Date(p.mlbDebutDate).getFullYear()
-    : new Date().getFullYear();
-  const set  = year >= 2023 ? "Topps Chrome Rookie PSA 10"
-             : year >= 2020 ? "Topps Chrome PSA 10"
-             :                "Topps Update Rookie PSA 10";
-  return `${year} ${set}`;
-}
+// ─── Try multiple stat categories until one returns players ───────────────────
+const LEADER_CATEGORIES = [
+  "homeRuns",
+  "battingAverage",
+  "onBasePlusSlugging",
+  "rbi",
+  "hits",
+];
 
-// ─── Fetch top players dynamically ───────────────────────────────────────────
-async function fetchTopPlayers(): Promise<Player[]> {
-  try {
-    const res = await fetch(
-      "https://statsapi.mlb.com/api/v1/stats/leaders?" +
-      "leaderCategories=homeRuns&season=2025&sportId=1&limit=10",
-      { next: { revalidate: 3600 } }
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    const leaders = data.leagueLeaders?.[0]?.leaders ?? [];
+async function fetchLeadersByCategory(category: string): Promise<Player[]> {
+  const currentYear = new Date().getFullYear();
 
-    const players = await Promise.all(
-      leaders.map((l: any) => fetchMLBPlayer(String(l.person.id)))
-    );
-    return players.filter(Boolean) as Player[];
-  } catch {
-    return [];
+  // Try current year first, then previous year
+  for (const season of [currentYear, currentYear - 1]) {
+    try {
+      const res = await fetch(
+        `https://statsapi.mlb.com/api/v1/stats/leaders?` +
+        `leaderCategories=${category}&season=${season}&sportId=1&limit=10`,
+        { next: { revalidate: 3600 } }
+      );
+      if (!res.ok) continue;
+
+      const data    = await res.json();
+      const leaders = data.leagueLeaders?.[0]?.leaders ?? [];
+      if (leaders.length === 0) continue;
+
+      const players = await Promise.all(
+        leaders.map((l: any) => fetchMLBPlayer(String(l.person.id)))
+      );
+      const valid = players.filter(Boolean) as Player[];
+      if (valid.length > 0) return valid;
+    } catch {
+      continue;
+    }
   }
+
+  return [];
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+async function fetchTopPlayers(): Promise<Player[]> {
+  // Try each stat category in order until we get players
+  for (const category of LEADER_CATEGORIES) {
+    const players = await fetchLeadersByCategory(category);
+    if (players.length > 0) return players;
+  }
+
+  // If all categories fail return empty — the UI shows the "no players" message
+  return [];
+}
+
 export async function getWatchlist(): Promise<Player[]> {
   return fetchTopPlayers();
 }
@@ -158,7 +148,7 @@ export async function searchPlayers(query: string): Promise<Player[]> {
       { next: { revalidate: 60 } }
     );
     if (!res.ok) return [];
-    const data = await res.json();
+    const data    = await res.json();
     const results = await Promise.all(
       (data.people ?? []).slice(0, 10).map((p: any) => fetchMLBPlayer(String(p.id)))
     );
