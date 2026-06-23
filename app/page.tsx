@@ -13,8 +13,12 @@ import TradingPanel               from "@/components/cards/TradingPanel";
 import Portfolio                  from "@/components/cards/Portfolio";
 import SearchPlayers              from "@/components/cards/SearchPlayers";
 import PriceAlerts                from "@/components/cards/PriceAlerts";
+import AIAssistant                from "@/components/cards/AIAssistant";
+import AuthGate                   from "@/components/auth/AuthGate";
+import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
+import { useAuth }                from "@/lib/auth-context";
 
-type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts";
+type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts" | "ai";
 
 function TradingPanelLoader({ player }: { player: Player }) {
   const [token, setToken] = useState<CardToken | null>(null);
@@ -35,6 +39,7 @@ export default function Home() {
   const [players,     setPlayers]     = useState<Player[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [tradePlayer, setTradePlayer] = useState<Player | null>(null);
+  const { isAuthenticated, wallet }   = useAuth();
 
   useEffect(() => {
     fetch("/api/cards/players")
@@ -55,6 +60,7 @@ export default function Home() {
     { id: "traders",     label: "Trader Gains",  icon: "📈" },
     { id: "analysts",    label: "Analyst Picks", icon: "🎓" },
     { id: "alerts",      label: "Alerts",        icon: "🔔" },
+    { id: "ai",          label: "AI Assistant",  icon: "🤖" },
   ];
 
   const tabColor = (id: Tab, active: boolean) => {
@@ -63,6 +69,7 @@ export default function Home() {
     if (id === "trade")       return "bg-gray-950 text-white shadow-sm";
     if (id === "portfolio")   return "bg-gray-800 text-white shadow-sm";
     if (id === "alerts")      return "bg-orange-500 text-white shadow-sm";
+    if (id === "ai")          return "bg-blue-700 text-white shadow-sm";
     return "bg-blue-600 text-white shadow-sm";
   };
 
@@ -75,26 +82,40 @@ export default function Home() {
       }} />
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-8 py-5 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 md:py-5 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">⚾</span>
+          <div className="flex items-center gap-3 md:gap-4">
+            <span className="text-3xl md:text-4xl">⚾</span>
             <div>
-              <h1 className="text-3xl font-black text-gray-900 tracking-tight">Card Tracker</h1>
-              <p className="text-gray-500 text-sm mt-0.5">
+              <h1 className="text-xl md:text-3xl font-black text-gray-900 tracking-tight">Card Tracker</h1>
+              <p className="text-gray-500 text-xs md:text-sm mt-0.5 hidden md:block">
                 Real MLB data · eBay prices · AI signals · Crypto payments
               </p>
             </div>
           </div>
+
+          {/* Right side — wallet + admin */}
+          <div className="flex items-center gap-3">
+            {isAuthenticated && wallet && (
+              <span className="text-gray-400 text-xs font-mono hidden md:block">
+                {wallet.slice(0, 6)}...{wallet.slice(-4)}
+              </span>
+            )}
+            <DynamicWidget />
+            <a href="/admin"
+              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block">
+              Admin ↗
+            </a>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="max-w-7xl mx-auto mt-4 flex gap-1 flex-wrap">
+        {/* Tabs — scrollable on mobile */}
+        <div className="max-w-7xl mx-auto mt-4 flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`px-5 py-2 rounded-xl text-sm font-bold transition ${tabColor(t.id, tab === t.id)}`}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition whitespace-nowrap shrink-0 ${tabColor(t.id, tab === t.id)}`}
             >
               {t.icon} {t.label}
             </button>
@@ -102,9 +123,9 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8">
 
-        {/* ── CARDS TAB ──────────────────────────────────────────────────────── */}
+        {/* ── CARDS TAB — public ─────────────────────────────────────────────── */}
         {tab === "cards" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -159,68 +180,84 @@ export default function Home() {
                   📊 Open Trading
                 </button>
               </div>
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold text-base mb-3">🤖 AI Assistant</h3>
+                <p className="text-gray-500 text-sm mb-3">
+                  Ask the AI about card signals, trading strategies, and market trends.
+                </p>
+                <button
+                  onClick={() => setTab("ai")}
+                  className="w-full py-2.5 rounded-xl bg-blue-700 text-white font-bold text-sm hover:bg-blue-600 transition"
+                >
+                  🤖 Open AI Assistant
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── TRADE TAB ──────────────────────────────────────────────────────── */}
+        {/* ── TRADE TAB — auth required ──────────────────────────────────────── */}
         {tab === "trade" && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <SearchPlayers onSelect={(p) => setTradePlayer(p)} />
+          <AuthGate>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <SearchPlayers onSelect={(p) => setTradePlayer(p)} />
+                </div>
+                {tradePlayer && (
+                  <button
+                    onClick={() => setTradePlayer(null)}
+                    className="text-gray-400 hover:text-gray-600 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white transition"
+                  >
+                    ✕ Clear
+                  </button>
+                )}
               </div>
-              {tradePlayer && (
-                <button
-                  onClick={() => setTradePlayer(null)}
-                  className="text-gray-400 hover:text-gray-600 text-sm px-3 py-2 rounded-xl border border-gray-200 bg-white transition"
-                >
-                  ✕ Clear
-                </button>
+
+              {tradePlayer ? (
+                <TradingPanelLoader player={tradePlayer} />
+              ) : (
+                <>
+                  <p className="text-gray-500 text-sm">Select a player above or pick from the watchlist:</p>
+                  {loading ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {Array.from({ length: 10 }).map((_, i) => (
+                        <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {players.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setTradePlayer(p)}
+                          className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-blue-400 hover:shadow-md transition text-left group"
+                        >
+                          <img
+                            src={p.cardImage}
+                            alt={p.name}
+                            className="w-12 h-12 rounded-full object-cover bg-gray-100 mb-2"
+                          />
+                          <p className="text-gray-900 font-bold text-sm truncate group-hover:text-blue-600">{p.name}</p>
+                          <p className="text-gray-400 text-xs truncate">{p.team}</p>
+                          <p className="text-gray-300 text-xs mt-1">📊 Trade shares</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
-
-            {tradePlayer ? (
-              <TradingPanelLoader player={tradePlayer} />
-            ) : (
-              <>
-                <p className="text-gray-500 text-sm">Select a player above or pick from the watchlist:</p>
-                {loading ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                      <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                    {players.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => setTradePlayer(p)}
-                        className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-blue-400 hover:shadow-md transition text-left group"
-                      >
-                        <img
-                          src={p.cardImage}
-                          alt={p.name}
-                          className="w-12 h-12 rounded-full object-cover bg-gray-100 mb-2"
-                        />
-                        <p className="text-gray-900 font-bold text-sm truncate group-hover:text-blue-600">{p.name}</p>
-                        <p className="text-gray-400 text-xs truncate">{p.team}</p>
-                        <p className="text-gray-300 text-xs mt-1">📊 Trade shares</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          </AuthGate>
         )}
 
-        {/* ── PORTFOLIO TAB ──────────────────────────────────────────────────── */}
+        {/* ── PORTFOLIO TAB — auth required ──────────────────────────────────── */}
         {tab === "portfolio" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <Portfolio />
+              <AuthGate>
+                <Portfolio />
+              </AuthGate>
             </div>
             <div className="space-y-4">
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
@@ -272,14 +309,16 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── MARKETPLACE TAB ────────────────────────────────────────────────── */}
+        {/* ── MARKETPLACE TAB — view public, list requires auth ──────────────── */}
         {tab === "marketplace" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <Marketplace />
             </div>
             <div className="space-y-4">
-              <ListCardForm onSuccess={() => {}} />
+              <AuthGate>
+                <ListCardForm onSuccess={() => {}} />
+              </AuthGate>
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-3">How buying works</h3>
                 <div className="space-y-3">
@@ -320,7 +359,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── TRADERS TAB ────────────────────────────────────────────────────── */}
+        {/* ── TRADERS TAB — public ───────────────────────────────────────────── */}
         {tab === "traders" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -351,7 +390,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── ANALYSTS TAB ───────────────────────────────────────────────────── */}
+        {/* ── ANALYSTS TAB — public ──────────────────────────────────────────── */}
         {tab === "analysts" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -391,11 +430,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── ALERTS TAB ─────────────────────────────────────────────────────── */}
+        {/* ── ALERTS TAB — auth required ─────────────────────────────────────── */}
         {tab === "alerts" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <PriceAlerts players={players} />
+              <AuthGate>
+                <PriceAlerts players={players} />
+              </AuthGate>
             </div>
             <div className="space-y-4">
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
@@ -442,6 +483,59 @@ export default function Home() {
               >
                 📊 Go to Trade
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── AI ASSISTANT TAB — auth required ───────────────────────────────── */}
+        {tab === "ai" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <AuthGate>
+                <AIAssistant players={players} />
+              </AuthGate>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-3">What can I ask?</h3>
+                <div className="space-y-2 text-sm text-gray-500">
+                  {[
+                    "💡 Which cards have strong BUY signals?",
+                    "📊 How does the order book work?",
+                    "🏦 How do I redeem a physical card?",
+                    "📈 What makes card prices go up?",
+                    "⚡ How fast do trades settle?",
+                    "🔔 How do price alerts work?",
+                  ].map((q, i) => (
+                    <p key={i}>{q}</p>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-2">About the AI</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Powered by Claude. Knows your platform, tracked players, and card market dynamics. Not financial advice — trading education.
+                </p>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-2">Player profiles</h3>
+                <p className="text-gray-500 text-sm mb-3">
+                  View deep stats, sales history, and analyst calls for any player.
+                </p>
+                <div className="space-y-2">
+                  {players.slice(0, 5).map(p => (
+                    <a key={p.id} href={`/players/${p.id}`}
+                      className="flex items-center gap-2 p-2 rounded-xl hover:bg-gray-50 transition group">
+                      <img src={p.cardImage} alt={p.name}
+                        className="w-8 h-8 rounded-full object-cover bg-gray-100" />
+                      <span className="text-sm text-gray-700 group-hover:text-blue-600 transition font-medium truncate">
+                        {p.name}
+                      </span>
+                      <span className="ml-auto text-gray-300 text-xs">→</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}

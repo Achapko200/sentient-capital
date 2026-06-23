@@ -7,63 +7,131 @@ import type { CardToken, Candle }            from "@/lib/cardToken";
 import type { OrderBookSnapshot, Order, Trade } from "@/lib/orderbook";
 
 type Props = { token: CardToken };
-
-type Tab = "chart" | "book" | "orders";
+type Tab   = "chart" | "book" | "orders";
 
 export default function TradingPanel({ token }: Props) {
-  const { primaryWallet, user }     = useDynamicContext();
-  const [tab,        setTab]        = useState<Tab>("chart");
-  const [orderType,  setOrderType]  = useState<"BUY" | "SELL">("BUY");
-  const [price,      setPrice]      = useState(String(token.pricePerShare));
-  const [shares,     setShares]     = useState("1");
-  const [book,       setBook]       = useState<OrderBookSnapshot | null>(null);
-  const [trades,     setTrades]     = useState<Trade[]>([]);
-  const [candles,    setCandles]    = useState<Candle[]>([]);
-  const [myOrders,   setMyOrders]   = useState<Order[]>([]);
-  const [loading,    setLoading]    = useState(false);
-  const [success,    setSuccess]    = useState("");
-  const [error,      setError]      = useState("");
+  const { primaryWallet, user } = useDynamicContext();
+
+  const [tab,       setTab]       = useState<Tab>("chart");
+  const [orderType, setOrderType] = useState<"BUY" | "SELL">("BUY");
+  const [price,     setPrice]     = useState(String(token.pricePerShare));
+  const [shares,    setShares]    = useState("1");
+  const [book,      setBook]      = useState<OrderBookSnapshot | null>(null);
+  const [trades,    setTrades]    = useState<Trade[]>([]);
+  const [candles,   setCandles]   = useState<Candle[]>([]);
+  const [myOrders,  setMyOrders]  = useState<Order[]>([]);
+  const [loading,   setLoading]   = useState(false);
+  const [success,   setSuccess]   = useState("");
+  const [error,     setError]     = useState("");
+
+  // AMM state
+  const [ammQuote,    setAmmQuote]    = useState<{ price: number; sellReturn: number; buyReturn: number; impact: number } | null>(null);
+  const [ammLoading,  setAmmLoading]  = useState(false);
+  const [ammSuccess,  setAmmSuccess]  = useState("");
+  const [ammError,    setAmmError]    = useState("");
+  const [showAmm,     setShowAmm]     = useState(false);
 
   const load = useCallback(async () => {
-    const res  = await fetch(`/api/cards/orderbook?cardId=${token.id}`);
-    const data = await res.json();
-    setBook(data.book);
-    setTrades(data.trades ?? []);
-    setCandles(data.candles ?? []);
+    try {
+      const res  = await fetch(`/api/cards/orderbook?cardId=${token.id}`);
+      const data = await res.json();
+      setBook(data.book);
+      setTrades(data.trades ?? []);
+      setCandles(data.candles ?? []);
+    } catch {}
   }, [token.id]);
 
-  useEffect(() => { load(); const i = setInterval(load, 10000); return () => clearInterval(i); }, [load]);
+  // Load my orders separately
+  const loadMyOrders = useCallback(async () => {
+    if (!primaryWallet?.address) return;
+    try {
+      const res  = await fetch(`/api/cards/orders?cardId=${token.id}&wallet=${primaryWallet.address}`);
+      const data = await res.json();
+      setMyOrders(data.orders ?? []);
+    } catch {}
+  }, [token.id, primaryWallet?.address]);
+
+  useEffect(() => {
+    load();
+    loadMyOrders();
+    const i = setInterval(() => { load(); loadMyOrders(); }, 10000);
+    return () => clearInterval(i);
+  }, [load, loadMyOrders]);
+
+  // Fetch AMM quote when shares or orderType changes
+  useEffect(() => {
+    if (!showAmm) return;
+    const n = parseInt(shares) || 1;
+    setAmmLoading(true);
+    fetch(`/api/cards/amm?cardId=${token.id}&shares=${n}&side=${orderType.toLowerCase()}`)
+      .then(r => r.json())
+      .then(setAmmQuote)
+      .catch(() => setAmmQuote(null))
+      .finally(() => setAmmLoading(false));
+  }, [token.id, shares, orderType, showAmm]);
 
   const handleOrder = async () => {
     if (!user || !primaryWallet) { setError("Connect wallet first"); return; }
     setLoading(true); setError(""); setSuccess("");
     try {
       const res = await fetch("/api/cards/trade", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body:    JSON.stringify({
           action: "place", cardId: token.id, type: orderType,
-          price: parseFloat(price), shares: parseInt(shares),
+          price:  parseFloat(price), shares: parseInt(shares),
           wallet: primaryWallet.address,
         }),
       });
       if (!res.ok) throw new Error();
       setSuccess(`${orderType} order placed — ${shares} shares @ $${price}`);
+      load(); loadMyOrders();
+    } catch {
+      setError("Order failed — try again");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAmmTrade = async () => {
+    if (!user || !primaryWallet) { setAmmError("Connect wallet first"); return; }
+    setAmmLoading(true); setAmmError(""); setAmmSuccess("");
+    try {
+      const res = await fetch("/api/cards/amm", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          action:     orderType === "SELL" ? "sell" : "buy",
+          cardId:     token.id,
+          wallet:     primaryWallet.address,
+          shares:     parseInt(shares),
+          usdcAmount: orderType === "BUY" ? parseFloat(price) * parseInt(shares) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Trade failed");
+      const received = orderType === "SELL"
+        ? `$${data.usdcReceived} USDC`
+        : `${data.sharesReceived} shares`;
+      setAmmSuccess(`Done! Received ${received} · New price: $${data.newPrice}`);
       load();
-    } catch { setError("Order failed — try again"); }
-    finally { setLoading(false); }
+    } catch (err: any) {
+      setAmmError(err.message ?? "Trade failed");
+    } finally {
+      setAmmLoading(false);
+    }
   };
 
   const total = Math.round(parseFloat(price || "0") * parseInt(shares || "0") * 100) / 100;
 
   // ── Candlestick SVG ──────────────────────────────────────────────────────────
   const CandleChart = () => {
-    if (candles.length === 0) return <div className="h-40 bg-gray-50 rounded-xl animate-pulse" />;
+    if (candles.length === 0) return <div className="h-40 bg-gray-900 rounded-xl animate-pulse" />;
     const W = 500, H = 140, PAD = { l: 40, r: 8, t: 8, b: 20 };
     const prices = candles.flatMap(c => [c.high, c.low]);
     const min    = Math.min(...prices) * 0.995;
     const max    = Math.max(...prices) * 1.005;
-    const range  = max - min;
+    const range  = max - min || 1;
     const chartW = W - PAD.l - PAD.r;
     const chartH = H - PAD.t - PAD.b;
     const toX    = (i: number) => PAD.l + (i / (candles.length - 1)) * chartW;
@@ -72,25 +140,22 @@ export default function TradingPanel({ token }: Props) {
 
     return (
       <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
-        {/* Grid lines */}
         {[0.25, 0.5, 0.75].map(f => (
           <line key={f} x1={PAD.l} x2={W - PAD.r}
             y1={PAD.t + chartH * (1 - f)} y2={PAD.t + chartH * (1 - f)}
-            stroke="#f0f0f0" strokeWidth="1" />
+            stroke="#1f2937" strokeWidth="1" />
         ))}
-        {/* Price labels */}
         {[0, 0.5, 1].map(f => (
           <text key={f} x={PAD.l - 4} y={PAD.t + chartH * (1 - f) + 4}
-            fontSize="8" fill="#9ca3af" textAnchor="end">
+            fontSize="8" fill="#6b7280" textAnchor="end">
             ${(min + range * f).toFixed(2)}
           </text>
         ))}
-        {/* Candles */}
         {candles.map((c, i) => {
-          const isUp   = c.close >= c.open;
-          const color  = isUp ? "#22c55e" : "#ef4444";
-          const bodyY  = toY(Math.max(c.open, c.close));
-          const bodyH  = Math.max(1, Math.abs(toY(c.open) - toY(c.close)));
+          const isUp  = c.close >= c.open;
+          const color = isUp ? "#22c55e" : "#ef4444";
+          const bodyY = toY(Math.max(c.open, c.close));
+          const bodyH = Math.max(1, Math.abs(toY(c.open) - toY(c.close)));
           return (
             <g key={i}>
               <line x1={toX(i)} x2={toX(i)} y1={toY(c.high)} y2={toY(c.low)}
@@ -100,9 +165,8 @@ export default function TradingPanel({ token }: Props) {
             </g>
           );
         })}
-        {/* Date labels */}
         {[0, Math.floor(candles.length / 2), candles.length - 1].map(i => (
-          <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#9ca3af" textAnchor="middle">
+          <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#6b7280" textAnchor="middle">
             {candles[i]?.time.slice(5)}
           </text>
         ))}
@@ -137,8 +201,8 @@ export default function TradingPanel({ token }: Props) {
         {[
           { label: "Bid",    value: book?.bids[0]?.price ? `$${book.bids[0].price}` : "—" },
           { label: "Ask",    value: book?.asks[0]?.price ? `$${book.asks[0].price}` : "—" },
-          { label: "Spread", value: book?.spread ? `$${book.spread}` : "—" },
-          { label: "Vol",    value: token.volume24h.toLocaleString() },
+          { label: "Spread", value: book?.spread ? `$${book.spread}` : "—"                },
+          { label: "Vol",    value: token.volume24h.toLocaleString()                       },
         ].map(s => (
           <div key={s.label} className="px-3 py-2 text-center">
             <p className="text-gray-500 text-xs">{s.label}</p>
@@ -151,15 +215,13 @@ export default function TradingPanel({ token }: Props) {
 
         {/* Left: Chart + Book */}
         <div className="col-span-3 border-r border-gray-800">
-
-          {/* Sub-tabs */}
           <div className="flex border-b border-gray-800">
             {(["chart", "book", "orders"] as Tab[]).map(t => (
               <button key={t} onClick={() => setTab(t)}
                 className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${
                   tab === t ? "text-white border-b-2 border-blue-500" : "text-gray-500 hover:text-gray-300"
                 }`}>
-                {t === "chart" ? "📊 Chart" : t === "book" ? "📋 Order Book" : "📝 My Orders"}
+                {t === "chart" ? "📊 Chart" : t === "book" ? "📋 Book" : "📝 Orders"}
               </button>
             ))}
           </div>
@@ -177,7 +239,9 @@ export default function TradingPanel({ token }: Props) {
                     <span className="text-gray-400">{t.shares} shares</span>
                   </div>
                 ))}
-                {trades.length === 0 && <p className="text-gray-600 text-xs">No trades yet — be the first</p>}
+                {trades.length === 0 && (
+                  <p className="text-gray-600 text-xs">No trades yet — be the first</p>
+                )}
               </div>
             </div>
           )}
@@ -185,8 +249,7 @@ export default function TradingPanel({ token }: Props) {
           {/* Order Book */}
           {tab === "book" && (
             <div className="p-4">
-              {/* Asks — sell orders */}
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Asks (Sell orders)</p>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Asks</p>
               <div className="space-y-0.5 mb-3">
                 {(book?.asks ?? []).slice(0, 6).reverse().map((ask, i) => (
                   <div key={i} className="relative flex justify-between text-xs py-0.5 px-2 rounded overflow-hidden">
@@ -198,17 +261,13 @@ export default function TradingPanel({ token }: Props) {
                   </div>
                 ))}
               </div>
-
-              {/* Spread */}
               <div className="text-center py-1 border-y border-gray-800 mb-3">
                 <span className="text-gray-500 text-xs">
                   Spread: <span className="text-white font-bold">${book?.spread ?? "—"}</span>
                   {" · "}Mid: <span className="text-white font-bold">${book?.midpoint ?? "—"}</span>
                 </span>
               </div>
-
-              {/* Bids — buy orders */}
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Bids (Buy orders)</p>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Bids</p>
               <div className="space-y-0.5">
                 {(book?.bids ?? []).slice(0, 6).map((bid, i) => (
                   <div key={i} className="relative flex justify-between text-xs py-0.5 px-2 rounded overflow-hidden">
@@ -242,11 +301,14 @@ export default function TradingPanel({ token }: Props) {
                       <button
                         onClick={async () => {
                           await fetch("/api/cards/trade", {
-                            method: "POST",
+                            method:  "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ action: "cancel", cardId: token.id, orderId: o.id, wallet: primaryWallet?.address }),
+                            body:    JSON.stringify({
+                              action: "cancel", cardId: token.id,
+                              orderId: o.id, wallet: primaryWallet?.address,
+                            }),
                           });
-                          load();
+                          load(); loadMyOrders();
                         }}
                         className="text-xs text-red-400 hover:text-red-300 border border-red-800 px-2 py-1 rounded-lg"
                       >
@@ -260,9 +322,8 @@ export default function TradingPanel({ token }: Props) {
           )}
         </div>
 
-        {/* Right: Place order */}
+        {/* Right: Order form */}
         <div className="col-span-2 p-4 space-y-3">
-          <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Place Order</p>
 
           {/* BUY / SELL toggle */}
           <div className="grid grid-cols-2 gap-1 bg-gray-900 rounded-xl p-1">
@@ -278,17 +339,18 @@ export default function TradingPanel({ token }: Props) {
             ))}
           </div>
 
-          {/* Price */}
+          {/* Price + shares */}
           <div>
             <label className="text-gray-500 text-xs mb-1 block">Limit Price ($)</label>
-            <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)}
+            <input type="number" step="0.01" value={price}
+              onChange={e => setPrice(e.target.value)}
               className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500" />
           </div>
 
-          {/* Shares */}
           <div>
             <label className="text-gray-500 text-xs mb-1 block">Shares</label>
-            <input type="number" min="1" max="100" value={shares} onChange={e => setShares(e.target.value)}
+            <input type="number" min="1" max="100" value={shares}
+              onChange={e => setShares(e.target.value)}
               className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500" />
             <div className="flex gap-1 mt-1">
               {[1, 5, 10, 25].map(n => (
@@ -319,16 +381,79 @@ export default function TradingPanel({ token }: Props) {
           {error   && <p className="text-red-400 text-xs">{error}</p>}
           {success && <p className="text-green-400 text-xs">{success}</p>}
 
+          {/* Limit order button */}
           <button onClick={handleOrder} disabled={loading || !user}
-            className={`w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-50 ${
+            className={`w-full py-2.5 rounded-xl font-black text-sm transition disabled:opacity-50 ${
               orderType === "BUY"
                 ? "bg-green-600 hover:bg-green-500 text-white"
                 : "bg-red-600 hover:bg-red-500 text-white"
             }`}>
-            {loading ? "Placing..." : !user ? "Connect wallet" : `Place ${orderType} Order`}
+            {loading ? "Placing..." : !user ? "Connect wallet" : `Place ${orderType} Limit Order`}
           </button>
 
-          {/* PSA Vault info */}
+          {/* ── AMM Instant trade ────────────────────────────────────────────── */}
+          <div className="border-t border-gray-800 pt-3">
+            <button
+              onClick={() => setShowAmm(v => !v)}
+              className="w-full flex items-center justify-between text-xs text-gray-400 hover:text-gray-300 transition"
+            >
+              <span className="font-semibold">⚡ Instant {orderType} — no waiting</span>
+              <span>{showAmm ? "▲" : "▼"}</span>
+            </button>
+
+            {showAmm && (
+              <div className="mt-3 space-y-2">
+                {ammLoading ? (
+                  <div className="h-16 bg-gray-900 rounded-xl animate-pulse" />
+                ) : ammQuote && (
+                  <div className="bg-gray-900 rounded-xl p-3 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Market price</span>
+                      <span className="text-white">${ammQuote.price}/share</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">
+                        {orderType === "SELL" ? "You receive" : "Shares you get"}
+                      </span>
+                      <span className="font-black text-green-400">
+                        {orderType === "SELL"
+                          ? `$${ammQuote.sellReturn} USDC`
+                          : `${ammQuote.buyReturn} shares`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Price impact</span>
+                      <span className={Math.abs(ammQuote.impact) > 5 ? "text-red-400 font-semibold" : "text-gray-400"}>
+                        {ammQuote.impact > 0 ? "+" : ""}{ammQuote.impact}%
+                        {Math.abs(ammQuote.impact) > 5 && " ⚠️"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {ammError   && <p className="text-red-400 text-xs">{ammError}</p>}
+                {ammSuccess && <p className="text-green-400 text-xs">{ammSuccess}</p>}
+
+                <button
+                  onClick={handleAmmTrade}
+                  disabled={ammLoading || !user || !ammQuote}
+                  className={`w-full py-2.5 rounded-xl font-black text-sm transition disabled:opacity-50 ${
+                    orderType === "BUY"
+                      ? "bg-green-800 hover:bg-green-700 text-white"
+                      : "bg-red-800 hover:bg-red-700 text-white"
+                  }`}
+                >
+                  {ammLoading ? "..." : `⚡ Instant ${orderType}`}
+                </button>
+
+                <p className="text-gray-600 text-xs text-center">
+                  Executes immediately at market price
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* PSA Vault */}
           <div className="border border-gray-800 rounded-xl p-3 space-y-1">
             <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Vault</p>
             <div className="flex justify-between text-xs">
