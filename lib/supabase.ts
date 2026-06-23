@@ -9,7 +9,9 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    persistSession: false, // we use wallet auth, not Supabase auth
+    persistSession:     true,  // needed for email auth
+    autoRefreshToken:   true,
+    detectSessionInUrl: true,  // needed for password reset links
   },
   realtime: {
     params: {

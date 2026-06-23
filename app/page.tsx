@@ -14,7 +14,7 @@ import Portfolio                  from "@/components/cards/Portfolio";
 import SearchPlayers              from "@/components/cards/SearchPlayers";
 import PriceAlerts                from "@/components/cards/PriceAlerts";
 import AIAssistant                from "@/components/cards/AIAssistant";
-import AuthGate                   from "@/components/auth/AuthGate";
+import AuthGate                   from "@/components/AuthGate";
 import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
 import { useAuth }                from "@/lib/auth-context";
 
@@ -39,7 +39,7 @@ export default function Home() {
   const [players,     setPlayers]     = useState<Player[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [tradePlayer, setTradePlayer] = useState<Player | null>(null);
-  const { isAuthenticated, wallet }   = useAuth();
+  const { isAuthenticated, wallet, email, signOut } = useAuth();
 
   useEffect(() => {
     fetch("/api/cards/players")
@@ -94,14 +94,24 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right side — wallet + admin */}
+          {/* Right side */}
           <div className="flex items-center gap-3">
-            {isAuthenticated && wallet && (
+            {isAuthenticated && (
               <span className="text-gray-400 text-xs font-mono hidden md:block">
-                {wallet.slice(0, 6)}...{wallet.slice(-4)}
+                {wallet
+                  ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}`
+                  : email ?? ""}
               </span>
             )}
             <DynamicWidget />
+            {isAuthenticated && (
+              <button
+                onClick={signOut}
+                className="text-gray-400 hover:text-red-500 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
+              >
+                Sign out
+              </button>
+            )}
             <a href="/admin"
               className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block">
               Admin ↗
