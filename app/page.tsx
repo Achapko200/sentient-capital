@@ -121,7 +121,11 @@ export default function Home() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {players.map((player) => (
-                    <PlayerCard key={player.id} player={player} />
+                    <PlayerCard
+                      key={player.id}
+                      player={player}
+                      onTrade={(p) => { setTradePlayer(p); setTab("trade"); }}
+                    />
                   ))}
                 </div>
               )}
@@ -275,7 +279,7 @@ export default function Home() {
               <Marketplace />
             </div>
             <div className="space-y-4">
-              <ListCardForm onSuccess={() => window.location.reload()} />
+              <ListCardForm onSuccess={() => {}} />
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-3">How buying works</h3>
                 <div className="space-y-3">

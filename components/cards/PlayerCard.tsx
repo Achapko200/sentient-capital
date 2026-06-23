@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Image from "next/image";
-import type { CardData, Player } from "@/lib/cardTypes";
-import SignalBadge from "@/components/cards/SignalBadge";
-import PriceChart  from "@/components/cards/PriceChart";
+import Image                                from "next/image";
+import type { CardData, Player }            from "@/lib/cardTypes";
+import SignalBadge                          from "@/components/cards/SignalBadge";
+import PriceChart                           from "@/components/cards/PriceChart";
+import { subscribeToTrades }                from "@/lib/realtime";
+import { supabase }                         from "@/lib/supabase";
 
 const SENTIMENT_COLOR: Record<string, string> = {
   "VERY BULLISH": "text-green-600",
@@ -90,10 +92,17 @@ function BaseballCard({ player, signal }: { player: Player; signal: string }) {
   );
 }
 
-export default function PlayerCard({ player }: { player: Player }) {
-  const [data,     setData]     = useState<CardData | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [expanded, setExpanded] = useState(false);
+type Props = {
+  player:   Player;
+  onTrade?: (player: Player) => void;
+};
+
+export default function PlayerCard({ player, onTrade }: Props) {
+  const [data,           setData]           = useState<CardData | null>(null);
+  const [loading,        setLoading]        = useState(true);
+  const [expanded,       setExpanded]       = useState(false);
+  const [lastTradePrice, setLastTradePrice] = useState<number | null>(null);
+  const [priceFlash,     setPriceFlash]     = useState<"up" | "down" | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -101,7 +110,7 @@ export default function PlayerCard({ player }: { player: Player }) {
       const json = await res.json();
       setData(json);
     } catch {
-      // retry
+      // retry on next interval
     } finally {
       setLoading(false);
     }
@@ -112,6 +121,19 @@ export default function PlayerCard({ player }: { player: Player }) {
     const interval = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [load]);
+
+  // ─── Realtime price flash ─────────────────────────────────────────────────
+  useEffect(() => {
+    const channel = subscribeToTrades((cardId, price) => {
+      if (cardId !== player.id) return;
+      setLastTradePrice(prev => {
+        setPriceFlash(prev === null ? null : price > prev ? "up" : "down");
+        setTimeout(() => setPriceFlash(null), 1500);
+        return price;
+      });
+    });
+    return () => { supabase.removeChannel(channel); };
+  }, [player.id]);
 
   if (loading) {
     return (
@@ -133,21 +155,16 @@ export default function PlayerCard({ player }: { player: Player }) {
   const { stats, sales, sentiment, cardSignal, avgPrice, priceChange, priceHistory, liquidity } = data;
   const isUp        = priceChange >= 0;
   const borderClass = SIGNAL_BORDER[cardSignal.signal] ?? "border-gray-200";
-  const liqBg       = LIQUIDITY_BG[liquidity.label] ?? "bg-gray-50 border-gray-200";
+  const liqBg       = LIQUIDITY_BG[liquidity.label]    ?? "bg-gray-50 border-gray-200";
 
   return (
     <div className={`bg-white rounded-2xl border-2 ${borderClass} shadow-sm hover:shadow-md transition-shadow overflow-hidden`}>
 
       {/* TOP ROW */}
       <div className="flex items-start gap-3 p-4 pb-3">
-
-        {/* Card image — top left */}
         <BaseballCard player={player} signal={cardSignal.signal} />
 
-        {/* Right content */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
-
-          {/* Name + % gain top right */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h3 className="text-gray-900 font-black text-sm leading-tight truncate">{player.name}</h3>
@@ -162,14 +179,22 @@ export default function PlayerCard({ player }: { player: Player }) {
             </div>
           </div>
 
-          {/* Signal */}
           <SignalBadge signal={cardSignal.signal} confidence={cardSignal.confidence} />
 
-          {/* Avg price + target */}
           <div className="flex items-end gap-3 flex-wrap">
             <div>
               <p className="text-gray-400 text-xs">Avg PSA 10</p>
-              <p className="text-gray-900 text-xl font-black">${avgPrice}</p>
+              <p className={`text-xl font-black transition-colors duration-300 ${
+                priceFlash === "up"   ? "text-green-500" :
+                priceFlash === "down" ? "text-red-500"   : "text-gray-900"
+              }`}>
+                ${lastTradePrice ?? avgPrice}
+                {priceFlash && (
+                  <span className={`text-xs ml-1 ${priceFlash === "up" ? "text-green-500" : "text-red-500"}`}>
+                    {priceFlash === "up" ? "▲" : "▼"}
+                  </span>
+                )}
+              </p>
             </div>
             {cardSignal.buyBelow && (
               <div>
@@ -184,28 +209,40 @@ export default function PlayerCard({ player }: { player: Player }) {
               </div>
             )}
           </div>
+
+          {onTrade && (
+            <button
+              onClick={() => onTrade(player)}
+              className={`w-full py-1.5 rounded-xl text-xs font-black transition ${
+                cardSignal.signal === "BUY"
+                  ? "bg-green-600 hover:bg-green-500 text-white"
+                  : cardSignal.signal === "SELL"
+                  ? "bg-red-600 hover:bg-red-500 text-white"
+                  : "bg-gray-900 hover:bg-gray-700 text-white"
+              }`}
+            >
+              📊 Trade {player.name.split(" ").pop()} shares
+            </button>
+          )}
         </div>
       </div>
 
-      {/* PRICE HISTORY — 1W / 3M / 1Y */}
+      {/* PRICE HISTORY */}
       <div className="mx-4 mb-3 rounded-lg border border-gray-200 overflow-hidden">
         <div className="grid grid-cols-3 divide-x divide-gray-200">
           {[
-            { label: "1 Week",   data: priceHistory.week },
+            { label: "1 Week",   data: priceHistory.week       },
             { label: "3 Months", data: priceHistory.threeMonth },
-            { label: "1 Year",   data: priceHistory.year },
-          ].map((period) => {
-            const up = period.data.changePct >= 0;
-            return (
-              <div key={period.label} className="p-3 text-center">
-                <p className="text-gray-400 text-xs mb-1">{period.label}</p>
-                <PctChange value={period.data.changePct} />
-                <p className="text-gray-400 text-xs mt-0.5">
-                  ${period.data.previous} → ${period.data.current}
-                </p>
-              </div>
-            );
-          })}
+            { label: "1 Year",   data: priceHistory.year       },
+          ].map((period) => (
+            <div key={period.label} className="p-3 text-center">
+              <p className="text-gray-400 text-xs mb-1">{period.label}</p>
+              <PctChange value={period.data.changePct} />
+              <p className="text-gray-400 text-xs mt-0.5">
+                ${period.data.previous} → ${period.data.current}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -218,8 +255,8 @@ export default function PlayerCard({ player }: { player: Player }) {
         <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-2">
           <div
             className={`h-full rounded-full transition-all duration-700 ${
-              liquidity.score >= 80 ? "bg-green-500" :
-              liquidity.score >= 55 ? "bg-blue-500" :
+              liquidity.score >= 80 ? "bg-green-500"  :
+              liquidity.score >= 55 ? "bg-blue-500"   :
               liquidity.score >= 35 ? "bg-yellow-400" :
               liquidity.score >= 18 ? "bg-orange-400" : "bg-red-500"
             }`}
@@ -243,7 +280,7 @@ export default function PlayerCard({ player }: { player: Player }) {
         <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1.5">
           <div
             className={`h-full rounded-full transition-all duration-700 ${
-              sentiment.score >= 60 ? "bg-green-500" :
+              sentiment.score >= 60 ? "bg-green-500"  :
               sentiment.score >= 40 ? "bg-yellow-400" : "bg-red-500"
             }`}
             style={{ width: `${sentiment.score}%` }}
@@ -278,8 +315,8 @@ export default function PlayerCard({ player }: { player: Player }) {
               <div className="grid grid-cols-4 gap-2">
                 {[
                   { label: "AVG", value: stats.avg.toFixed(3) },
-                  { label: "HR",  value: String(stats.hr) },
-                  { label: "RBI", value: String(stats.rbi) },
+                  { label: "HR",  value: String(stats.hr)     },
+                  { label: "RBI", value: String(stats.rbi)    },
                   { label: "OPS", value: stats.ops.toFixed(3) },
                 ].map((s) => (
                   <div key={s.label} className="rounded-lg p-2 text-center bg-gray-50 border border-gray-200">
