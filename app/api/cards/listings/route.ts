@@ -1,8 +1,12 @@
 // ─── app/api/cards/listings/route.ts ─────────────────────────────────────────
 import { getListings, addListing } from "@/lib/listings";
 import { ListingSchema }           from "@/lib/validators";
+import { checkRateLimit }          from "@/lib/ratelimit";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
+
   try {
     const listings = await getListings();
     return Response.json({ listings });
@@ -12,6 +16,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await req.json();
@@ -29,15 +36,9 @@ export async function POST(req: Request) {
 
   try {
     const listing = await addListing({
-      playerId,
-      playerName,
-      cardName,
-      grade,
-      priceUSD,
-      sellerWallet,
-      sellerName,
-      condition: "Mint",
-      imageUrl,
+      playerId, playerName, cardName, grade,
+      priceUSD, sellerWallet, sellerName,
+      condition: "Mint", imageUrl,
     });
     return Response.json({ listing });
   } catch {

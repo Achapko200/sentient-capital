@@ -1,12 +1,15 @@
 // ─── app/api/cards/alerts/route.ts ───────────────────────────────────────────
 import { createAlert, getAlerts, deleteAlert } from "@/lib/alerts";
 import { AlertSchema }                          from "@/lib/validators";
+import { checkRateLimit }                       from "@/lib/ratelimit";
 
 export async function GET(req: Request) {
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
+
   const { searchParams } = new URL(req.url);
   const wallet = searchParams.get("wallet") ?? "";
 
-  // Validate wallet format
   if (!wallet || !/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
     return Response.json({ alerts: [] });
   }
@@ -16,6 +19,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await req.json();
@@ -39,6 +45,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await req.json();

@@ -1,22 +1,17 @@
 // ─── app/api/cards/search/route.ts ───────────────────────────────────────────
 import { searchPlayers } from "@/lib/players";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 export async function GET(req: Request) {
+  const limited = await checkRateLimit(req, "search");
+  if (limited) return limited;
+
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
 
-  // Minimum length check
-  if (q.length < 2) {
-    return Response.json({ players: [] });
-  }
+  if (q.length < 2)  return Response.json({ players: [] });
+  if (q.length > 50) return Response.json({ error: "Query too long" }, { status: 400 });
 
-  // Max length — prevent absurdly long queries
-  if (q.length > 50) {
-    return Response.json({ error: "Query too long" }, { status: 400 });
-  }
-
-  // Only allow letters, spaces, hyphens, apostrophes, and periods
-  // Covers names like "Acuña Jr.", "De La Cruz", "O'Neill"
   if (!/^[\p{L}\s'\-\.]+$/u.test(q)) {
     return Response.json({ players: [] });
   }
