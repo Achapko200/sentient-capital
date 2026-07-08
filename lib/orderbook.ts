@@ -1,5 +1,5 @@
 // ─── lib/orderbook.ts ────────────────────────────────────────────────────────
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-server";
 
 export type Order = {
   id:        string;
