@@ -1,17 +1,23 @@
 "use client";
 
-import { useRouter }     from "next/navigation";
-import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
-import { useAuth }       from "@/lib/auth-context";
+import { useEffect }  from "react";
+import { useRouter }  from "next/navigation";
+import { useAuth }    from "@/lib/auth-context";
 
 type Props = {
   children:  React.ReactNode;
-  fallback?: "redirect" | "inline"; // redirect to /login or show inline prompt
+  fallback?: "redirect" | "inline";
 };
 
 export default function AuthGate({ children, fallback = "inline" }: Props) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && fallback === "redirect") {
+      router.push("/login");
+    }
+  }, [isAuthenticated, isLoading, fallback, router]);
 
   if (isLoading) {
     return (
@@ -22,23 +28,22 @@ export default function AuthGate({ children, fallback = "inline" }: Props) {
   }
 
   if (!isAuthenticated) {
-    if (fallback === "redirect") {
-      router.push("/login");
-      return null;
-    }
-
     return (
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center">
         <div className="text-5xl mb-4">🔒</div>
-        <h3 className="text-gray-900 font-black text-lg mb-2">Connect your wallet</h3>
+        <h3 className="text-gray-900 font-black text-lg mb-2">Sign in to continue</h3>
         <p className="text-gray-500 text-sm mb-6">
-          You need to connect a wallet to access this feature
+          You need to sign in to access this feature
         </p>
-        <div className="flex justify-center">
-          <DynamicWidget />
-        </div>
+        <button
+          onClick={() => router.push("/login")}
+          className="px-6 py-3 rounded-xl font-black text-sm text-white transition hover:opacity-90"
+          style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
+        >
+          Sign in / Sign up
+        </button>
         <p className="text-gray-400 text-xs mt-4">
-          No email required — just your crypto wallet
+          Email · Google · Crypto wallet
         </p>
       </div>
     );

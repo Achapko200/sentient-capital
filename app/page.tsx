@@ -103,11 +103,12 @@ export default function Home() {
                   : email ?? ""}
               </span>
             )}
-            <DynamicWidget />
-            {isAuthenticated && (
+            {!isAuthenticated ? (
+              <DynamicWidget />
+            ) : (
               <button
                 onClick={signOut}
-                className="text-gray-400 hover:text-red-500 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
+                className="text-gray-400 hover:text-red-500 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition"
               >
                 Sign out
               </button>
