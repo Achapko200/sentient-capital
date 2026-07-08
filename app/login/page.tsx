@@ -19,12 +19,10 @@ export default function LoginPage() {
   const [error,    setError]           = useState("");
   const [success,  setSuccess]         = useState("");
 
-  // Redirect if already authenticated via wallet
   useEffect(() => {
     if (!isLoading && isAuthenticated) router.push("/");
   }, [isAuthenticated, isLoading, router]);
 
-  // Also check Supabase session
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.push("/");
@@ -44,9 +42,7 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: { name },
-          },
+          options: { data: { name } },
         });
         if (error) throw error;
         setSuccess("Check your email to confirm your account, then log in.");
@@ -120,7 +116,7 @@ export default function LoginPage() {
               ))}
             </div>
 
-            {/* Wallet connect — primary */}
+            {/* Wallet connect */}
             <div className="mb-6">
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3 text-center">
                 Connect with wallet
@@ -138,13 +134,14 @@ export default function LoginPage() {
             </div>
 
             {/* Email form */}
-            <div className="space-y-3">
+            <div className="space-y-3" suppressHydrationWarning>
               {mode === "signup" && (
                 <div>
                   <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 block">
                     Full Name
                   </label>
                   <input
+                    suppressHydrationWarning
                     type="text"
                     placeholder="Anna Chapko"
                     value={name}
@@ -159,6 +156,7 @@ export default function LoginPage() {
                   Email
                 </label>
                 <input
+                  suppressHydrationWarning
                   type="email"
                   placeholder="you@email.com"
                   value={email}
@@ -173,6 +171,7 @@ export default function LoginPage() {
                   Password
                 </label>
                 <input
+                  suppressHydrationWarning
                   type="password"
                   placeholder="Min 8 characters"
                   value={password}
@@ -186,18 +185,18 @@ export default function LoginPage() {
               {success && <p className="text-green-400 text-xs">{success}</p>}
 
               <button
+                suppressHydrationWarning
                 onClick={handleEmailAuth}
                 disabled={loading}
                 className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
               >
-                {loading
-                  ? "..."
-                  : mode === "login" ? "Log In" : "Create Account"}
+                {loading ? "..." : mode === "login" ? "Log In" : "Create Account"}
               </button>
 
               {mode === "login" && (
                 <button
+                  suppressHydrationWarning
                   onClick={async () => {
                     if (!email) { setError("Enter your email first"); return; }
                     const { error } = await supabase.auth.resetPasswordForEmail(email, {
