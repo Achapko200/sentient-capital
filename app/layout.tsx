@@ -39,10 +39,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest"                               href="/manifest.json" />
 
         {/* Icons */}
-        <link rel="icon"             href="/icon-192.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon-192.svg" />
-
-        {/* Security headers are set in next.config.js — meta tags don't work for these */}
+        <link rel="icon"             href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="h-full bg-gray-50" suppressHydrationWarning>
         <DynamicProvider>
