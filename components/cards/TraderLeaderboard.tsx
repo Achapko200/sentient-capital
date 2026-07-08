@@ -17,15 +17,16 @@ export default function TraderLeaderboard() {
         const list: Trader[] = json.traders ?? [];
         setTraders(list);
 
-        // Resolve ENS names for all wallets
-        const ensRes = await fetch("/api/cards/ens", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ addresses: list.map((t) => t.wallet) }),
-        });
-        if (ensRes.ok) {
-          const ensJson = await ensRes.json();
-          setEnsNames(ensJson.names ?? {});
+        if (list.length > 0) {
+          const ensRes = await fetch("/api/cards/ens", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ addresses: list.map((t) => t.wallet) }),
+          });
+          if (ensRes.ok) {
+            const ensJson = await ensRes.json();
+            setEnsNames(ensJson.names ?? {});
+          }
         }
       } catch {
         setTraders([]);
@@ -61,7 +62,17 @@ export default function TraderLeaderboard() {
 
       {loading ? (
         <div className="p-4 space-y-3">
-          {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-16 bg-gray-50 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : traders.length === 0 ? (
+        <div className="p-10 text-center">
+          <p className="text-4xl mb-3">📈</p>
+          <p className="text-gray-700 font-bold text-sm">No traders yet</p>
+          <p className="text-gray-400 text-xs mt-1">
+            Be the first to trade and appear on the leaderboard
+          </p>
         </div>
       ) : (
         <div className="divide-y divide-gray-100">
@@ -86,10 +97,16 @@ export default function TraderLeaderboard() {
                 </div>
 
                 <div className="text-right shrink-0">
-                  <p className="text-green-600 font-black text-base">+${trader.unrealizedGain.toLocaleString()}</p>
-                  <p className="text-green-500 text-xs font-semibold">+{trader.unrealizedPct.toFixed(1)}%</p>
+                  <p className="text-green-600 font-black text-base">
+                    +${trader.unrealizedGain.toLocaleString()}
+                  </p>
+                  <p className="text-green-500 text-xs font-semibold">
+                    +{trader.unrealizedPct.toFixed(1)}%
+                  </p>
                 </div>
-                <span className="text-gray-300 ml-1">{expanded === trader.id ? "▲" : "▼"}</span>
+                <span className="text-gray-300 ml-1">
+                  {expanded === trader.id ? "▲" : "▼"}
+                </span>
               </button>
 
               {expanded === trader.id && (
@@ -106,7 +123,9 @@ export default function TraderLeaderboard() {
                         <div key={i} className="bg-white rounded-xl p-3 border border-gray-200 flex justify-between items-center">
                           <div>
                             <p className="text-gray-900 font-bold text-sm">{pos.playerName}</p>
-                            <p className="text-gray-400 text-xs">{pos.quantity}x · bought {pos.buyDate} @ ${pos.buyPrice}</p>
+                            <p className="text-gray-400 text-xs">
+                              {pos.quantity}x · bought {pos.buyDate} @ ${pos.buyPrice}
+                            </p>
                           </div>
                           <div className="text-right">
                             <p className={`font-black text-sm ${isUp ? "text-green-600" : "text-red-600"}`}>
