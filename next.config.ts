@@ -22,7 +22,7 @@ const nextConfig = {
             "script-src 'self' 'unsafe-eval' 'unsafe-inline' *.dynamicauth.com *.walletconnect.com *.walletconnect.org cdn.dynamicauth.com dynamic-static-assets.com",
             "style-src 'self' 'unsafe-inline' fonts.googleapis.com https://fonts.googleapis.com",
             "img-src 'self' data: blob: https:",
-            "font-src 'self' data: fonts.gstatic.com https://fonts.gstatic.com",
+            "font-src 'self' data: https:",
             [
               "connect-src 'self'",
               "https://*.supabase.co",
