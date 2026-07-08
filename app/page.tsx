@@ -103,9 +103,22 @@ export default function Home() {
                   : email ?? ""}
               </span>
             )}
-            {!isAuthenticated ? (
-              <DynamicWidget />
-            ) : (
+
+            {/* Always show Dynamic widget for wallet login */}
+            <DynamicWidget />
+
+            {/* Show Email/Google link when not authenticated */}
+            {!isAuthenticated && (
+              <a
+                href="/login"
+                className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
+              >
+                Email / Google
+              </a>
+            )}
+
+            {/* Show sign out when authenticated */}
+            {isAuthenticated && (
               <button
                 onClick={signOut}
                 className="text-gray-400 hover:text-red-500 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition"
@@ -113,15 +126,20 @@ export default function Home() {
                 Sign out
               </button>
             )}
-            <a href="/admin"
-              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block">
+
+            <a
+              href="/admin"
+              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
+            >
               Admin ↗
             </a>
           </div>
-        </div>
 
-        {/* Tabs — scrollable on mobile */}
-        <div className="max-w-7xl mx-auto mt-4 flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+        </div>
+      </div>
+
+      {/* Tabs — scrollable on mobile */}
+      <div className="max-w-7xl mx-auto mt-4 flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -132,7 +150,6 @@ export default function Home() {
             </button>
           ))}
         </div>
-      </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8">
 
