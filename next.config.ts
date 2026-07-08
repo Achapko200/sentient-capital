@@ -20,9 +20,9 @@ const nextConfig = {
           value: [
             "default-src 'self'",
             "script-src 'self' 'unsafe-eval' 'unsafe-inline' *.dynamicauth.com *.walletconnect.com *.walletconnect.org cdn.dynamicauth.com dynamic-static-assets.com",
-            "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+            "style-src 'self' 'unsafe-inline' fonts.googleapis.com https://fonts.googleapis.com",
             "img-src 'self' data: blob: https:",
-            "font-src 'self' data: fonts.gstatic.com",
+            "font-src 'self' data: fonts.gstatic.com https://fonts.gstatic.com",
             [
               "connect-src 'self'",
               "https://*.supabase.co",
@@ -67,10 +67,9 @@ const nextConfig = {
     ],
   },
 
-  // Security hardening
-  poweredByHeader:  false, // hide X-Powered-By: Next.js
-  compress:         true,
-  productionBrowserSourceMaps: false, // don't expose source maps in production
+  poweredByHeader:             false,
+  compress:                    true,
+  productionBrowserSourceMaps: false,
 };
 
 module.exports = nextConfig;

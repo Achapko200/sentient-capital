@@ -30,19 +30,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
         {/* PWA */}
-        <meta name="viewport"                              content="width=device-width, initial-scale=1, maximum-scale=1" />
-        <meta name="mobile-web-app-capable"               content="yes" />
-        <meta name="apple-mobile-web-app-capable"         content="yes" />
+        <meta name="viewport"                               content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="mobile-web-app-capable"                content="yes" />
+        <meta name="apple-mobile-web-app-capable"          content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title"           content="Card Tracker" />
-        <meta name="theme-color"                          content="#2563eb" />
-        <link rel="manifest"                              href="/manifest.json" />
+        <meta name="apple-mobile-web-app-title"            content="Card Tracker" />
+        <meta name="theme-color"                           content="#2563eb" />
+        <link rel="manifest"                               href="/manifest.json" />
 
-        {/* Security */}
-        <meta httpEquiv="X-Content-Type-Options"  content="nosniff" />
-        <meta httpEquiv="X-Frame-Options"         content="DENY" />
-        <meta httpEquiv="Referrer-Policy"         content="strict-origin-when-cross-origin" />
-        <meta httpEquiv="Permissions-Policy"      content="camera=(), microphone=(), geolocation=()" />
+        {/* Icons */}
+        <link rel="icon"             href="/icon-192.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icon-192.svg" />
+
+        {/* Security headers are set in next.config.js — meta tags don't work for these */}
       </head>
       <body className="h-full bg-gray-50" suppressHydrationWarning>
         <DynamicProvider>

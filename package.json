@@ -33,6 +33,7 @@
     "eslint": "^9",
     "eslint-config-next": "^15.3.3",
     "hardhat": "^3.9.0",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
