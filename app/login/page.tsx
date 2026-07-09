@@ -20,12 +20,12 @@ export default function LoginPage() {
   const [success,  setSuccess]         = useState("");
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) router.push("/");
+    if (!isLoading && isAuthenticated) router.push("/app");
   }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.push("/");
+      if (data.session) router.push("/app");
     });
   }, [router]);
 
@@ -44,7 +44,7 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push("/");
+        router.push("/app");
       }
     } catch (err: any) {
       setError(err.message ?? "Something went wrong");
