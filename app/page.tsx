@@ -117,7 +117,7 @@ export default function Home() {
               </a>
             )}
 
-            {/* Show sign out when authenticated */}
+            {/* Sign out when authenticated */}
             {isAuthenticated && (
               <button
                 onClick={signOut}
@@ -127,19 +127,15 @@ export default function Home() {
               </button>
             )}
 
-            <a
-              href="/admin"
-              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
-            >
+            <a href="/admin"
+              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block">
               Admin ↗
             </a>
           </div>
-
         </div>
-      </div>
 
-      {/* Tabs — scrollable on mobile */}
-      <div className="max-w-7xl mx-auto mt-4 flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+        {/* Tabs — scrollable on mobile — inside header */}
+        <div className="max-w-7xl mx-auto mt-4 flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -150,6 +146,7 @@ export default function Home() {
             </button>
           ))}
         </div>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8">
 
