@@ -59,7 +59,7 @@ function ProfileDropdown({ email, wallet, signOut }: {
 
           {/* Account row */}
           <div
-            onClick={() => setShowAccounts(v => !v)}
+            onMouseEnter={() => setShowAccounts(true)} onMouseLeave={() => setShowAccounts(false)}
             className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer border-b border-gray-100"
           >
             <div className="flex items-center gap-3">
