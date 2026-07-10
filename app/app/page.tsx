@@ -20,6 +20,90 @@ import { useAuth }                from "@/lib/auth-context";
 
 type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts" | "ai";
 
+function ProfileModal({ email, onClose }: {
+  email: string | null;
+  onClose: () => void;
+}) {
+  const initial     = email ? email[0].toUpperCase() : "?";
+  const defaultName = email ? email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "";
+  const defaultUser = email ? email.split("@")[0] : "";
+
+  const [name,    setName]    = useState(defaultName);
+  const [username, setUsername] = useState(defaultUser);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-bold text-gray-900">Edit profile</h2>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex justify-center py-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-black ring-4 ring-blue-500"
+              style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+              {initial}
+            </div>
+            <button className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full shadow-md border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 pb-4 space-y-3">
+          <div className="border border-gray-200 rounded-xl px-4 py-3">
+            <label className="text-xs text-gray-400 block mb-1">Display name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full text-sm text-gray-900 focus:outline-none"
+            />
+          </div>
+          <div className="border border-gray-200 rounded-xl px-4 py-3">
+            <label className="text-xs text-gray-400 block mb-1">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              className="w-full text-sm text-gray-900 focus:outline-none"
+            />
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            Your profile helps people recognize you.
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 pb-6 flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-gray-700 transition"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileDropdown({ email, wallet, signOut }: {
   email:   string | null;
   wallet:  string | null;
@@ -27,7 +111,9 @@ function ProfileDropdown({ email, wallet, signOut }: {
 }) {
   const [open,         setOpen]         = useState(false);
   const [showAccounts, setShowAccounts] = useState(false);
+  const [showProfile,  setShowProfile]  = useState(false); // ← add this
   const ref = useRef<HTMLDivElement>(null);
+  // ... rest stays the same
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
