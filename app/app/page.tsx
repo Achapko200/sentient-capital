@@ -98,17 +98,17 @@ console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
           {/* Right side */}
           <div className="flex items-center gap-3">
             {isAuthenticated && (
-              <span className="text-gray-400 text-xs font-mono hidden md:block">
-                {wallet
-                  ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}`
-                  : email ?? ""}
-              </span>
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-black shrink-0"
+                style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
+                title={email ?? wallet ?? ""}
+              >
+                {email ? email[0].toUpperCase() : wallet ? wallet.slice(2, 4).toUpperCase() : "👤"}
+              </div>
             )}
 
-            {/* Only show Dynamic widget when not authenticated */}
             {!isAuthenticated && <DynamicWidget />}
 
-            {/* Show Email/Google link when not authenticated */}
             {!isAuthenticated && (
               <a
                 href="/login"
@@ -118,7 +118,6 @@ console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
               </a>
             )}
 
-            {/* Sign out when authenticated */}
             {isAuthenticated && (
               <button
                 onClick={signOut}
@@ -128,8 +127,10 @@ console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
               </button>
             )}
 
-            <a href="/admin"
-              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block">
+            <a
+              href="/admin"
+              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
+            >
               Admin ↗
             </a>
           </div>
