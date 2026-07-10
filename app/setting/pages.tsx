@@ -1,82 +1,207 @@
-// ─── app/settings/page.tsx ───────────────────────────────────────────────────
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+type Section = "general" | "notifications" | "personalization" | "security";
 
 export default function SettingsPage() {
-  const [interval,   setInterval]   = useState(2);
-  const [maxPos,     setMaxPos]     = useState(20);
-  const [riskLevel,  setRiskLevel]  = useState<"LOW" | "MEDIUM" | "HIGH">("MEDIUM");
-  const [autonomy,   setAutonomy]   = useState(false);
+  const router  = useRouter();
+  const [section, setSection] = useState<Section>("general");
+  const [appearance, setAppearance] = useState("System");
+  const [language,   setLanguage]   = useState("Auto-detect");
+
+  const NAV = [
+    { id: "general",         label: "General",         icon: "⚙️" },
+    { id: "notifications",   label: "Notifications",   icon: "🔔" },
+    { id: "personalization", label: "Personalization", icon: "🎨" },
+    { id: "security",        label: "Security & login", icon: "🔒" },
+  ] as const;
 
   return (
-    <div className="p-8 space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold mb-1">Settings</h1>
-        <p className="text-slate-400">Configure AURA Fund behavior and risk parameters.</p>
-      </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 h-[80vh] flex overflow-hidden">
 
-      <div className="max-w-2xl space-y-4">
-
-        {/* Execution interval */}
-        <div className="rounded-xl border border-slate-800 bg-[#0B1020] p-5">
-          <p className="text-white font-medium mb-1">Execution Interval</p>
-          <p className="text-slate-400 text-sm mb-3">How often agents re-evaluate positions (seconds).</p>
-          <div className="flex items-center gap-4">
-            <input type="range" min={1} max={10} value={interval}
-              onChange={(e) => setInterval(Number(e.target.value))}
-              className="flex-1 accent-blue-500" />
-            <span className="text-white font-mono w-8">{interval}s</span>
+        {/* Left sidebar */}
+        <div className="w-48 border-r border-gray-100 flex flex-col shrink-0">
+          <div className="flex items-center gap-2 px-4 py-4 border-b border-gray-100">
+            <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-700">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        </div>
-
-        {/* Max position size */}
-        <div className="rounded-xl border border-slate-800 bg-[#0B1020] p-5">
-          <p className="text-white font-medium mb-1">Max Position Size</p>
-          <p className="text-slate-400 text-sm mb-3">Maximum % of portfolio in any single asset.</p>
-          <div className="flex items-center gap-4">
-            <input type="range" min={5} max={40} step={5} value={maxPos}
-              onChange={(e) => setMaxPos(Number(e.target.value))}
-              className="flex-1 accent-blue-500" />
-            <span className="text-white font-mono w-10">{maxPos}%</span>
-          </div>
-        </div>
-
-        {/* Risk level */}
-        <div className="rounded-xl border border-slate-800 bg-[#0B1020] p-5">
-          <p className="text-white font-medium mb-3">Risk Appetite</p>
-          <div className="flex gap-3">
-            {(["LOW", "MEDIUM", "HIGH"] as const).map((level) => (
-              <button key={level}
-                onClick={() => setRiskLevel(level)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  riskLevel === level
-                    ? level === "LOW"    ? "bg-green-600 text-white"
-                    : level === "MEDIUM" ? "bg-yellow-600 text-white"
-                    : "bg-red-600 text-white"
-                    : "border border-slate-700 text-slate-400 hover:border-slate-500"
+          <nav className="py-2 flex-1">
+            {NAV.map(item => (
+              <button
+                key={item.id}
+                onClick={() => setSection(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition ${
+                  section === item.id
+                    ? "bg-gray-100 text-gray-900 font-medium"
+                    : "text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                {level}
+                <span>{item.icon}</span>
+                {item.label}
               </button>
             ))}
-          </div>
+          </nav>
         </div>
 
-        {/* Autonomy toggle */}
-        <div className="rounded-xl border border-slate-800 bg-[#0B1020] p-5 flex justify-between items-center">
-          <div>
-            <p className="text-white font-medium">Full Autonomy Mode</p>
-            <p className="text-slate-400 text-sm">Allow agents to execute trades without confirmation.</p>
-          </div>
-          <button
-            onClick={() => setAutonomy(!autonomy)}
-            className={`relative w-12 h-6 rounded-full transition-colors ${autonomy ? "bg-purple-600" : "bg-slate-700"}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${autonomy ? "translate-x-6" : ""}`} />
-          </button>
-        </div>
+        {/* Right content */}
+        <div className="flex-1 overflow-y-auto">
 
+          {/* General */}
+          {section === "general" && (
+            <div className="px-8 py-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">General</h2>
+
+              {/* MFA banner */}
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 relative">
+                <button className="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">🔐</span>
+                  <div>
+                    <p className="text-gray-900 font-semibold text-sm">Secure your account</p>
+                    <p className="text-gray-500 text-xs mt-1">Add multi-factor authentication to protect your account when logging in.</p>
+                    <button className="mt-3 px-4 py-1.5 rounded-full border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 transition">
+                      Set up MFA
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Settings rows */}
+              {[
+                { label: "Appearance", value: appearance, options: ["System", "Dark", "Light"], set: setAppearance },
+                { label: "Language",   value: language,   options: ["Auto-detect", "English (US)"], set: setLanguage },
+              ].map(row => (
+                <div key={row.label} className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <span className="text-sm text-gray-700">{row.label}</span>
+                  <select
+                    value={row.value}
+                    onChange={e => row.set(e.target.value)}
+                    className="text-sm text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer"
+                  >
+                    {row.options.map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Notifications */}
+          {section === "notifications" && (
+            <div className="px-8 py-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Notifications</h2>
+              {[
+                { label: "Price alerts",    desc: "Get notified when your target price is hit",        value: "Email" },
+                { label: "Trade fills",     desc: "Get notified when your limit order fills",          value: "Push"  },
+                { label: "Market updates",  desc: "Weekly MLB performance and card market summary",    value: "Email" },
+                { label: "New listings",    desc: "Get notified when new cards are listed",            value: "Push"  },
+              ].map(item => (
+                <div key={item.label} className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">{item.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
+                  </div>
+                  <select className="text-sm text-gray-600 bg-transparent border-none focus:outline-none cursor-pointer">
+                    <option>Push</option>
+                    <option>Email</option>
+                    <option>Push, Email</option>
+                    <option>Off</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Personalization */}
+          {section === "personalization" && (
+            <div className="px-8 py-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Personalization</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">Favorite team</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Highlight cards from your favorite MLB team</p>
+                  </div>
+                  <select className="text-sm text-gray-600 bg-transparent border-none focus:outline-none cursor-pointer">
+                    <option>None</option>
+                    <option>New York Yankees</option>
+                    <option>Los Angeles Dodgers</option>
+                    <option>Boston Red Sox</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">Default tab</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Which tab to show when you open the app</p>
+                  </div>
+                  <select className="text-sm text-gray-600 bg-transparent border-none focus:outline-none cursor-pointer">
+                    <option>Card Tracker</option>
+                    <option>Trade</option>
+                    <option>Portfolio</option>
+                    <option>Analyst Picks</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">Show AI signals</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Show BUY/HOLD/SELL signals on player cards</p>
+                  </div>
+                  <div className="w-10 h-6 bg-blue-600 rounded-full relative cursor-pointer">
+                    <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Security */}
+          {section === "security" && (
+            <div className="px-8 py-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Security & login</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">Email</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Your login email address</p>
+                  </div>
+                  <span className="text-sm text-gray-500">Connected</span>
+                </div>
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">Google</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Sign in with Google</p>
+                  </div>
+                  <span className="text-sm text-gray-500">Connected</span>
+                </div>
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">Crypto wallet</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Connect a wallet for on-chain trading</p>
+                  </div>
+                  <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">Connect</button>
+                </div>
+                <div className="flex items-center justify-between py-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-900 font-medium">Multi-factor authentication</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Add an extra layer of security</p>
+                  </div>
+                  <button className="px-4 py-1.5 rounded-full border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition">
+                    Set up
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
