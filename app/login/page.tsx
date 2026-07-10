@@ -202,13 +202,23 @@ export default function LoginPage() {
               </h1>
               <p className="text-gray-400 text-sm">
                 {mode === "login"
-                  ? "Continue with your wallet, Google, or email"
+                  ? "Connect your wallet instantly or continue with Google or email"
                   : "Start trading baseball card shares"}
               </p>
             </div>
 
             <div className="mb-6 rounded-xl border border-gray-800 bg-gray-800/60 px-3 py-2 text-center text-xs text-gray-400">
-              Use any of these options on the same page. If you do not have an account yet, we will create one for you when you continue.
+              Wallet access is available immediately on this page — no extra step required.
+            </div>
+
+            {/* Wallet connect */}
+            <div className="mb-6 flex flex-col items-center">
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
+                Crypto wallet
+              </p>
+              <div className="w-full flex justify-center">
+                <DynamicWidget />
+              </div>
             </div>
 
             {/* Google login */}
@@ -226,15 +236,6 @@ export default function LoginPage() {
                 Continue with Google
               </button>
 
-              {/* Wallet connect */}
-              <div className="flex flex-col items-center pt-1">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
-                  or connect crypto wallet
-                </p>
-                <div className="w-full flex justify-center">
-                  <DynamicWidget />
-                </div>
-              </div>
             </div>
 
             {/* Divider */}
@@ -325,7 +326,7 @@ export default function LoginPage() {
                 className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
               >
-                {loading ? "..." : mode === "login" ? "Continue" : "Create Account"}
+                {loading ? "..." : mode === "login" ? "Continue with email" : "Create Account"}
               </button>
 
               {mode === "login" && (
