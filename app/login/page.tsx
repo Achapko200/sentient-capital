@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter }           from "next/navigation";
 import { supabase }            from "@/lib/supabase";
-import { DynamicWidget }       from "@dynamic-labs/sdk-react-core";
+import { DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 import { useAuth }             from "@/lib/auth-context";
 
 type Mode = "login" | "signup";
@@ -212,17 +212,16 @@ export default function LoginPage() {
             </div>
 
             {/* Wallet connect */}
-            <div className="mb-6 flex flex-col items-center">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
-                Crypto wallet
-              </p>
-              <div className="w-full flex justify-center">
-                <DynamicWidget />
-              </div>
-            </div>
-
-            {/* Google login */}
             <div className="space-y-3 mb-6">
+              <div className="w-full">
+                <DynamicConnectButton
+                  buttonClassName="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-amber-500 text-gray-950 font-bold text-sm hover:bg-amber-400 transition"
+                >
+                  Connect crypto wallet
+                </DynamicConnectButton>
+              </div>
+
+              {/* Google login */}
               <button
                 onClick={() => handleOAuth("google")}
                 className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white text-gray-900 font-bold text-sm hover:bg-gray-100 transition"
