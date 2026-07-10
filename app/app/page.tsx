@@ -46,7 +46,6 @@ function ProfileDropdown({ email, wallet, signOut }: {
 
   return (
     <div ref={ref} className="relative">
-      {/* Avatar button */}
       <button
         onClick={() => { setOpen(v => !v); setShowAccounts(false); }}
         className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-black hover:opacity-90 transition"
@@ -55,15 +54,13 @@ function ProfileDropdown({ email, wallet, signOut }: {
         {initial}
       </button>
 
-      {/* Main dropdown */}
       {open && (
         <div className="absolute right-0 top-11 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-50">
 
-          {/* Account row — hover to show switcher */}
+          {/* Account row */}
           <div
-            onMouseEnter={() => setShowAccounts(true)}
-            onMouseLeave={() => setShowAccounts(false)}
-            className="relative px-4 py-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+            onClick={() => setShowAccounts(v => !v)}
+            className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer border-b border-gray-100"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
@@ -75,50 +72,44 @@ function ProfileDropdown({ email, wallet, signOut }: {
                 <p className="text-gray-400 text-xs">{display}</p>
               </div>
             </div>
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform ${showAccounts ? "rotate-90" : ""}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
             </svg>
-
-            {/* Account switcher panel — shows on hover */}
-            {showAccounts && (
-              <div
-                onMouseEnter={() => setShowAccounts(true)}
-                onMouseLeave={() => setShowAccounts(false)}
-                className="absolute right-72 top-0 w-64 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-50"
-              >
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-gray-400 text-xs truncate">{display}</p>
-                </div>
-                <div className="py-1.5">
-                  <div className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
-                        {initial}
-                      </div>
-                      <p className="text-gray-900 text-sm font-medium">{name}</p>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="border-t border-gray-100 py-1.5">
-                  <button
-                    onClick={() => setOpen(false)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
-                  >
-                    <div className="w-7 h-7 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0">
-                      <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                    Add account
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Account switcher — expands inline */}
+          {showAccounts && (
+            <div className="border-b border-gray-100 bg-gray-50 py-1.5">
+              <div className="px-4 py-1.5">
+                <p className="text-gray-400 text-xs">{display}</p>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-100 cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+                    {initial}
+                  </div>
+                  <p className="text-gray-900 text-sm font-medium">{name}</p>
+                </div>
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-100 transition text-left"
+              >
+                <div className="w-7 h-7 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0">
+                  <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                Add account
+              </button>
+            </div>
+          )}
 
           {/* Menu items */}
           <div className="py-1.5">
