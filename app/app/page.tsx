@@ -39,7 +39,8 @@ export default function Home() {
   const [players,     setPlayers]     = useState<Player[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [tradePlayer, setTradePlayer] = useState<Player | null>(null);
-  const { isAuthenticated, wallet, email, signOut } = useAuth();
+const { isAuthenticated, wallet, email, signOut, isLoading } = useAuth();
+console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
 
   useEffect(() => {
     fetch("/api/cards/players")
