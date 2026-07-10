@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect }   from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Player }            from "@/lib/cardTypes";
 import type { CardToken }         from "@/lib/cardToken";
 import PlayerCard                 from "@/components/cards/PlayerCard";
@@ -19,6 +19,86 @@ import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
 import { useAuth }                from "@/lib/auth-context";
 
 type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts" | "ai";
+
+function ProfileDropdown({ email, wallet, signOut }: {
+  email:   string | null;
+  wallet:  string | null;
+  signOut: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const initial = email ? email[0].toUpperCase() : wallet ? wallet.slice(2, 4).toUpperCase() : "?";
+  const display = email ?? (wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : "");
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-black shrink-0 hover:opacity-90 transition"
+        style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
+      >
+        {initial}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-10 w-56 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black"
+                style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+                {initial}
+              </div>
+              <div className="min-w-0">
+                <p className="text-gray-900 font-bold text-sm truncate">{display}</p>
+                <p className="text-gray-400 text-xs">{email ? "Email account" : "Wallet account"}</p>
+              </div>
+            </div>
+          </div>
+          <div className="py-1">
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+            >
+              <span>👤</span> Profile
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+            >
+              <span>⚙️</span> Settings
+            </button>
+            <a
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+            >
+              <span>🔧</span> Admin
+            </a>
+            <div className="border-t border-gray-100 mt-1 pt-1">
+              <button
+                onClick={() => { setOpen(false); signOut(); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left"
+              >
+                <span>🚪</span> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TradingPanelLoader({ player }: { player: Player }) {
   const [token, setToken] = useState<CardToken | null>(null);
@@ -39,8 +119,7 @@ export default function Home() {
   const [players,     setPlayers]     = useState<Player[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [tradePlayer, setTradePlayer] = useState<Player | null>(null);
-const { isAuthenticated, wallet, email, signOut, isLoading } = useAuth();
-console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
+  const { isAuthenticated, wallet, email, signOut } = useAuth();
 
   useEffect(() => {
     fetch("/api/cards/players")
@@ -98,13 +177,7 @@ console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
           {/* Right side */}
           <div className="flex items-center gap-3">
             {isAuthenticated && (
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-black shrink-0"
-                style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
-                title={email ?? wallet ?? ""}
-              >
-                {email ? email[0].toUpperCase() : wallet ? wallet.slice(2, 4).toUpperCase() : "👤"}
-              </div>
+              <ProfileDropdown email={email} wallet={wallet} signOut={signOut} />
             )}
 
             {!isAuthenticated && <DynamicWidget />}
@@ -117,26 +190,10 @@ console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
                 Email / Google
               </a>
             )}
-
-            {isAuthenticated && (
-              <button
-                onClick={signOut}
-                className="text-gray-400 hover:text-red-500 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition"
-              >
-                Sign out
-              </button>
-            )}
-
-            <a
-              href="/admin"
-              className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
-            >
-              Admin ↗
-            </a>
           </div>
         </div>
 
-        {/* Tabs — scrollable on mobile — inside header */}
+        {/* Tabs — scrollable on mobile */}
         <div className="max-w-7xl mx-auto mt-4 flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
           {TABS.map((t) => (
             <button
@@ -310,7 +367,7 @@ console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold mb-3">Card redemption</h3>
                 <p className="text-gray-500 text-sm mb-3">
-                  Own 100% of a card's shares? Redeem to receive the physical PSA-graded card shipped to you.
+                  Own 100% of a card&apos;s shares? Redeem to receive the physical PSA-graded card shipped to you.
                 </p>
                 <div className="space-y-2 text-xs">
                   {[
