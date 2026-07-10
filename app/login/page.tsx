@@ -29,6 +29,32 @@ export default function LoginPage() {
     });
   }, [router]);
 
+  const getFriendlyAuthError = (mode: Mode, err: unknown) => {
+    const message = err && typeof err === "object" && "message" in err && typeof (err as { message?: unknown }).message === "string"
+      ? (err as { message: string }).message
+      : "Something went wrong";
+
+    const lowerMessage = message.toLowerCase();
+
+    if (mode === "login") {
+      if (lowerMessage.includes("invalid login credentials") || lowerMessage.includes("user not found") || lowerMessage.includes("no user found")) {
+        return "No account found for that email. Switch to Sign Up to create one.";
+      }
+
+      if (lowerMessage.includes("email not confirmed")) {
+        return "Please confirm your email before signing in.";
+      }
+    }
+
+    if (mode === "signup") {
+      if (lowerMessage.includes("already registered") || lowerMessage.includes("already exists") || lowerMessage.includes("user already registered")) {
+        return "An account already exists for this email. Please log in instead.";
+      }
+    }
+
+    return message;
+  };
+
   const handleEmailAuth = async () => {
     if (!email || !password) { setError("Fill in all fields"); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
@@ -46,8 +72,13 @@ export default function LoginPage() {
         if (error) throw error;
         router.push("/app");
       }
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+    } catch (err: unknown) {
+      const friendlyMessage = getFriendlyAuthError(mode, err);
+      setError(friendlyMessage);
+
+      if (mode === "login" && friendlyMessage.includes("No account found")) {
+        setMode("signup");
+      }
     } finally {
       setLoading(false);
     }
@@ -143,7 +174,9 @@ export default function LoginPage() {
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
                   or connect crypto wallet
                 </p>
-                <DynamicWidget />
+                <div className="w-full flex justify-center">
+                  <DynamicWidget />
+                </div>
               </div>
             </div>
 
@@ -204,6 +237,12 @@ export default function LoginPage() {
 
               {error   && <p className="text-red-400 text-xs">{error}</p>}
               {success && <p className="text-green-400 text-xs">{success}</p>}
+
+              {mode === "login" && !error && (
+                <p className="text-gray-500 text-xs text-center">
+                  New here? Switch to <span className="text-gray-300">Sign Up</span> to create an account.
+                </p>
+              )}
 
               <button
                 suppressHydrationWarning
