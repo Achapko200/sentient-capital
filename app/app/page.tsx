@@ -105,8 +105,8 @@ console.log("AUTH STATE:", { isAuthenticated, wallet, email, isLoading });
               </span>
             )}
 
-            {/* Always show Dynamic widget for wallet login */}
-            <DynamicWidget />
+            {/* Only show Dynamic widget when not authenticated */}
+            {!isAuthenticated && <DynamicWidget />}
 
             {/* Show Email/Google link when not authenticated */}
             {!isAuthenticated && (
