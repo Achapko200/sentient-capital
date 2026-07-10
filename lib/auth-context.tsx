@@ -22,35 +22,40 @@ const AuthContext = createContext<AuthState>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { primaryWallet, user: dynamicUser, sdkHasLoaded, handleLogOut } = useDynamicContext();
-  const [emailUser,  setEmailUser]  = useState<{ email: string } | null>(null);
-  const [isLoading,  setIsLoading]  = useState(true);
+  const [emailUser, setEmailUser] = useState<{ email: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check Supabase email session
+    // Check existing session immediately on mount
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user?.email) {
         setEmailUser({ email: data.session.user.email });
       }
-      if (sdkHasLoaded) setIsLoading(false);
+      setIsLoading(false);
     });
 
-    // Listen for Supabase auth changes
+    // Listen for all auth changes (Google OAuth, email login, logout)
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmailUser(session?.user?.email ? { email: session.user.email } : null);
+      if (session?.user?.email) {
+        setEmailUser({ email: session.user.email });
+      } else {
+        setEmailUser(null);
+      }
     });
 
     return () => listener.subscription.unsubscribe();
-  }, [sdkHasLoaded]);
+  }, []);
 
+  // Also update loading when Dynamic SDK loads
   useEffect(() => {
     if (sdkHasLoaded) setIsLoading(false);
   }, [sdkHasLoaded]);
 
   const signOut = async () => {
-    await Promise.all([
-      supabase.auth.signOut(),
-      handleLogOut(),
-    ]);
+    await supabase.auth.signOut();
+    try { await handleLogOut(); } catch {}
+    setEmailUser(null);
+    window.location.href = "/";
   };
 
   const isWalletAuth = !!dynamicUser && !!primaryWallet;
