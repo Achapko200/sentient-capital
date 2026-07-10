@@ -3,61 +3,115 @@
 
 import { useState, useEffect } from "react";
 import { useDynamicContext }   from "@dynamic-labs/sdk-react-core";
+import { useAuth }             from "@/lib/auth-context";
 import type { Alert }          from "@/lib/alerts";
 import type { Player }         from "@/lib/cardTypes";
 
 export default function PriceAlerts({ players }: { players: Player[] }) {
-  const { primaryWallet, user } = useDynamicContext();
-  const [alerts,    setAlerts]    = useState<Alert[]>([]);
-  const [cardId,    setCardId]    = useState(players[0]?.id ?? "");
+  const { primaryWallet } = useDynamicContext();
+  const { email: authEmail } = useAuth();
+  const walletKey = primaryWallet?.address ?? (authEmail ? `email:${authEmail}` : null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [cardId, setCardId] = useState(players[0]?.id ?? "");
   const [direction, setDirection] = useState<"ABOVE" | "BELOW">("ABOVE");
-  const [price,     setPrice]     = useState("");
-  const [email,     setEmail]     = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [success,   setSuccess]   = useState("");
+  const [price, setPrice] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
 
   const load = async () => {
-    if (!primaryWallet?.address) return;
-    const res  = await fetch(`/api/cards/alerts?wallet=${primaryWallet.address}`);
-    const data = await res.json();
-    setAlerts(data.alerts ?? []);
+    if (!walletKey) {
+      setAlerts([]);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/cards/alerts?wallet=${encodeURIComponent(walletKey)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Unable to load alerts");
+      setAlerts(data.alerts ?? []);
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load alerts");
+    }
   };
 
-  useEffect(() => { load(); }, [primaryWallet?.address]);
+  useEffect(() => {
+    if (authEmail && !email) setEmail(authEmail);
+  }, [authEmail, email]);
+
+  useEffect(() => { void load(); }, [walletKey]);
 
   const handleCreate = async () => {
-    if (!primaryWallet?.address || !price) return;
+    if (!walletKey) {
+      setError("Sign in first so your alerts can be saved.");
+      return;
+    }
+
+    if (!price) {
+      setError("Enter a target price.");
+      return;
+    }
+
+    const targetPrice = Number(price);
+    if (!Number.isFinite(targetPrice) || targetPrice <= 0) {
+      setError("Enter a valid target price.");
+      return;
+    }
+
     setLoading(true);
-    const player = players.find(p => p.id === cardId);
-    await fetch("/api/cards/alerts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        wallet:      primaryWallet.address,
-        cardId,
-        playerName:  player?.name ?? cardId,
-        targetPrice: parseFloat(price),
-        direction,
-        email:       email || null,
-      }),
-    });
-    setPrice(""); setSuccess("Alert created!"); load();
-    setTimeout(() => setSuccess(""), 3000);
-    setLoading(false);
+    setError("");
+    setSuccess("");
+
+    try {
+      const player = players.find((p) => p.id === cardId);
+      const res = await fetch("/api/cards/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: walletKey,
+          cardId,
+          playerName: player?.name ?? cardId,
+          targetPrice,
+          direction,
+          email: email || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message ?? data.error ?? "Failed to create alert");
+
+      setPrice("");
+      setSuccess("Alert created successfully.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create alert");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await fetch("/api/cards/alerts", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, wallet: primaryWallet?.address }),
-    });
-    load();
+    if (!walletKey) return;
+
+    try {
+      const res = await fetch("/api/cards/alerts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, wallet: walletKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to delete alert");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete alert");
+    }
   };
 
-  if (!user) return (
+  if (!walletKey) return (
     <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-      <p className="text-gray-400 text-sm">Connect wallet to set price alerts</p>
+      <p className="text-gray-400 text-sm">Sign in to create and manage price alerts.</p>
     </div>
   );
 
@@ -104,6 +158,7 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
           </div>
 
+          {error && <p className="text-red-600 text-xs">{error}</p>}
           {success && <p className="text-green-600 text-xs">{success}</p>}
 
           <button onClick={handleCreate} disabled={loading || !price}

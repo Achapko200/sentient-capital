@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 type Section =
   | "general"
@@ -25,22 +26,112 @@ function MFAModal({
   const [sending, setSending] = useState(false);
   const [sent,    setSent]    = useState(false);
   const [error,   setError]   = useState("");
+  const [smsMessage, setSmsMessage] = useState("");
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [setupCode, setSetupCode] = useState("");
+  const [otpUri, setOtpUri] = useState("");
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
 
-  const fakeQRCode = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=otpauth://totp/CardTracker?secret=JBSWY3DPEHPK3PXP&issuer=CardTracker";
+  useEffect(() => {
+    const loadTotpSetup = async () => {
+      const res = await fetch("/api/auth/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "totp" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOtpUri(data.otpUri);
+        setQrCodeUrl(data.qrCodeUrl);
+        setSetupCode(data.setupCode);
+      }
+    };
+
+    void loadTotpSetup();
+  }, []);
+
+  const persistMfaSetup = async (method: "app" | "sms", secret: string) => {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user?.id) {
+      setError("Sign in again to save your MFA settings.");
+      return false;
+    }
+
+    const res = await fetch("/api/auth/mfa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "enable", userId: userData.user.id, method, secret }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      setError(data.error ?? "Unable to save MFA settings");
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSendCode = async () => {
     if (!phone) { setError("Enter your phone number"); return; }
     setSending(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setSent(true);
-    setSending(false);
     setError("");
+
+    const res = await fetch("/api/auth/mfa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sms", phone }),
+    });
+    const data = await res.json();
+
+    setSending(false);
+    if (!data.success) {
+      setError(data.error ?? "Unable to send SMS code");
+      return;
+    }
+
+    setGeneratedCode(data.code);
+    setSent(true);
+    setSmsMessage(data.message);
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (code.length < 6) { setError("Enter the 6-digit code"); return; }
-    if (step === "app") onEnableApp();
-    else onEnableSms();
+
+    if (step === "app") {
+      const res = await fetch("/api/auth/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", secret: setupCode.replace(/\s+/g, ""), code }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const saved = await persistMfaSetup("app", setupCode.replace(/\s+/g, ""));
+        if (saved) onEnableApp();
+        return;
+      }
+
+      setError("That code didn't match. Try the code shown above.");
+      return;
+    }
+
+    if (generatedCode && code === generatedCode) {
+      const saved = await persistMfaSetup("sms", setupCode.replace(/\s+/g, ""));
+      if (saved) onEnableSms();
+      return;
+    }
+
+    setError("That code didn't match. Try the code shown above.");
+  };
+
+  const handleCopySetupLink = async () => {
+    try {
+      await navigator.clipboard.writeText(otpUri);
+      setError("Setup link copied. Paste it into your authenticator app if needed.");
+    } catch {
+      setError("Copy failed. You can still use the setup code below.");
+    }
   };
 
   return (
@@ -107,19 +198,25 @@ function MFAModal({
         {step === "app" && (
           <div className="px-6 py-5">
             <p className="text-sm text-gray-600 mb-4">
-              Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.)
+              Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.). If your camera opens password tools instead, use the setup code below or copy the setup link.
             </p>
             <div className="flex justify-center mb-4">
               <div className="p-3 border-2 border-gray-200 rounded-xl">
-                <img src={fakeQRCode} alt="QR Code" className="w-44 h-44" />
+                <img src={qrCodeUrl} alt="Authenticator QR code" className="w-44 h-44" />
               </div>
             </div>
-            <p className="text-xs text-gray-400 text-center mb-4">
-              Can&apos;t scan? Use this setup code:
-              <span className="block font-mono text-gray-700 font-semibold mt-1 text-sm tracking-widest">
-                JBSW Y3DP EHPK 3PXP
-              </span>
-            </p>
+            <div className="flex flex-col gap-2 mb-4">
+              <button onClick={handleCopySetupLink}
+                className="w-full py-2 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition">
+                Copy setup link
+              </button>
+              <p className="text-xs text-gray-400 text-center">
+                Can&apos;t scan? Use this setup code:
+                <span className="block font-mono text-gray-700 font-semibold mt-1 text-sm tracking-widest">
+                  {setupCode || "Loading..."}
+                </span>
+              </p>
+            </div>
             <div className="border-t border-gray-100 pt-4">
               <p className="text-sm text-gray-700 mb-2 font-medium">Enter the 6-digit code from your app</p>
               <input
@@ -159,6 +256,7 @@ function MFAModal({
             </div>
             {sent && (
               <div>
+                {smsMessage && <p className="text-xs text-amber-600 mb-2">{smsMessage}</p>}
                 <label className="text-xs text-gray-500 font-medium block mb-1.5">Verification code</label>
                 <input type="text" maxLength={6} value={code}
                   onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}

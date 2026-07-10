@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const wallet = searchParams.get("wallet") ?? "";
 
-  if (!wallet || !/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
+  if (!wallet.trim()) {
     return Response.json({ alerts: [] });
   }
 
@@ -61,8 +61,8 @@ export async function DELETE(req: Request) {
     return Response.json({ error: "Missing id or wallet" }, { status: 400 });
   }
 
-  if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
-    return Response.json({ error: "Invalid wallet" }, { status: 400 });
+  if (!wallet.trim()) {
+    return Response.json({ error: "Missing wallet" }, { status: 400 });
   }
 
   if (!/^alt_\d+$/.test(id)) {

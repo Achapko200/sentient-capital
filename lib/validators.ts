@@ -4,9 +4,10 @@ import { z } from "zod";
 // ─── Install zod if you haven't: npm install zod ─────────────────────────────
 
 const walletAddress = z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid wallet address");
+const alertWallet = z.string().trim().min(1).max(200);
 
 export const AlertSchema = z.object({
-  wallet:      walletAddress,
+  wallet:      alertWallet,
   cardId:      z.string().min(1).max(20),
   playerName:  z.string().min(1).max(100),
   targetPrice: z.number().positive().max(1000000),

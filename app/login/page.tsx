@@ -18,6 +18,10 @@ export default function LoginPage() {
   const [loading,  setLoading]         = useState(false);
   const [error,    setError]           = useState("");
   const [success,  setSuccess]         = useState("");
+  const [mfaRequired, setMfaRequired]  = useState(false);
+  const [mfaMethod, setMfaMethod]      = useState<"app" | "sms" | null>(null);
+  const [mfaCode, setMfaCode]          = useState("");
+  const [mfaLoading, setMfaLoading]    = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) router.push("/app");
@@ -55,6 +59,54 @@ export default function LoginPage() {
     return message;
   };
 
+  const checkMfaStatus = async (userId: string) => {
+    const res = await fetch(`/api/auth/mfa?userId=${encodeURIComponent(userId)}`);
+    const data = await res.json();
+    return data;
+  };
+
+  const handleMfaVerify = async () => {
+    if (!mfaCode || mfaCode.length < 6) {
+      setError("Enter the 6-digit code from your authenticator app or SMS.");
+      return;
+    }
+
+    setMfaLoading(true);
+    setError("");
+
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user?.id) {
+      setError("Your session expired. Please sign in again.");
+      setMfaLoading(false);
+      return;
+    }
+
+    const status = await checkMfaStatus(userData.user.id);
+    const secret = status.secret;
+    if (!status.enabled || !secret) {
+      setMfaRequired(false);
+      setMfaMethod(null);
+      router.push("/app");
+      setMfaLoading(false);
+      return;
+    }
+
+    const res = await fetch("/api/auth/mfa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "verify", secret, code: mfaCode }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      router.push("/app");
+    } else {
+      setError("That code didn't match. Please try again.");
+    }
+
+    setMfaLoading(false);
+  };
+
   const handleEmailAuth = async () => {
     if (!email || !password) { setError("Fill in all fields"); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
@@ -68,8 +120,21 @@ export default function LoginPage() {
         setSuccess("Check your email to confirm your account, then log in.");
         setMode("login");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+
+        const userId = data.user?.id;
+        if (userId) {
+          const status = await checkMfaStatus(userId);
+          if (status.enabled) {
+            setMfaRequired(true);
+            setMfaMethod(status.method ?? "app");
+            setMfaCode("");
+            setLoading(false);
+            return;
+          }
+        }
+
         router.push("/app");
       }
     } catch (err: unknown) {
@@ -137,21 +202,13 @@ export default function LoginPage() {
               </h1>
               <p className="text-gray-400 text-sm">
                 {mode === "login"
-                  ? "Sign in to your Card Tracker account"
+                  ? "Continue with your wallet, Google, or email"
                   : "Start trading baseball card shares"}
               </p>
             </div>
 
-            {/* Mode toggle */}
-            <div className="grid grid-cols-2 gap-1 bg-gray-800 rounded-xl p-1 mb-6">
-              {(["login", "signup"] as Mode[]).map(m => (
-                <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }}
-                  className={`py-2 rounded-lg text-sm font-bold capitalize transition ${
-                    mode === m ? "bg-gray-600 text-white" : "text-gray-400 hover:text-gray-300"
-                  }`}>
-                  {m === "login" ? "Log In" : "Sign Up"}
-                </button>
-              ))}
+            <div className="mb-6 rounded-xl border border-gray-800 bg-gray-800/60 px-3 py-2 text-center text-xs text-gray-400">
+              Use any of these options on the same page. If you do not have an account yet, we will create one for you when you continue.
             </div>
 
             {/* Google login */}
@@ -238,10 +295,27 @@ export default function LoginPage() {
               {error   && <p className="text-red-400 text-xs">{error}</p>}
               {success && <p className="text-green-400 text-xs">{success}</p>}
 
-              {mode === "login" && !error && (
-                <p className="text-gray-500 text-xs text-center">
-                  New here? Switch to <span className="text-gray-300">Sign Up</span> to create an account.
-                </p>
+              {mfaRequired && (
+                <div className="space-y-3 rounded-xl border border-gray-700 bg-gray-800/80 p-3">
+                  <p className="text-xs text-gray-300">
+                    Enter the 6-digit code from your {mfaMethod === "sms" ? "SMS" : "authenticator app"}.
+                  </p>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={mfaCode}
+                    onChange={e => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="000000"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                  />
+                  <button
+                    onClick={handleMfaVerify}
+                    disabled={mfaLoading}
+                    className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                  >
+                    {mfaLoading ? "Verifying..." : "Verify code"}
+                  </button>
+                </div>
               )}
 
               <button
@@ -251,7 +325,7 @@ export default function LoginPage() {
                 className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
               >
-                {loading ? "..." : mode === "login" ? "Log In" : "Create Account"}
+                {loading ? "..." : mode === "login" ? "Continue" : "Create Account"}
               </button>
 
               {mode === "login" && (
