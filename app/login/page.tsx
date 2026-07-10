@@ -9,7 +9,7 @@ import { useAuth }             from "@/lib/auth-context";
 type Mode = "login" | "signup";
 
 export default function LoginPage() {
-  const router                         = useRouter();
+  const router                         = useRouter(); 
   const { isAuthenticated, isLoading } = useAuth();
   const [mode,     setMode]            = useState<Mode>("login");
   const [email,    setEmail]           = useState("");
