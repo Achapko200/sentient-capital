@@ -22,7 +22,6 @@ export default function LoginPage() {
   const [mfaMethod, setMfaMethod]      = useState<"app" | "sms" | null>(null);
   const [mfaCode, setMfaCode]          = useState("");
   const [mfaLoading, setMfaLoading]    = useState(false);
-  const [walletView, setWalletView]    = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) router.push("/app");
@@ -215,13 +214,11 @@ export default function LoginPage() {
             {/* Wallet connect */}
             <div className="space-y-3 mb-6">
               <div className="w-full">
-                <button
-                  type="button"
-                  onClick={() => setWalletView(true)}
-                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-amber-500 text-gray-950 font-bold text-sm hover:bg-amber-400 transition"
+                <DynamicConnectButton
+                  buttonClassName="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-amber-500 text-gray-950 font-bold text-sm hover:bg-amber-400 transition"
                 >
                   Connect crypto wallet
-                </button>
+                </DynamicConnectButton>
               </div>
 
               {/* Google login */}
@@ -241,120 +238,8 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-3" suppressHydrationWarning>
-              {walletView ? (
-                <div className="space-y-3 rounded-xl border border-gray-800 bg-gray-800/60 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-white">Connect your crypto wallet</p>
-                    <button
-                      type="button"
-                      onClick={() => setWalletView(false)}
-                      className="text-xs text-gray-400 hover:text-white"
-                    >
-                      Use email instead
-                    </button>
-                  </div>
-                  <DynamicConnectButton
-                    buttonClassName="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-amber-500 text-gray-950 font-bold text-sm hover:bg-amber-400 transition"
-                  >
-                    Connect wallet
-                  </DynamicConnectButton>
-                </div>
-              ) : (
-                <>
-                  <div className="flex rounded-xl border border-gray-800 bg-gray-800/60 p-1 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setMode("login")}
-                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "login" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"}`}
-                    >
-                      Log in
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode("signup")}
-                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "signup" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"}`}
-                    >
-                      Sign up
-                    </button>
-                  </div>
-
-                  {mode === "signup" && (
-                    <div>
-                      <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 block">
-                        Full Name
-                      </label>
-                      <input
-                        suppressHydrationWarning
-                        type="text"
-                        placeholder="Anna Chapko"
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 block">
-                      Email
-                    </label>
-                    <input
-                      suppressHydrationWarning
-                      type="email"
-                      placeholder="you@email.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 block">
-                      Password
-                    </label>
-                    <input
-                      suppressHydrationWarning
-                      type="password"
-                      placeholder="Min 8 characters"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                    />
-                  </div>
-
-                  {error && <p className="text-red-400 text-xs">{error}</p>}
-                  {success && <p className="text-green-400 text-xs">{success}</p>}
-
-                  <button
-                    suppressHydrationWarning
-                    onClick={handleEmailAuth}
-                    disabled={loading}
-                    className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
-                  >
-                    {loading ? "..." : mode === "login" ? "Continue with email" : "Create Account"}
-                  </button>
-
-                  {mode === "login" && (
-                    <button
-                      suppressHydrationWarning
-                      onClick={async () => {
-                        if (!email) { setError("Enter your email first"); return; }
-                        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                          redirectTo: `${window.location.origin}/reset-password`,
-                        });
-                        if (error) setError(error.message);
-                        else setSuccess("Password reset email sent");
-                      }}
-                      className="w-full text-gray-500 text-xs hover:text-gray-400 transition text-center"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
-                </>
-              )}
+              {error && <p className="text-red-400 text-xs">{error}</p>}
+              {success && <p className="text-green-400 text-xs">{success}</p>}
 
               {mfaRequired && (
                 <div className="space-y-3 rounded-xl border border-gray-700 bg-gray-800/80 p-3">
