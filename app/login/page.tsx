@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter }           from "next/navigation";
-import { supabase }            from "@/lib/supabase";
-import { DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
-import { useAuth }             from "@/lib/auth-context";
+import { useState, useEffect }      from "react";
+import { useRouter }                 from "next/navigation";
+import { supabase }                  from "@/lib/supabase";
+import { DynamicConnectButton }      from "@dynamic-labs/sdk-react-core";
+import { useAuth }                   from "@/lib/auth-context";
 
 type Mode = "login" | "signup";
 
 export default function LoginPage() {
-  const router                         = useRouter(); 
+  const router                         = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const [mode,     setMode]            = useState<Mode>("login");
   const [email,    setEmail]           = useState("");
@@ -18,10 +18,6 @@ export default function LoginPage() {
   const [loading,  setLoading]         = useState(false);
   const [error,    setError]           = useState("");
   const [success,  setSuccess]         = useState("");
-  const [mfaRequired, setMfaRequired]  = useState(false);
-  const [mfaMethod, setMfaMethod]      = useState<"app" | "sms" | null>(null);
-  const [mfaCode, setMfaCode]          = useState("");
-  const [mfaLoading, setMfaLoading]    = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) router.push("/app");
@@ -32,80 +28,6 @@ export default function LoginPage() {
       if (data.session) router.push("/app");
     });
   }, [router]);
-
-  const getFriendlyAuthError = (mode: Mode, err: unknown) => {
-    const message = err && typeof err === "object" && "message" in err && typeof (err as { message?: unknown }).message === "string"
-      ? (err as { message: string }).message
-      : "Something went wrong";
-
-    const lowerMessage = message.toLowerCase();
-
-    if (mode === "login") {
-      if (lowerMessage.includes("invalid login credentials") || lowerMessage.includes("user not found") || lowerMessage.includes("no user found")) {
-        return "No account found for that email. Switch to Sign Up to create one.";
-      }
-
-      if (lowerMessage.includes("email not confirmed")) {
-        return "Please confirm your email before signing in.";
-      }
-    }
-
-    if (mode === "signup") {
-      if (lowerMessage.includes("already registered") || lowerMessage.includes("already exists") || lowerMessage.includes("user already registered")) {
-        return "An account already exists for this email. Please log in instead.";
-      }
-    }
-
-    return message;
-  };
-
-  const checkMfaStatus = async (userId: string) => {
-    const res = await fetch(`/api/auth/mfa?userId=${encodeURIComponent(userId)}`);
-    const data = await res.json();
-    return data;
-  };
-
-  const handleMfaVerify = async () => {
-    if (!mfaCode || mfaCode.length < 6) {
-      setError("Enter the 6-digit code from your authenticator app or SMS.");
-      return;
-    }
-
-    setMfaLoading(true);
-    setError("");
-
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user?.id) {
-      setError("Your session expired. Please sign in again.");
-      setMfaLoading(false);
-      return;
-    }
-
-    const status = await checkMfaStatus(userData.user.id);
-    const secret = status.secret;
-    if (!status.enabled || !secret) {
-      setMfaRequired(false);
-      setMfaMethod(null);
-      router.push("/app");
-      setMfaLoading(false);
-      return;
-    }
-
-    const res = await fetch("/api/auth/mfa", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "verify", secret, code: mfaCode }),
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      router.push("/app");
-    } else {
-      setError("That code didn't match. Please try again.");
-    }
-
-    setMfaLoading(false);
-  };
 
   const handleEmailAuth = async () => {
     if (!email || !password) { setError("Fill in all fields"); return; }
@@ -121,29 +43,19 @@ export default function LoginPage() {
         setMode("login");
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-
-        const userId = data.user?.id;
-        if (userId) {
-          const status = await checkMfaStatus(userId);
-          if (status.enabled) {
-            setMfaRequired(true);
-            setMfaMethod(status.method ?? "app");
-            setMfaCode("");
-            setLoading(false);
-            return;
+        if (error) {
+          const msg = error.message.toLowerCase();
+          if (msg.includes("invalid") || msg.includes("not found") || msg.includes("no user")) {
+            setError("no_account");
+          } else {
+            setError(error.message);
           }
+          return;
         }
-
-        router.push("/app");
+        if (data.session) router.push("/app");
       }
-    } catch (err: unknown) {
-      const friendlyMessage = getFriendlyAuthError(mode, err);
-      setError(friendlyMessage);
-
-      if (mode === "login" && friendlyMessage.includes("No account found")) {
-        setMode("signup");
-      }
+    } catch (err: any) {
+      setError(err.message ?? "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -154,10 +66,8 @@ export default function LoginPage() {
     const redirectTo = process.env.NEXT_PUBLIC_SITE_URL
       ? `${process.env.NEXT_PUBLIC_SITE_URL}/app`
       : `${window.location.origin}/app`;
-
     const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo },
+      provider, options: { redirectTo },
     });
     if (error) setError(error.message);
   };
@@ -175,20 +85,16 @@ export default function LoginPage() {
 
       {/* Nav */}
       <div className="relative z-10 flex justify-between items-center px-8 py-6 border-b border-gray-800">
-        <a href="/landing" className="flex items-center gap-3 hover:opacity-80 transition">
+        <a href="/" className="flex items-center gap-3 hover:opacity-80 transition">
           <span className="text-2xl">⚾</span>
           <span className="text-lg font-black">Card Tracker</span>
         </a>
-        <a href="/landing" className="text-gray-400 hover:text-white text-sm transition">
-          ← Back
-        </a>
+        <a href="/" className="text-gray-400 hover:text-white text-sm transition">← Back</a>
       </div>
 
       {/* Main */}
       <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-4">
-
-          {/* Card */}
           <div className="bg-gray-900 rounded-3xl border border-gray-800 p-8 shadow-2xl">
 
             {/* Logo */}
@@ -202,30 +108,38 @@ export default function LoginPage() {
               </h1>
               <p className="text-gray-400 text-sm">
                 {mode === "login"
-                  ? "Connect your wallet instantly or continue with Google"
+                  ? "Sign in to your Card Tracker account"
                   : "Start trading baseball card shares"}
               </p>
             </div>
 
-            <div className="mb-6 rounded-xl border border-gray-800 bg-gray-800/60 px-3 py-2 text-center text-xs text-gray-400">
-              Wallet access is available immediately on this page — no extra step required.
+            {/* Mode toggle */}
+            <div className="grid grid-cols-2 gap-1 bg-gray-800 rounded-xl p-1 mb-6">
+              {(["login", "signup"] as Mode[]).map(m => (
+                <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }}
+                  className={`py-2 rounded-lg text-sm font-bold transition ${
+                    mode === m ? "bg-gray-600 text-white" : "text-gray-400 hover:text-gray-300"
+                  }`}>
+                  {m === "login" ? "Log In" : "Sign Up"}
+                </button>
+              ))}
             </div>
 
-            {/* Wallet connect */}
+            {/* Auth buttons */}
             <div className="space-y-3 mb-6">
-              <div className="w-full">
-                <DynamicConnectButton
-                  buttonClassName="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-amber-500 text-gray-950 font-bold text-sm hover:bg-amber-400 transition"
-                >
-                  Connect crypto wallet
-                </DynamicConnectButton>
-              </div>
-
-              {/* Google login */}
-              <button
-                onClick={() => handleOAuth("google")}
-                className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white text-gray-900 font-bold text-sm hover:bg-gray-100 transition"
+              {/* Crypto wallet */}
+              <DynamicConnectButton
+                buttonClassName="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-amber-500 text-gray-950 font-bold text-sm hover:bg-amber-400 transition"
               >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Connect crypto wallet
+              </DynamicConnectButton>
+
+              {/* Google */}
+              <button onClick={() => handleOAuth("google")}
+                className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white text-gray-900 font-bold text-sm hover:bg-gray-100 transition">
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -234,97 +148,74 @@ export default function LoginPage() {
                 </svg>
                 Continue with Google
               </button>
-
             </div>
 
+            {/* Divider */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex-1 h-px bg-gray-800" />
+              <span className="text-gray-600 text-xs">or use email</span>
+              <div className="flex-1 h-px bg-gray-800" />
+            </div>
+
+            {/* Email form */}
             <div className="space-y-3" suppressHydrationWarning>
-              <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-4 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                    {mode === "login" ? "Email and password" : "Create account"}
-                  </p>
+              {mode === "signup" && (
+                <input suppressHydrationWarning type="text" placeholder="Full name" value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+              )}
+              <input suppressHydrationWarning type="email" placeholder="Email address" value={email}
+                onChange={e => { setEmail(e.target.value); setError(""); }}
+                onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+              <input suppressHydrationWarning type="password" placeholder="Password (min 8 characters)" value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600" />
+
+              {/* Error messages */}
+              {error === "no_account" ? (
+                <div className="bg-red-950 border border-red-800 rounded-xl p-3">
+                  <p className="text-red-400 text-xs">No account found with this email.</p>
                   <button
-                    type="button"
-                    onClick={() => {
-                      setMode(mode === "login" ? "signup" : "login");
-                      setError("");
-                      setSuccess("");
-                    }}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition"
+                    onClick={() => { setMode("signup"); setError(""); }}
+                    className="mt-1.5 text-xs text-blue-400 hover:text-blue-300 font-semibold"
                   >
-                    {mode === "login" ? "Need an account?" : "Already have an account?"}
+                    Create an account →
                   </button>
                 </div>
+              ) : error ? (
+                <p className="text-red-400 text-xs">{error}</p>
+              ) : null}
 
-                {mode === "signup" && (
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="Full name"
-                    className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                  />
-                )}
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="Email address"
-                  className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                />
-
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                />
-
-                <button
-                  type="button"
-                  onClick={handleEmailAuth}
-                  disabled={loading}
-                  className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                >
-                  {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (mode === "login" ? "Log in" : "Create account")}
-                </button>
-              </div>
-
-              {error && <p className="text-red-400 text-xs">{error}</p>}
               {success && <p className="text-green-400 text-xs">{success}</p>}
 
-              {mfaRequired && (
-                <div className="space-y-3 rounded-xl border border-gray-700 bg-gray-800/80 p-3">
-                  <p className="text-xs text-gray-300">
-                    Enter the 6-digit code from your {mfaMethod === "sms" ? "SMS" : "authenticator app"}.
-                  </p>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={mfaCode}
-                    onChange={e => setMfaCode(e.target.value.replace(/\D/g, ""))}
-                    placeholder="000000"
-                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                  />
-                  <button
-                    onClick={handleMfaVerify}
-                    disabled={mfaLoading}
-                    className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                  >
-                    {mfaLoading ? "Verifying..." : "Verify code"}
-                  </button>
-                </div>
+              <button suppressHydrationWarning onClick={handleEmailAuth} disabled={loading}
+                className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+                {loading ? "..." : mode === "login" ? "Log In" : "Create Account"}
+              </button>
+
+              {mode === "login" && (
+                <button suppressHydrationWarning
+                  onClick={async () => {
+                    if (!email) { setError("Enter your email first"); return; }
+                    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                      redirectTo: `${window.location.origin}/reset-password`,
+                    });
+                    if (error) setError(error.message);
+                    else setSuccess("Password reset email sent");
+                  }}
+                  className="w-full text-gray-500 text-xs hover:text-gray-400 transition text-center">
+                  Forgot password?
+                </button>
               )}
             </div>
           </div>
 
           {/* Features */}
           <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
-              What you get
-            </p>
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">What you get</p>
             <div className="space-y-2">
               {[
                 { icon: "📊", text: "Trade card shares with limit orders" },
