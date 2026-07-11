@@ -238,6 +238,60 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-3" suppressHydrationWarning>
+              <div className="rounded-2xl border border-gray-800 bg-gray-900/70 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {mode === "login" ? "Email and password" : "Create account"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === "login" ? "signup" : "login");
+                      setError("");
+                      setSuccess("");
+                    }}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition"
+                  >
+                    {mode === "login" ? "Need an account?" : "Already have an account?"}
+                  </button>
+                </div>
+
+                {mode === "signup" && (
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="Full name"
+                    className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                  />
+                )}
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="Email address"
+                  className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                />
+
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full bg-gray-950 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleEmailAuth}
+                  disabled={loading}
+                  className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {loading ? (mode === "login" ? "Signing in..." : "Creating account...") : (mode === "login" ? "Log in" : "Create account")}
+                </button>
+              </div>
+
               {error && <p className="text-red-400 text-xs">{error}</p>}
               {success && <p className="text-green-400 text-xs">{success}</p>}
 
