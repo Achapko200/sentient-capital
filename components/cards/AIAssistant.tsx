@@ -63,7 +63,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
         </div>
         <div>
           <p className="text-gray-900 font-black text-sm">Card Tracker Assistant</p>
-          <p className="text-gray-400 text-xs">Powered by Claude</p>
+          <p className="text-gray-400 text-xs">Powered by a live model</p>
         </div>
         <div className="ml-auto flex items-center gap-1.5 text-xs text-green-600 font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />

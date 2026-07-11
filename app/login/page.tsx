@@ -202,7 +202,7 @@ export default function LoginPage() {
               </h1>
               <p className="text-gray-400 text-sm">
                 {mode === "login"
-                  ? "Connect your wallet instantly or continue with Google or email"
+                  ? "Connect your wallet instantly or continue with Google"
                   : "Start trading baseball card shares"}
               </p>
             </div>
@@ -237,62 +237,8 @@ export default function LoginPage() {
 
             </div>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex-1 h-px bg-gray-800" />
-              <span className="text-gray-600 text-xs">or use email</span>
-              <div className="flex-1 h-px bg-gray-800" />
-            </div>
-
-            {/* Email form */}
             <div className="space-y-3" suppressHydrationWarning>
-              {mode === "signup" && (
-                <div>
-                  <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 block">
-                    Full Name
-                  </label>
-                  <input
-                    suppressHydrationWarning
-                    type="text"
-                    placeholder="Anna Chapko"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 block">
-                  Email
-                </label>
-                <input
-                  suppressHydrationWarning
-                  type="email"
-                  placeholder="you@email.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 block">
-                  Password
-                </label>
-                <input
-                  suppressHydrationWarning
-                  type="password"
-                  placeholder="Min 8 characters"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600"
-                />
-              </div>
-
-              {error   && <p className="text-red-400 text-xs">{error}</p>}
+              {error && <p className="text-red-400 text-xs">{error}</p>}
               {success && <p className="text-green-400 text-xs">{success}</p>}
 
               {mfaRequired && (
@@ -316,33 +262,6 @@ export default function LoginPage() {
                     {mfaLoading ? "Verifying..." : "Verify code"}
                   </button>
                 </div>
-              )}
-
-              <button
-                suppressHydrationWarning
-                onClick={handleEmailAuth}
-                disabled={loading}
-                className="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}
-              >
-                {loading ? "..." : mode === "login" ? "Continue with email" : "Create Account"}
-              </button>
-
-              {mode === "login" && (
-                <button
-                  suppressHydrationWarning
-                  onClick={async () => {
-                    if (!email) { setError("Enter your email first"); return; }
-                    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                      redirectTo: `${window.location.origin}/reset-password`,
-                    });
-                    if (error) setError(error.message);
-                    else setSuccess("Password reset email sent");
-                  }}
-                  className="w-full text-gray-500 text-xs hover:text-gray-400 transition text-center"
-                >
-                  Forgot password?
-                </button>
               )}
             </div>
           </div>
