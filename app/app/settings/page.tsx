@@ -126,13 +126,13 @@ function MFAModal({
   };
 
   const handleCopySetupLink = async () => {
-    try {
-      await navigator.clipboard.writeText(otpUri);
-      setError("Setup link copied. Paste it into your authenticator app if needed.");
-    } catch {
-      setError("Copy failed. You can still use the setup code below.");
-    }
-  };
+  try {
+    await navigator.clipboard.writeText(setupCode.replace(/\s/g, ""));
+    setError("Setup key copied — paste it into your authenticator app");
+  } catch {
+    setError("Copy failed — type the key manually");
+  }
+};
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
@@ -195,45 +195,61 @@ function MFAModal({
           </div>
         )}
 
-        {step === "app" && (
-          <div className="px-6 py-5">
-            <p className="text-sm text-gray-600 mb-4">
-              Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.). If your camera opens password tools instead, use the setup code below or copy the setup link.
-            </p>
-            <div className="flex justify-center mb-4">
-              <div className="p-3 border-2 border-gray-200 rounded-xl">
-                <img src={qrCodeUrl} alt="Authenticator QR code" className="w-44 h-44" />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 mb-4">
-              <button onClick={handleCopySetupLink}
-                className="w-full py-2 rounded-xl border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition">
-                Copy setup link
-              </button>
-              <p className="text-xs text-gray-400 text-center">
-                Can&apos;t scan? Use this setup code:
-                <span className="block font-mono text-gray-700 font-semibold mt-1 text-sm tracking-widest">
-                  {setupCode || "Loading..."}
-                </span>
-              </p>
-            </div>
-            <div className="border-t border-gray-100 pt-4">
-              <p className="text-sm text-gray-700 mb-2 font-medium">Enter the 6-digit code from your app</p>
-              <input
-                type="text" maxLength={6} value={code}
-                onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}
-                placeholder="000000"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-center text-xl font-mono tracking-widest focus:outline-none focus:border-blue-400"
-              />
-              {error && <p className="text-red-500 text-xs mt-1.5">{error}</p>}
-              <button onClick={handleVerify}
-                className="w-full mt-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
-                Verify & enable
-              </button>
-            </div>
+       {step === "app" && (
+  <div className="px-6 py-5">
+    <div className="space-y-4 mb-5">
+      <div className="flex gap-3 items-start">
+        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
+        <div>
+          <p className="text-sm text-gray-900 font-medium">Download an authenticator app</p>
+          <p className="text-xs text-gray-400 mt-1">Install one of these on your phone:</p>
+          <div className="flex gap-2 mt-2 flex-wrap">
+            <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-700 font-medium">Google Authenticator</span>
+            <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-700 font-medium">Authy</span>
+            <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-700 font-medium">1Password</span>
           </div>
-        )}
+        </div>
+      </div>
 
+      <div className="flex gap-3 items-start">
+        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</div>
+        <div>
+          <p className="text-sm text-gray-900 font-medium">Open the app → tap + → Enter setup key manually</p>
+          <p className="text-xs text-gray-400 mt-0.5">Choose &quot;Enter a setup key&quot; or &quot;Manual entry&quot; — do NOT use your iPhone camera</p>
+          <div className="mt-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+            <span className="font-mono text-gray-900 font-bold text-sm tracking-widest">{setupCode}</span>
+            <button
+              onClick={handleCopySetupLink}
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0"
+            >
+              Copy
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Account name: CardTracker</p>
+        </div>
+      </div>
+
+      <div className="flex gap-3 items-start">
+        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</div>
+        <p className="text-sm text-gray-900 font-medium">Enter the 6-digit code shown in the app</p>
+      </div>
+    </div>
+
+    <div className="border-t border-gray-100 pt-4">
+      <input
+        type="text" maxLength={6} value={code}
+        onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}
+        placeholder="000000"
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-center text-xl font-mono tracking-widest focus:outline-none focus:border-blue-400"
+      />
+      {error && <p className="text-red-500 text-xs mt-1.5">{error}</p>}
+      <button onClick={handleVerify}
+        className="w-full mt-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
+        Verify & enable
+      </button>
+    </div>
+  </div>
+)}
         {step === "sms" && (
           <div className="px-6 py-5">
             <p className="text-sm text-gray-600 mb-4">
