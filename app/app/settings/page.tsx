@@ -20,24 +20,24 @@ function MFAModal({
   onEnableApp: () => void;
   onEnableSms: () => void;
 }) {
-  const [step,    setStep]    = useState<"choose" | "app" | "sms">("choose");
-  const [phone,   setPhone]   = useState("");
-  const [code,    setCode]    = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent,    setSent]    = useState(false);
-  const [error,   setError]   = useState("");
-  const [smsMessage, setSmsMessage] = useState("");
+  const [step,          setStep]          = useState<"choose" | "app" | "sms">("choose");
+  const [phone,         setPhone]         = useState("");
+  const [code,          setCode]          = useState("");
+  const [sending,       setSending]       = useState(false);
+  const [sent,          setSent]          = useState(false);
+  const [error,         setError]         = useState("");
+  const [smsMessage,    setSmsMessage]    = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
-  const [setupCode, setSetupCode] = useState("");
-  const [otpUri, setOtpUri] = useState("");
-  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [setupCode,     setSetupCode]     = useState("");
+  const [otpUri,        setOtpUri]        = useState("");
+  const [qrCodeUrl,     setQrCodeUrl]     = useState("");
 
   useEffect(() => {
     const loadTotpSetup = async () => {
-      const res = await fetch("/api/auth/mfa", {
-        method: "POST",
+      const res  = await fetch("/api/auth/mfa", {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "totp" }),
+        body:    JSON.stringify({ action: "totp" }),
       });
       const data = await res.json();
       if (data.success) {
@@ -46,7 +46,6 @@ function MFAModal({
         setSetupCode(data.setupCode);
       }
     };
-
     void loadTotpSetup();
   }, []);
 
@@ -56,40 +55,30 @@ function MFAModal({
       setError("Sign in again to save your MFA settings.");
       return false;
     }
-
-    const res = await fetch("/api/auth/mfa", {
-      method: "POST",
+    const res  = await fetch("/api/auth/mfa", {
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "enable", userId: userData.user.id, method, secret }),
+      body:    JSON.stringify({ action: "enable", userId: userData.user.id, method, secret }),
     });
     const data = await res.json();
-
     if (!res.ok || !data.success) {
       setError(data.error ?? "Unable to save MFA settings");
       return false;
     }
-
     return true;
   };
 
   const handleSendCode = async () => {
     if (!phone) { setError("Enter your phone number"); return; }
-    setSending(true);
-    setError("");
-
-    const res = await fetch("/api/auth/mfa", {
-      method: "POST",
+    setSending(true); setError("");
+    const res  = await fetch("/api/auth/mfa", {
+      method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "sms", phone }),
+      body:    JSON.stringify({ action: "sms", phone }),
     });
     const data = await res.json();
-
     setSending(false);
-    if (!data.success) {
-      setError(data.error ?? "Unable to send SMS code");
-      return;
-    }
-
+    if (!data.success) { setError(data.error ?? "Unable to send SMS code"); return; }
     setGeneratedCode(data.code);
     setSent(true);
     setSmsMessage(data.message);
@@ -97,47 +86,42 @@ function MFAModal({
 
   const handleVerify = async () => {
     if (code.length < 6) { setError("Enter the 6-digit code"); return; }
-
     if (step === "app") {
-      const res = await fetch("/api/auth/mfa", {
-        method: "POST",
+      const res  = await fetch("/api/auth/mfa", {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify", secret: setupCode.replace(/\s+/g, ""), code }),
+        body:    JSON.stringify({ action: "verify", secret: setupCode.replace(/\s+/g, ""), code }),
       });
       const data = await res.json();
-
       if (data.success) {
         const saved = await persistMfaSetup("app", setupCode.replace(/\s+/g, ""));
         if (saved) onEnableApp();
         return;
       }
-
-      setError("That code didn't match. Try the code shown above.");
+      setError("That code didn't match. Try again.");
       return;
     }
-
     if (generatedCode && code === generatedCode) {
       const saved = await persistMfaSetup("sms", setupCode.replace(/\s+/g, ""));
       if (saved) onEnableSms();
       return;
     }
-
-    setError("That code didn't match. Try the code shown above.");
+    setError("That code didn't match. Try again.");
   };
 
   const handleCopySetupLink = async () => {
-  try {
-    await navigator.clipboard.writeText(setupCode.replace(/\s/g, ""));
-    setError("Setup key copied — paste it into your authenticator app");
-  } catch {
-    setError("Copy failed — type the key manually");
-  }
-};
+    try {
+      await navigator.clipboard.writeText(setupCode.replace(/\s/g, ""));
+      setError("Setup key copied — paste it into your authenticator app");
+    } catch {
+      setError("Copy failed — type the key manually");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-3">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-5 border-b border-gray-100 flex items-center gap-3 sticky top-0 bg-white">
           {step !== "choose" && (
             <button onClick={() => { setStep("choose"); setError(""); setCode(""); setSent(false); }}
               className="text-gray-400 hover:text-gray-600 shrink-0">
@@ -156,6 +140,7 @@ function MFAModal({
           </button>
         </div>
 
+        {/* Choose */}
         {step === "choose" && (
           <div className="px-6 py-5 space-y-3">
             <button onClick={() => setStep("app")}
@@ -167,7 +152,7 @@ function MFAModal({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-900">Authenticator app</p>
-                <p className="text-xs text-gray-400 mt-0.5">Use Google Authenticator, Authy, or similar</p>
+                <p className="text-xs text-gray-400 mt-0.5">Microsoft Authenticator, Google Authenticator, Authy</p>
               </div>
               <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -195,61 +180,73 @@ function MFAModal({
           </div>
         )}
 
-       {step === "app" && (
-  <div className="px-6 py-5">
-    <div className="space-y-4 mb-5">
-      <div className="flex gap-3 items-start">
-        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
-        <div>
-          <p className="text-sm text-gray-900 font-medium">Download an authenticator app</p>
-          <p className="text-xs text-gray-400 mt-1">Install one of these on your phone:</p>
-          <div className="flex gap-2 mt-2 flex-wrap">
-            <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-700 font-medium">Google Authenticator</span>
-            <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-700 font-medium">Authy</span>
-            <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-700 font-medium">1Password</span>
+        {/* Authenticator app */}
+        {step === "app" && (
+          <div className="px-6 py-5">
+            <div className="space-y-4 mb-5">
+
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</div>
+                <div>
+                  <p className="text-sm text-gray-900 font-medium">Open your Authenticator app</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Microsoft Authenticator, Google Authenticator, Authy, or 1Password</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</div>
+                <div>
+                  <p className="text-sm text-gray-900 font-medium">Tap the QR scan icon inside the app</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Microsoft Authenticator: QR icon in bottom right</p>
+                  <p className="text-xs text-gray-400">Google Authenticator: tap + → Scan QR code</p>
+                </div>
+              </div>
+
+              <div className="flex justify-center my-1">
+                <div className="p-3 border-2 border-gray-200 rounded-xl">
+                  {qrCodeUrl
+                    ? <img src={qrCodeUrl} alt="QR Code" className="w-40 h-40" />
+                    : <div className="w-40 h-40 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+                        <p className="text-xs text-gray-400">Loading...</p>
+                      </div>
+                  }
+                </div>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                <p className="text-xs text-gray-400 mb-1">Can&apos;t scan? Enter this key manually in the app:</p>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-gray-900 font-bold text-sm tracking-widest">{setupCode || "Loading..."}</span>
+                  <button onClick={handleCopySetupLink}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0">
+                    Copy
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Account name: CardTracker</p>
+              </div>
+
+              <div className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</div>
+                <p className="text-sm text-gray-900 font-medium">Enter the 6-digit code shown in the app</p>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <input type="text" maxLength={6} value={code}
+                onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}
+                placeholder="000000"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-center text-xl font-mono tracking-widest focus:outline-none focus:border-blue-400"
+              />
+              {error && <p className={`text-xs mt-1.5 ${error.includes("copied") ? "text-green-600" : "text-red-500"}`}>{error}</p>}
+              <button onClick={handleVerify}
+                className="w-full mt-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
+                Verify & enable
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="flex gap-3 items-start">
-        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</div>
-        <div>
-          <p className="text-sm text-gray-900 font-medium">Open the app → tap + → Enter setup key manually</p>
-          <p className="text-xs text-gray-400 mt-0.5">Choose &quot;Enter a setup key&quot; or &quot;Manual entry&quot; — do NOT use your iPhone camera</p>
-          <div className="mt-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-            <span className="font-mono text-gray-900 font-bold text-sm tracking-widest">{setupCode}</span>
-            <button
-              onClick={handleCopySetupLink}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0"
-            >
-              Copy
-            </button>
-          </div>
-          <p className="text-xs text-gray-400 mt-1">Account name: CardTracker</p>
-        </div>
-      </div>
-
-      <div className="flex gap-3 items-start">
-        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</div>
-        <p className="text-sm text-gray-900 font-medium">Enter the 6-digit code shown in the app</p>
-      </div>
-    </div>
-
-    <div className="border-t border-gray-100 pt-4">
-      <input
-        type="text" maxLength={6} value={code}
-        onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}
-        placeholder="000000"
-        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-center text-xl font-mono tracking-widest focus:outline-none focus:border-blue-400"
-      />
-      {error && <p className="text-red-500 text-xs mt-1.5">{error}</p>}
-      <button onClick={handleVerify}
-        className="w-full mt-3 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
-        Verify & enable
-      </button>
-    </div>
-  </div>
-)}
+        {/* SMS */}
         {step === "sms" && (
           <div className="px-6 py-5">
             <p className="text-sm text-gray-600 mb-4">
@@ -303,19 +300,19 @@ export default function SettingsPage() {
   const router = useRouter();
   const [section, setSection] = useState<Section>("general");
 
-  const [appearance, setAppearance] = useState("System");
-  const [contrast,   setContrast]   = useState("System");
-  const [accent,     setAccent]     = useState("Default");
-  const [language,   setLanguage]   = useState("Auto-detect");
-  const [mfaBanner,  setMfaBanner]  = useState(true);
-  const [showMFA,    setShowMFA]    = useState(false);
-  const [mfaApp,     setMfaApp]     = useState(false);
-  const [mfaSms,     setMfaSms]     = useState(false);
-  const [aiSignals,    setAiSignals]    = useState(true);
-  const [alertsBadge,  setAlertsBadge]  = useState(true);
-  const [priceImpact,  setPriceImpact]  = useState(true);
-  const [favoriteTeam, setFavoriteTeam] = useState("None");
-  const [defaultTab,   setDefaultTab]   = useState("Card Tracker");
+  const [appearance,       setAppearance]       = useState("System");
+  const [contrast,         setContrast]         = useState("System");
+  const [accent,           setAccent]           = useState("Default");
+  const [language,         setLanguage]         = useState("Auto-detect");
+  const [mfaBanner,        setMfaBanner]        = useState(true);
+  const [showMFA,          setShowMFA]          = useState(false);
+  const [mfaApp,           setMfaApp]           = useState(false);
+  const [mfaSms,           setMfaSms]           = useState(false);
+  const [aiSignals,        setAiSignals]        = useState(true);
+  const [alertsBadge,      setAlertsBadge]      = useState(true);
+  const [priceImpact,      setPriceImpact]      = useState(true);
+  const [favoriteTeam,     setFavoriteTeam]     = useState("None");
+  const [defaultTab,       setDefaultTab]       = useState("Card Tracker");
   const [sensitiveContent, setSensitiveContent] = useState(false);
   const [safeTrading,      setSafeTrading]      = useState(true);
   const [impactWarnings,   setImpactWarnings]   = useState(true);
@@ -451,14 +448,10 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
-              <SelectRow label="Appearance" value={appearance} onChange={setAppearance}
-                options={["System", "Dark", "Light"]} />
-              <SelectRow label="Contrast" value={contrast} onChange={setContrast}
-                options={["System", "Medium", "Increased"]} />
-              <SelectRow label="Accent color" value={accent} onChange={setAccent}
-                options={["Default", "Blue", "Green", "Yellow", "Pink", "Orange", "Purple"]} />
-              <SelectRow label="Language" value={language} onChange={setLanguage}
-                options={["Auto-detect", "English (US)", "Spanish", "French", "German", "Russian", "Chinese", "Japanese"]} />
+              <SelectRow label="Appearance" value={appearance} onChange={setAppearance} options={["System", "Dark", "Light"]} />
+              <SelectRow label="Contrast"   value={contrast}   onChange={setContrast}   options={["System", "Medium", "Increased"]} />
+              <SelectRow label="Accent color" value={accent}   onChange={setAccent}     options={["Default", "Blue", "Green", "Yellow", "Pink", "Orange", "Purple"]} />
+              <SelectRow label="Language"   value={language}   onChange={setLanguage}   options={["Auto-detect", "English (US)", "Spanish", "French", "German", "Russian", "Chinese", "Japanese"]} />
             </>)}
 
             {section === "notifications" && (<>
@@ -484,12 +477,9 @@ export default function SettingsPage() {
               <SelectRow label="Default tab" desc="Which tab opens when you launch the app"
                 value={defaultTab} onChange={setDefaultTab}
                 options={["Card Tracker","Trade","Portfolio","Analyst Picks"]} />
-              <ToggleRow label="Show AI signals" desc="Show BUY/HOLD/SELL signals on player cards"
-                value={aiSignals} onChange={() => setAiSignals(v => !v)} />
-              <ToggleRow label="Show alerts badge" desc="Show unread alerts count on the Alerts tab"
-                value={alertsBadge} onChange={() => setAlertsBadge(v => !v)} />
-              <ToggleRow label="Price impact warnings" desc="Alert me when a trade would move the market price by more than 5%"
-                value={priceImpact} onChange={() => setPriceImpact(v => !v)} />
+              <ToggleRow label="Show AI signals"       desc="Show BUY/HOLD/SELL signals on player cards"                        value={aiSignals}   onChange={() => setAiSignals(v => !v)} />
+              <ToggleRow label="Show alerts badge"     desc="Show unread alerts count on the Alerts tab"                        value={alertsBadge} onChange={() => setAlertsBadge(v => !v)} />
+              <ToggleRow label="Price impact warnings" desc="Alert me when a trade would move the market price by more than 5%" value={priceImpact} onChange={() => setPriceImpact(v => !v)} />
             </>)}
 
             {section === "security" && (<>
@@ -521,8 +511,8 @@ export default function SettingsPage() {
               <ChevronRow label="Improve Card Tracker for everyone"
                 desc="Allow us to use your anonymized trading data to improve signals and recommendations for all users."
                 right="On" />
-              <ChevronRow label="Shared links" desc="Manage links you've shared to your card analysis or portfolio" />
-              <ChevronRow label="Archived positions" desc="View and restore archived trading positions" />
+              <ChevronRow label="Shared links"        desc="Manage links you've shared to your card analysis or portfolio" />
+              <ChevronRow label="Archived positions"  desc="View and restore archived trading positions" />
               <div className="flex items-start justify-between py-4 border-b border-gray-100 gap-6">
                 <p className="text-sm text-gray-900">Archive all positions</p>
                 <button className="px-3 py-1 text-xs border border-gray-300 rounded-full hover:bg-gray-50 shrink-0">Archive all</button>
