@@ -16,8 +16,8 @@ import PriceAlerts                from "@/components/cards/PriceAlerts";
 import AIAssistant                from "@/components/cards/AIAssistant";
 import AuthGate                   from "@/components/AuthGate";
 import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
-import { useAuth }
-import { supabase } from "@/lib/supabase"                from "@/lib/auth-context";
+import { useAuth }                from "@/lib/auth-context";
+import { supabase }              from "@/lib/supabase";
 
 type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts" | "ai";
 
@@ -31,6 +31,23 @@ function ProfileModal({ email, onClose }: {
 
   const [name,    setName]    = useState(defaultName);
   const [username, setUsername] = useState(defaultUser);
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState("");
+  const [success,  setSuccess]  = useState("");
+
+  const handleSave = async () => {
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const { error } = await supabase.auth.updateUser({ data: { display_name: name, username } });
+      if (error) throw error;
+      setSuccess("Profile saved!");
+      setTimeout(onClose, 800);
+    } catch (err: any) {
+      setError(err.message ?? "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
