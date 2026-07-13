@@ -378,7 +378,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8">
+      <div className="flex-1 px-4 md:px-8 py-4 md:py-6 pb-20 md:pb-6 overflow-y-auto">
 
         {/* ── CARDS TAB — public ─────────────────────────────────────────────── */}
         {tab === "cards" && (
@@ -810,6 +810,27 @@ export default function Home() {
           </div>
         )}
 
+      </div>
+
+      {/* Mobile bottom nav */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 px-2 py-1 safe-area-bottom">
+        <div className="flex justify-around">
+          {[
+            { id: "cards",     label: "Cards",     icon: "⚾" },
+            { id: "trade",     label: "Trade",     icon: "📊" },
+            { id: "portfolio", label: "Portfolio", icon: "💼" },
+            { id: "ai",        label: "AI",        icon: "🤖" },
+            { id: "alerts",    label: "Alerts",    icon: "🔔" },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id as Tab)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition ${
+                tab === t.id ? "text-blue-600" : "text-gray-400"
+              }`}>
+              <span className="text-xl">{t.icon}</span>
+              <span className="text-[10px] font-medium">{t.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
