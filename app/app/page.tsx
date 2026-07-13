@@ -19,7 +19,7 @@ import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
 import { useAuth }                from "@/lib/auth-context";
 import { supabase }              from "@/lib/supabase";
 
-type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts" | "ai";
+type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts" | "ai" | "scan";
 
 function ProfileModal({ email, onClose }: {
   email: string | null;
@@ -794,6 +794,21 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {tab === "scan" && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="text-6xl mb-4">📸</div>
+            <h2 className="text-xl font-black text-gray-900 mb-2">Card Scanner</h2>
+            <p className="text-gray-500 text-sm mb-6 text-center max-w-xs">
+              Take a photo of any baseball card to get an AI-powered grade estimate and valuation
+            </p>
+            <a href="/scan"
+              className="px-8 py-3 rounded-xl font-black text-white text-sm transition"
+              style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+              Open Card Scanner
+            </a>
           </div>
         )}
 
