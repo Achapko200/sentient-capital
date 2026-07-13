@@ -329,61 +329,59 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Accent bar */}
-      <div className="h-1.5 w-full" style={{
-        background: "linear-gradient(90deg, #2563eb, #7c3aed, #db2777, #d97706)"
-      }} />
-
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 md:py-5 shadow-sm">
+      <div className="bg-gray-950 px-4 py-3 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 md:gap-4">
-            <span className="text-3xl md:text-4xl">⚾</span>
-            <div>
-              <h1 className="text-xl md:text-3xl font-black text-gray-900 tracking-tight">Card Tracker</h1>
-              <p className="text-gray-500 text-xs md:text-sm mt-0.5 hidden md:block">
-                Real MLB data · eBay prices · AI signals · Crypto payments
-              </p>
-            </div>
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">⚾</span>
+            <h1 className="text-lg font-black text-white tracking-tight">Card Tracker</h1>
           </div>
-
-          {/* Right side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {isAuthenticated && (
               <ProfileDropdown email={email} wallet={wallet} signOut={signOut} />
             )}
-
             {!isAuthenticated && <DynamicWidget />}
-
             {!isAuthenticated && (
-              <a
-                href="/login"
-                className="text-gray-400 hover:text-gray-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition hidden md:block"
-              >
-                Email / Google
+              <a href="/login"
+                className="text-gray-400 hover:text-white text-xs px-3 py-1.5 rounded-lg border border-gray-700 transition">
+                Sign in
               </a>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="max-w-7xl mx-auto mt-3 flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
+      {/* Tabs — desktop */}
+      <div className="bg-gray-900 sticky top-[52px] z-30 hidden md:block">
+        <div className="max-w-7xl mx-auto flex overflow-x-auto scrollbar-hide">
           {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap shrink-0 border ${
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-5 py-3 text-sm font-semibold transition whitespace-nowrap shrink-0 border-b-2 ${
                 tab === t.id
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700"
-              }`}
-            >
+                  ? "border-red-500 text-white"
+                  : "border-transparent text-gray-400 hover:text-white"
+              }`}>
               {t.icon} {t.label}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Tabs — mobile */}
+      <div className="bg-gray-900 md:hidden overflow-x-auto scrollbar-hide">
+        <div className="flex px-2 py-2 gap-1.5">
+          {TABS.map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap shrink-0 ${
+                tab === t.id
+                  ? "bg-white text-gray-900"
+                  : "text-gray-400 hover:text-white"
+              }`}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8">
 
         {/* ── CARDS TAB — public ─────────────────────────────────────────────── */}
