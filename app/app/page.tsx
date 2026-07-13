@@ -317,7 +317,13 @@ export default function Home() {
   ];
 
   const tabColor = (id: Tab, active: boolean) => {
-    return active ? "text-blue-600" : "text-gray-400 hover:text-gray-600";
+    if (!active) return "text-gray-500 hover:bg-gray-100";
+    if (id === "marketplace") return "bg-purple-600 text-white shadow-sm";
+    if (id === "trade")       return "bg-gray-950 text-white shadow-sm";
+    if (id === "portfolio")   return "bg-gray-800 text-white shadow-sm";
+    if (id === "alerts")      return "bg-orange-500 text-white shadow-sm";
+    if (id === "ai")          return "bg-blue-700 text-white shadow-sm";
+    return "bg-blue-600 text-white shadow-sm";
   };
 
   return (
@@ -360,25 +366,26 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="max-w-7xl mx-auto mt-2 flex overflow-x-auto scrollbar-hide border-b border-gray-200">
+        {/* Tabs — scrollable on mobile */}
+        <div className="max-w-7xl mx-auto mt-3 flex gap-0.5 overflow-x-auto pb-1 scrollbar-hide">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition whitespace-nowrap shrink-0 border-b-2 -mb-px ${
+              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition whitespace-nowrap shrink-0 ${
                 tab === t.id
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  ? "bg-gray-900 text-white"
+                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               }`}
             >
-              {t.label}
+              <span className="text-base">{t.icon}</span>
+              <span className="text-[10px] font-semibold">{t.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 px-4 md:px-8 py-4 md:py-6 pb-20 md:pb-6 overflow-y-auto">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8">
 
         {/* ── CARDS TAB — public ─────────────────────────────────────────────── */}
         {tab === "cards" && (
@@ -810,27 +817,6 @@ export default function Home() {
           </div>
         )}
 
-      </div>
-
-      {/* Mobile bottom nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 px-2 py-1 safe-area-bottom">
-        <div className="flex justify-around">
-          {[
-            { id: "cards",     label: "Cards",     icon: "⚾" },
-            { id: "trade",     label: "Trade",     icon: "📊" },
-            { id: "portfolio", label: "Portfolio", icon: "💼" },
-            { id: "ai",        label: "AI",        icon: "🤖" },
-            { id: "alerts",    label: "Alerts",    icon: "🔔" },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as Tab)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition ${
-                tab === t.id ? "text-blue-600" : "text-gray-400"
-              }`}>
-              <span className="text-xl">{t.icon}</span>
-              <span className="text-[10px] font-medium">{t.label}</span>
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
