@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-const VERIFICATION_TOKEN = "ct_ebay_verify_2025_token";
+const VERIFICATION_TOKEN = "ctebayverify2025token12345678901";
 
 export async function POST(req: Request) {
   return new Response("", { status: 200 });
