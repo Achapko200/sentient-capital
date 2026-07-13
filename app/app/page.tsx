@@ -313,6 +313,7 @@ export default function Home() {
     { id: "analysts",    label: "Analyst Picks", icon: "🎓" },
     { id: "alerts",      label: "Alerts",        icon: "🔔" },
     { id: "ai",          label: "AI Assistant",  icon: "🤖" },
+    { id: "scan",        label: "Scan Card",     icon: "📸" },
   ];
 
   const tabColor = (id: Tab, active: boolean) => {
