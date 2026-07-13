@@ -366,20 +366,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Tabs — scrollable on mobile */}
-        <div className="max-w-7xl mx-auto mt-3 flex gap-0.5 overflow-x-auto pb-1 scrollbar-hide">
+        {/* Tabs */}
+        <div className="max-w-7xl mx-auto mt-3 flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition whitespace-nowrap shrink-0 ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap shrink-0 border ${
                 tab === t.id
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700"
               }`}
             >
-              <span className="text-base">{t.icon}</span>
-              <span className="text-[10px] font-semibold">{t.label}</span>
+              {t.icon} {t.label}
             </button>
           ))}
         </div>
