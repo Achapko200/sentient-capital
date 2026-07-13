@@ -317,13 +317,7 @@ export default function Home() {
   ];
 
   const tabColor = (id: Tab, active: boolean) => {
-    if (!active) return "text-gray-500 hover:bg-gray-100";
-    if (id === "marketplace") return "bg-purple-600 text-white shadow-sm";
-    if (id === "trade")       return "bg-gray-950 text-white shadow-sm";
-    if (id === "portfolio")   return "bg-gray-800 text-white shadow-sm";
-    if (id === "alerts")      return "bg-orange-500 text-white shadow-sm";
-    if (id === "ai")          return "bg-blue-700 text-white shadow-sm";
-    return "bg-blue-600 text-white shadow-sm";
+    return active ? "text-blue-600" : "text-gray-400 hover:text-gray-600";
   };
 
   return (
