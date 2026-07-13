@@ -303,10 +303,10 @@ export default function SettingsPage() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 h-[85vh] flex overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-2 h-[90vh] flex overflow-hidden">
 
         {/* Sidebar */}
-        <div className="w-52 border-r border-gray-100 flex flex-col shrink-0 bg-gray-50/50">
+        <div className="w-36 md:w-52 border-r border-gray-100 flex flex-col shrink-0 bg-gray-50/50">
           <div className="flex items-center justify-between px-4 py-[18px] border-b border-gray-100">
             <span className="font-semibold text-gray-900 text-sm">Settings</span>
             <button onClick={() => router.back()}

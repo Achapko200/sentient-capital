@@ -141,7 +141,7 @@ function ProfileDropdown({ email, wallet, signOut }: {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-visible z-50">
+        <div className="absolute right-0 top-11 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-gray-200 overflow-visible z-50">
 
           {/* Account row — hover to show switcher */}
           <div

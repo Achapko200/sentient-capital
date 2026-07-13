@@ -13,7 +13,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
   const [input,        setInput]        = useState("");
   const [loading,      setLoading]      = useState(false);
   const [userId,       setUserId]       = useState<string | null>(null);
-  const [showSidebar,  setShowSidebar]  = useState(true);
+  const [showSidebar,  setShowSidebar]  = useState(typeof window !== "undefined" && window.innerWidth > 640);
   const [loadingChats, setLoadingChats] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -131,11 +131,11 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex h-[600px]">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex h-[500px] md:h-[600px]">
 
       {/* Sidebar */}
-      {showSidebar && (
-        <div className="w-56 border-r border-gray-100 flex flex-col shrink-0 bg-gray-50/50">
+      {showSidebar && window.innerWidth > 640 || showSidebar && (
+        <div className="w-48 md:w-56 border-r border-gray-100 flex flex-col shrink-0 bg-gray-50/50">
           <div className="p-3 border-b border-gray-100">
             <button onClick={newChat}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-200 transition text-sm text-gray-700 font-medium">
