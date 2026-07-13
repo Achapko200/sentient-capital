@@ -38,8 +38,8 @@ export default async function PlayerProfilePage({
   const sales        = await fetchEbaySales(id, player.cardName);
   const avgPrice     = calcAvgPrice(sales);
   const priceChange  = calcPriceChange(sales);
-  const priceHistory = calcPriceHistory(JSON.stringify(sales));
-  const liquidity    = calcLiquidity(String(sales.length * 2));
+  const priceHistory = calcPriceHistory(sales);
+  const liquidity    = calcLiquidity(sales);
   const sentiment    = calcSentiment(stats, priceChange);
   const cardSignal   = generateSignal(stats, sales, sentiment);
   const analysis     = getAnalysis(id, player.name, stats, avgPrice);

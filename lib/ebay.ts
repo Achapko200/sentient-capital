@@ -61,6 +61,7 @@ export async function fetchEbaySales(
     if (items.length === 0) return getMockSales(playerId);
 
     return items.slice(0, 10).map((item: any, i: number) => ({
+      id:        item.itemId ?? String(i),
       date:      new Date(Date.now() - i * 2 * 24 * 60 * 60 * 1000)
                    .toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       price:     parseFloat(item.price?.value ?? "0"),
@@ -85,6 +86,7 @@ const BASE_PRICES: Record<string, number> = {
 function getMockSales(playerId: string): EbaySale[] {
   const base = BASE_PRICES[playerId] ?? 120;
   return Array.from({ length: 8 }, (_, i) => ({
+    id:        String(i),
     date:      new Date(Date.now() - i * 3 * 24 * 60 * 60 * 1000)
                  .toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     price:     Math.round(base * (0.9 + Math.random() * 0.2)),
@@ -127,4 +129,12 @@ export function calcLiquidity(sales: EbaySale[]): LiquidityScore {
   const score         = Math.min(100, salesPerMonth * 2);
   const label         = score > 60 ? "LIQUID" : score > 30 ? "MODERATE" : "ILLIQUID";
   return { score, label, salesPerMonth, daysToSell };
+}
+
+export function calcPriceChange(sales: EbaySale[]): number {
+  if (sales.length < 2) return 0;
+  const recent = sales.slice(0, 3).reduce((s, x) => s + x.price, 0) / 3;
+  const older  = sales.slice(-3).reduce((s, x) => s + x.price, 0) / 3;
+  if (!older) return 0;
+  return Math.round(((recent - older) / older) * 1000) / 10;
 }

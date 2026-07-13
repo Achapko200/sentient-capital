@@ -32,8 +32,8 @@ export async function GET(
 
   const avgPrice     = calcAvgPrice(sales);
   const priceChange  = calcPriceChange(sales);
-  const priceHistory = calcPriceHistory(playerId);
-  const liquidity    = calcLiquidity(String(sales.length * 2)); // ← count, not playerId
+  const priceHistory = calcPriceHistory(sales);
+  const liquidity    = calcLiquidity(sales); // ← count, not playerId
   const sentiment    = calcSentiment(stats, priceChange);
   const cardSignal   = generateSignal(stats, sales, sentiment);
 
