@@ -13,7 +13,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
   const [input,        setInput]        = useState("");
   const [loading,      setLoading]      = useState(false);
   const [userId,       setUserId]       = useState<string | null>(null);
-  const [showSidebar,  setShowSidebar]  = useState(typeof window !== "undefined" && window.innerWidth > 640);
+  const [showSidebar,  setShowSidebar]  = useState(true);
   const [loadingChats, setLoadingChats] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -163,7 +163,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
                       }`}>
                       <p className="text-xs text-gray-700 truncate flex-1">{chat.title}</p>
                       <button onClick={e => deleteChat(chat.id, e)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition shrink-0">
+                        className="opacity-0 group-hover:opacity-100 md:opacity-0 text-gray-400 hover:text-red-500 transition shrink-0 touch:opacity-100">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
