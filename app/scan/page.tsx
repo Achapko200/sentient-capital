@@ -5,18 +5,31 @@ import { useRouter }        from "next/navigation";
 
 export default function ScanPage() {
   const router  = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef   = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [image,   setImage]   = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result,  setResult]  = useState<any>(null);
   const [error,   setError]   = useState("");
 
   const handleFile = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image too large — max 10MB");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = e => setImage(e.target?.result as string);
     reader.readAsDataURL(file);
     setResult(null);
     setError("");
+  };
+
+  const handleCameraCapture = () => {
+    if (cameraRef.current) cameraRef.current.click();
+  };
+
+  const handleLibrarySelect = () => {
+    if (fileRef.current) fileRef.current.click();
   };
 
   const handleScan = async () => {
@@ -81,14 +94,14 @@ export default function ScanPage() {
           )}
         </div>
 
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          
+        {/* Library picker */}
+        <input ref={fileRef} type="file" accept="image/*"
           className="hidden"
-          onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
-        />
+          onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+        {/* Camera */}
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment"
+          className="hidden"
+          onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
 
         {image && (
           <div className="flex gap-3">
