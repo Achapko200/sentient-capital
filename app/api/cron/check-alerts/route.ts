@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     for (const alert of alerts) {
       try {
         // Get current price from eBay
-        const sales       = await fetchEbaySales(alert.card_id, alert.player_name, alert.target_price);
+        const sales       = await fetchEbaySales(alert.card_id, alert.player_name);
         const currentPrice = calcAvgPrice(sales) || alert.target_price;
 
         const shouldTrigger =
