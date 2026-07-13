@@ -108,7 +108,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
             "How do I redeem a card?",
             "What affects card prices?",
           ].map(s => (
-            <button key={s} onClick={() => setInput(s)}
+            <button key={s} onClick={() => { setInput(s); setTimeout(() => document.getElementById("ai-send-btn")?.click(), 50); }}
               className="text-xs px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
               {s}
             </button>
@@ -126,7 +126,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
           placeholder="Ask about cards, signals, trading..."
           className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
         />
-        <button onClick={send} disabled={loading || !input.trim()}
+        <button id="ai-send-btn" onClick={send} disabled={loading || !input.trim()}
           className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition disabled:opacity-50">
           Send
         </button>
