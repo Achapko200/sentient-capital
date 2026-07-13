@@ -16,7 +16,8 @@ import PriceAlerts                from "@/components/cards/PriceAlerts";
 import AIAssistant                from "@/components/cards/AIAssistant";
 import AuthGate                   from "@/components/AuthGate";
 import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
-import { useAuth }                from "@/lib/auth-context";
+import { useAuth }
+import { supabase } from "@/lib/supabase"                from "@/lib/auth-context";
 
 type Tab = "cards" | "trade" | "portfolio" | "marketplace" | "traders" | "analysts" | "alerts" | "ai";
 
@@ -92,11 +93,14 @@ function ProfileModal({ email, onClose }: {
           >
             Cancel
           </button>
+          {error   && <p className="text-red-500 text-xs">{error}</p>}
+          {success && <p className="text-green-500 text-xs">{success}</p>}
           <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-gray-700 transition"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-gray-900 hover:bg-gray-700 transition disabled:opacity-50"
           >
-            Save
+            {saving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
