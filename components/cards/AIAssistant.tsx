@@ -134,7 +134,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex h-[500px] md:h-[600px]">
 
       {/* Sidebar */}
-      {showSidebar && window.innerWidth > 640 || showSidebar && (
+      {showSidebar && (
         <div className="w-48 md:w-56 border-r border-gray-100 flex flex-col shrink-0 bg-gray-50/50">
           <div className="p-3 border-b border-gray-100">
             <button onClick={newChat}
