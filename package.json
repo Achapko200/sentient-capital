@@ -23,6 +23,7 @@
     "react-dom": "19.2.4",
     "viem": "^2.53.1",
     "wagmi": "^2.12.7",
+    "web-push": "^3.6.7",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -31,6 +32,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "^15.3.3",
     "hardhat": "^3.9.0",
