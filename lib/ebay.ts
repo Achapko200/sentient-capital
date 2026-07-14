@@ -41,9 +41,9 @@ export async function fetchEbaySales(
     if (!token) return getMockSales(playerId);
 
     // Search for PSA graded cards
-    const query   = encodeURIComponent(`${playerName} PSA 10 rookie card`);
+    const query   = encodeURIComponent(`${playerName} PSA 10 rookie`);
     const res     = await fetch(
-      `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&sort=endDateRecent&limit=20`,
+      `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&sort=endDateRecent&limit=20`,
       {
         headers: {
           "Authorization":          `Bearer ${token}`,

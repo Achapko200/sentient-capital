@@ -44,7 +44,21 @@ function deriveColors(abbrev: string): { cardColor: string; teamColor: string } 
   return MLB_COLORS[abbrev] ?? DEFAULT_COLORS;
 }
 
+const KNOWN_CARDS: Record<string, string> = {
+  "656941": "Kyle Schwarber 2015 Topps Chrome Rookie PSA 10",
+  "670541": "Yordan Alvarez 2019 Topps Chrome Rookie PSA 10",
+  "700250": "Ben Rice 2024 Topps Chrome Rookie PSA 10",
+  "683002": "Paul Skenes 2024 Topps Chrome Rookie PSA 10",
+  "671939": "Gunnar Henderson 2022 Topps Chrome Rookie PSA 10",
+  "660670": "Ronald Acuna 2019 Topps Chrome Rookie PSA 10",
+  "808967": "Wyatt Langford 2024 Topps Chrome Rookie PSA 10",
+  "694973": "Julio Rodriguez 2020 Topps Chrome Rookie PSA 10",
+  "691406": "Junior Caminero 2023 Topps Chrome Rookie PSA 10",
+  "682998": "Jackson Holliday 2024 Topps Chrome Rookie PSA 10",
+};
+
 function buildCardName(p: any): string {
+  if (KNOWN_CARDS[String(p.id)]) return KNOWN_CARDS[String(p.id)];
   const year = p.mlbDebutDate
     ? new Date(p.mlbDebutDate).getFullYear()
     : new Date().getFullYear();
