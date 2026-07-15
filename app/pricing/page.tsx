@@ -179,7 +179,7 @@ export default function PricingPage() {
         {/* Note */}
         <div className="text-center mt-8">
           <p className="text-gray-500 text-sm">
-            Stripe payment processing coming soon. Subscriptions are currently free during beta.
+            Secure payments powered by Stripe. Cancel anytime.
           </p>
           <p className="text-gray-600 text-xs mt-2">
             Cancel anytime · No hidden fees · Apple takes 30% on iOS
