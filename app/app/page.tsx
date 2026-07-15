@@ -279,6 +279,42 @@ function ProfileDropdown({ email, wallet, signOut }: {
   );
 }
 
+function UpgradeBanner() {
+  const [show, setShow] = useState(true);
+  const [tier, setTier] = useState<string>("free");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const res = await fetch(`/api/subscription?userId=${data.user.id}`);
+      const sub = await res.json();
+      setTier(sub.tier ?? "free");
+    });
+  }, []);
+
+  if (!show || tier !== "free") return null;
+
+  return (
+    <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2.5 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-white text-sm font-semibold">⚡ Upgrade to Pro</span>
+        <span className="text-blue-200 text-xs hidden md:block">Unlimited alerts, AI messages, card scanner & more</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <a href="/pricing"
+          className="bg-white text-blue-600 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-blue-50 transition shrink-0">
+          See plans
+        </a>
+        <button onClick={() => setShow(false)} className="text-blue-200 hover:text-white transition">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TradingPanelLoader({ player }: { player: Player }) {
   const [token, setToken] = useState<CardToken | null>(null);
 
@@ -389,6 +425,9 @@ export default function Home() {
           ))}
         </div>
       </div>
+      {/* Upgrade banner for free users */}
+      <UpgradeBanner />
+
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8 pb-24 md:pb-8">
 
         {/* ── CARDS TAB — public ─────────────────────────────────────────────── */}
