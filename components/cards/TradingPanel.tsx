@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useDynamicContext }                 from "@dynamic-labs/sdk-react-core";
+import { useAuth }                          from "@/lib/auth-context";
 import type { CardToken, Candle }            from "@/lib/cardToken";
 import type { OrderBookSnapshot, Order, Trade } from "@/lib/orderbook";
 
@@ -11,6 +12,9 @@ type Tab   = "chart" | "book" | "orders";
 
 export default function TradingPanel({ token }: Props) {
   const { primaryWallet, user } = useDynamicContext();
+  const { email: authEmail } = useAuth();
+  // Allow email users to trade using email as wallet key
+  const effectiveWallet = primaryWallet?.address ?? (authEmail ? `email:${authEmail}` : null);
 
   const [tab,       setTab]       = useState<Tab>("chart");
   const [orderType, setOrderType] = useState<"BUY" | "SELL">("BUY");
@@ -45,7 +49,7 @@ export default function TradingPanel({ token }: Props) {
   const loadMyOrders = useCallback(async () => {
     if (!primaryWallet?.address) return;
     try {
-      const res  = await fetch(`/api/cards/orders?cardId=${token.id}&wallet=${primaryWallet.address}`);
+      const res  = await fetch(`/api/cards/orders?cardId=${token.id}&wallet=${effectiveWallet}`);
       const data = await res.json();
       setMyOrders(data.orders ?? []);
     } catch {}
@@ -71,7 +75,7 @@ export default function TradingPanel({ token }: Props) {
   }, [token.id, shares, orderType, showAmm]);
 
   const handleOrder = async () => {
-    if (!user || !primaryWallet) { setError("Connect wallet first"); return; }
+    if (!effectiveWallet) { setError("Sign in to trade"); return; }
     setLoading(true); setError(""); setSuccess("");
     try {
       const res = await fetch("/api/cards/trade", {
@@ -80,7 +84,7 @@ export default function TradingPanel({ token }: Props) {
         body:    JSON.stringify({
           action: "place", cardId: token.id, type: orderType,
           price:  parseFloat(price), shares: parseInt(shares),
-          wallet: primaryWallet.address,
+          wallet: effectiveWallet,
         }),
       });
       if (!res.ok) throw new Error();
@@ -94,7 +98,7 @@ export default function TradingPanel({ token }: Props) {
   };
 
   const handleAmmTrade = async () => {
-    if (!user || !primaryWallet) { setAmmError("Connect wallet first"); return; }
+    if (!effectiveWallet) { setAmmError("Sign in to trade"); return; }
     setAmmLoading(true); setAmmError(""); setAmmSuccess("");
     try {
       const res = await fetch("/api/cards/amm", {
@@ -103,7 +107,7 @@ export default function TradingPanel({ token }: Props) {
         body:    JSON.stringify({
           action:     orderType === "SELL" ? "sell" : "buy",
           cardId:     token.id,
-          wallet:     primaryWallet.address,
+          wallet:     effectiveWallet ?? "",
           shares:     parseInt(shares),
           usdcAmount: orderType === "BUY" ? parseFloat(price) * parseInt(shares) : undefined,
         }),
@@ -305,7 +309,7 @@ export default function TradingPanel({ token }: Props) {
                             headers: { "Content-Type": "application/json" },
                             body:    JSON.stringify({
                               action: "cancel", cardId: token.id,
-                              orderId: o.id, wallet: primaryWallet?.address,
+                              orderId: o.id, wallet: effectiveWallet ?? "",
                             }),
                           });
                           load(); loadMyOrders();
@@ -388,7 +392,7 @@ export default function TradingPanel({ token }: Props) {
                 ? "bg-green-600 hover:bg-green-500 text-white"
                 : "bg-red-600 hover:bg-red-500 text-white"
             }`}>
-            {loading ? "Placing..." : !user ? "Connect wallet" : `Place ${orderType} Limit Order`}
+            {loading ? "Placing..." : !effectiveWallet ? "Sign in to trade" : `Place ${orderType} Limit Order`}
           </button>
 
           {/* ── AMM Instant trade ────────────────────────────────────────────── */}
