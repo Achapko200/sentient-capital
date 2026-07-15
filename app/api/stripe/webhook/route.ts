@@ -33,6 +33,46 @@ export async function POST(req: Request) {
     }
   }
 
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    // Handle one-time card purchase (not subscription)
+    if (session.mode === "payment" && session.metadata?.cardId) {
+      const { cardId, shares, pricePerShare, userId, playerName } = session.metadata;
+      const { supabaseAdmin } = await import("@/lib/supabase-server");
+      
+      // Add shares to user portfolio
+      const wallet = `stripe:${userId}`;
+      const existing = await supabaseAdmin
+        .from("positions")
+        .select()
+        .eq("wallet", wallet)
+        .eq("card_id", cardId)
+        .single();
+
+      if (existing.data) {
+        const totalShares = existing.data.shares + parseInt(shares);
+        const avgCost     = ((existing.data.avg_cost * existing.data.shares) + (parseFloat(pricePerShare) * parseInt(shares))) / totalShares;
+        await supabaseAdmin.from("positions")
+          .update({ shares: totalShares, avg_cost: avgCost })
+          .eq("wallet", wallet).eq("card_id", cardId);
+      } else {
+        await supabaseAdmin.from("positions")
+          .insert({ wallet, card_id: cardId, shares: parseInt(shares), avg_cost: parseFloat(pricePerShare) });
+      }
+
+      // Record trade
+      await supabaseAdmin.from("trades").insert({
+        id:          `trd_stripe_${Date.now()}`,
+        card_id:     cardId,
+        price:       parseFloat(pricePerShare),
+        shares:      parseInt(shares),
+        buy_wallet:  wallet,
+        sell_wallet: "platform",
+        executed_at: new Date().toISOString(),
+      });
+    }
+  }
+
   if (event.type === "customer.subscription.deleted") {
     const sub = event.data.object;
     const { data } = await supabaseAdmin

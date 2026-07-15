@@ -69,6 +69,32 @@ export default function TradingPanel({ token }: Props) {
       .catch(() => setAmmQuote(null));
   }, [token.id, shares, mode, orderType]);
 
+  const handleCardPayment = async () => {
+    if (!effectiveWallet) { setError("Sign in first"); return; }
+    setLoading(true); setError("");
+    try {
+      const { data: { user } } = await (await import("@/lib/supabase")).supabase.auth.getUser();
+      const res = await fetch("/api/stripe/pay", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          cardId:        token.id,
+          playerName:    token.playerName,
+          shares:        parseInt(shares),
+          pricePerShare: parseFloat(orderType === "market" ? String(ammQuote?.price ?? currentPrice) : price),
+          userId:        user?.id ?? effectiveWallet,
+          email:         user?.email ?? authEmail,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (err: any) {
+      setError(err.message ?? "Payment failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleTrade = async () => {
     if (!effectiveWallet) { setError("Sign in to trade"); return; }
     setLoading(true); setError(""); setSuccess("");
@@ -409,8 +435,14 @@ export default function TradingPanel({ token }: Props) {
                   className={`py-2.5 rounded-xl text-white text-sm font-black transition disabled:opacity-50 ${
                     mode === "buy" ? "bg-green-600 hover:bg-green-500" : "bg-red-600 hover:bg-red-500"
                   }`}>
-                  {loading ? "..." : "Confirm"}
+                  {loading ? "..." : mode === "buy" ? "Buy with USDC" : "Confirm Sell"}
                 </button>
+                {mode === "buy" && (
+                  <button onClick={handleCardPayment} disabled={loading}
+                    className="py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-black transition disabled:opacity-50 col-span-2 w-full mt-1">
+                    💳 Buy with Card
+                  </button>
+                )}
               </div>
             </div>
           )}
