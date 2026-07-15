@@ -28,25 +28,23 @@ export default function CardPurchasePanel({ player }: Props) {
   const signal   = cardData?.cardSignal?.signal ?? "HOLD";
   const candles  = cardData?.candles ?? [];
 
-  // Simple line chart
-  const LineChart = () => {
-    if (candles.length === 0) return <div className="h-32 bg-gray-900 rounded-xl animate-pulse" />;
-    const W = 500, H = 120, PAD = { l: 44, r: 8, t: 8, b: 24 };
-    const prices = candles.map((c: any) => c.close);
-    const min    = Math.min(...prices) * 0.99;
-    const max    = Math.max(...prices) * 1.01;
+  // Candlestick chart
+  const CandleChart = () => {
+    if (candles.length === 0) return <div className="h-40 bg-gray-900 rounded-xl animate-pulse" />;
+    const W = 500, H = 160, PAD = { l: 44, r: 8, t: 8, b: 24 };
+    const prices = candles.flatMap((c: any) => [c.high, c.low]);
+    const min    = Math.min(...prices) * 0.995;
+    const max    = Math.max(...prices) * 1.005;
     const range  = max - min || 1;
     const chartW = W - PAD.l - PAD.r;
     const chartH = H - PAD.t - PAD.b;
-    const toX    = (i: number) => PAD.l + (i / Math.max(prices.length - 1, 1)) * chartW;
+    const toX    = (i: number) => PAD.l + (i / Math.max(candles.length - 1, 1)) * chartW;
     const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
-    const isUp   = prices[prices.length - 1] >= prices[0];
-    const color  = isUp ? "#22c55e" : "#ef4444";
-    const pts    = prices.map((p: number, i: number) => `${toX(i)},${toY(p)}`).join(" ");
+    const barW   = Math.max(2, (chartW / candles.length) * 0.6);
 
     return (
       <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
-        {[0, 0.5, 1].map(f => (
+        {[0.25, 0.5, 0.75, 1].map(f => (
           <line key={f} x1={PAD.l} x2={W - PAD.r}
             y1={PAD.t + chartH * (1 - f)} y2={PAD.t + chartH * (1 - f)}
             stroke="#1f2937" strokeWidth="1" />
@@ -57,8 +55,18 @@ export default function CardPurchasePanel({ player }: Props) {
             ${(min + range * f).toFixed(0)}
           </text>
         ))}
-        <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-        <circle cx={toX(prices.length - 1)} cy={toY(prices[prices.length - 1])} r="4" fill={color} />
+        {candles.map((c: any, i: number) => {
+          const up    = c.close >= c.open;
+          const color = up ? "#22c55e" : "#ef4444";
+          const bodyY = toY(Math.max(c.open, c.close));
+          const bodyH = Math.max(1, Math.abs(toY(c.open) - toY(c.close)));
+          return (
+            <g key={i}>
+              <line x1={toX(i)} x2={toX(i)} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth="1" />
+              <rect x={toX(i) - barW / 2} y={bodyY} width={barW} height={bodyH} fill={color} rx="0.5" />
+            </g>
+          );
+        })}
         {[0, Math.floor(candles.length / 2), candles.length - 1].map((i: number) => (
           candles[i] && (
             <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#4b5563" textAnchor="middle">
@@ -135,7 +143,7 @@ export default function CardPurchasePanel({ player }: Props) {
         {/* Chart */}
         <div className="col-span-3 border-r border-gray-800 p-4">
           <p className="text-gray-500 text-xs font-semibold uppercase mb-3">Price History</p>
-          <LineChart />
+          <CandleChart />
 
           {/* Stats */}
           {cardData && (
