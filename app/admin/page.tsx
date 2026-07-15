@@ -21,16 +21,25 @@ export default function AdminDashboard() {
   const [tab,      setTab]      = useState<"overview" | "listings" | "trades">("overview");
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/admin/stats").then(r => r.json()),
-      fetch("/api/admin/listings").then(r => r.json()),
-      fetch("/api/admin/trades").then(r => r.json()),
-    ]).then(([s, l, t]) => {
-      setStats(s.stats);
-      setListings(l.listings ?? []);
-      setTrades(t.trades ?? []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    // Check admin auth
+    supabase.auth.getUser().then(({ data }) => {
+      const adminEmail = "anna.chapko.2004@gmail.com";
+      if (!data.user || data.user.email !== adminEmail) {
+        router.push("/app");
+        return;
+      }
+      const headers = { "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "" };
+      Promise.all([
+        fetch("/api/admin/stats",    { headers }).then(r => r.json()),
+        fetch("/api/admin/listings", { headers }).then(r => r.json()),
+        fetch("/api/admin/trades",   { headers }).then(r => r.json()),
+      ]).then(([s, l, t]) => {
+        setStats(s.stats);
+        setListings(l.listings ?? []);
+        setTrades(t.trades ?? []);
+      }).catch(() => {}).finally(() => setLoading(false));
+    });
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-8">

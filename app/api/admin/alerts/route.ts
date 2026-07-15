@@ -1,7 +1,11 @@
 // app/api/admin/alerts/route.ts
 import { supabaseAdmin } from "@/lib/supabase-server";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const secret = req.headers.get("x-admin-secret");
+  if (secret !== process.env.ADMIN_SECRET_KEY) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { data } = await supabaseAdmin
       .from("alerts")
