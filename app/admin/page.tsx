@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter }           from "next/navigation";
+import { supabase }            from "@/lib/supabase";
 
 type Stats = {
   totalListings:  number;
@@ -14,6 +16,7 @@ type Stats = {
 };
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats,    setStats]    = useState<Stats | null>(null);
   const [listings, setListings] = useState<any[]>([]);
   const [trades,   setTrades]   = useState<any[]>([]);
