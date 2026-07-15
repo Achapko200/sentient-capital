@@ -1,6 +1,9 @@
+import { checkRateLimit } from "@/lib/ratelimit";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
 export async function GET(req: Request) {
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
   if (!userId) return Response.json({ tier: "free" });

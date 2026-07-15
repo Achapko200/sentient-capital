@@ -1,3 +1,4 @@
+import { checkRateLimit } from "@/lib/ratelimit";
 import { supabaseAdmin } from '@/lib/supabase-server';
 
 const vapidEmail     = process.env.VAPID_EMAIL!;
@@ -14,6 +15,8 @@ async function sendPushNotification(subscription: any, payload: string) {
 }
 
 export async function POST(req: Request) {
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
   try {
     const { action, subscription, userId, title, body, url } = await req.json();
 

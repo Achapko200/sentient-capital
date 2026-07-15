@@ -1,4 +1,5 @@
 // ─── app/api/cards/portfolio/route.ts ────────────────────────────────────────
+import { checkRateLimit } from "@/lib/ratelimit";
 import { getUserPositions } from "@/lib/orderbook";
 import { getPlayer }        from "@/lib/players";
 import { fetchEbaySales, calcAvgPrice } from "@/lib/ebay";
@@ -8,6 +9,8 @@ import { fetchMLBStats }    from "@/lib/mlb";
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 export async function GET(req: Request) {
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
   const { searchParams } = new URL(req.url);
   const wallet = searchParams.get("wallet") ?? "";
 

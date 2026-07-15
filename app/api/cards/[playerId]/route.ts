@@ -1,3 +1,4 @@
+import { checkRateLimit } from "@/lib/ratelimit";
 import { NextResponse }       from "next/server";
 import { fetchMLBStats }      from "@/lib/mlb";
 import { fetchEbaySales, calcAvgPrice, calcPriceChange, calcPriceHistory, calcLiquidity } from "@/lib/ebay";

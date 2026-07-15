@@ -1,3 +1,4 @@
+import { checkRateLimit } from "@/lib/ratelimit";
 import { generateSecret, generateTotp, verifyTotp } from "@/lib/mfa";
 import { supabaseAdmin } from "@/lib/supabase-server";
 

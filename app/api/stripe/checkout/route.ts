@@ -1,3 +1,4 @@
+import { checkRateLimit } from "@/lib/ratelimit";
 import Stripe from "stripe";
 
 const PRICE_IDS: Record<string, string> = {
@@ -6,6 +7,8 @@ const PRICE_IDS: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2026-06-24.dahlia" as any,
   });
