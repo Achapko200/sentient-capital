@@ -10,7 +10,7 @@ type Props = { player: Player };
 export default function CardPurchasePanel({ player }: Props) {
   const { email } = useAuth();
   const [mode,      setMode]      = useState<"buy" | "sell">("buy");
-  const [address,   setAddress]   = useState("");
+
   const [loading,   setLoading]   = useState(false);
   const [success,   setSuccess]   = useState("");
   const [error,     setError]     = useState("");
@@ -86,7 +86,7 @@ export default function CardPurchasePanel({ player }: Props) {
 
   const handleUsdcPay = async () => {
     if (!email) { setError("Sign in to buy"); return; }
-    if (mode === "buy" && !address.trim()) { setError("Enter your shipping address"); return; }
+
     setLoading(true); setError("");
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -102,7 +102,7 @@ export default function CardPurchasePanel({ player }: Props) {
 
   const handleBuy = async () => {
     if (!email) { setError("Sign in to buy"); return; }
-    if (mode === "buy" && !address.trim()) { setError("Enter your shipping address"); return; }
+
     setLoading(true); setError(""); setSuccess("");
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -118,7 +118,7 @@ export default function CardPurchasePanel({ player }: Props) {
           pricePerShare: price,
           userId:        user.id,
           email:         user.email,
-          address:       mode === "buy" ? address : undefined,
+
           mode,
         }),
       });
@@ -223,17 +223,10 @@ export default function CardPurchasePanel({ player }: Props) {
             </div>
           </div>
 
-          {/* Shipping address for buy */}
           {mode === "buy" && !showConfirm && (
-            <div>
-              <label className="text-gray-500 text-xs mb-1 block">Shipping address</label>
-              <textarea
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-                placeholder="Enter your full shipping address..."
-                rows={3}
-                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-green-500 resize-none placeholder-gray-600"
-              />
+            <div className="bg-gray-900 rounded-xl p-3 text-xs text-gray-400">
+              <p className="text-gray-300 font-semibold mb-1">📦 Shipping included</p>
+              <p>Enter your shipping address at checkout. Standard (3-7 days) or Express (1-3 days) shipping available.</p>
             </div>
           )}
 
@@ -274,22 +267,9 @@ export default function CardPurchasePanel({ player }: Props) {
                     ${mode === "buy" ? (price * 1.05).toFixed(2) : (price * 0.95).toFixed(2)}
                   </span>
                 </div>
-                {mode === "buy" && (
-                  <div className="border-t border-gray-800 pt-1 space-y-1">
-                    <span className="text-gray-500 block">Ship to</span>
-                    {address ? (
-                      <p className="text-gray-300 text-xs">{address}</p>
-                    ) : (
-                      <textarea
-                        value={address}
-                        onChange={e => setAddress(e.target.value)}
-                        placeholder="Enter your full shipping address..."
-                        rows={2}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-green-500 resize-none placeholder-gray-600 mt-1"
-                      />
-                    )}
+                <div className="border-t border-gray-800 pt-1">
+                    <p className="text-gray-500 text-xs">Shipping address collected at checkout</p>
                   </div>
-                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => setShowConfirm(false)}

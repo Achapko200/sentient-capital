@@ -19,6 +19,33 @@ export async function POST(req: Request) {
       mode:                 "payment",
       payment_method_types: ["card"],
       customer_email:       email ?? undefined,
+      shipping_address_collection: {
+        allowed_countries: ["US", "CA", "GB", "AU", "JP", "SG", "MX", "DE", "FR", "IT", "ES", "NL", "BR", "IN"],
+      },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type:         "fixed_amount",
+            fixed_amount: { amount: 999, currency: "usd" },
+            display_name: "Standard Shipping",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 3 },
+              maximum: { unit: "business_day", value: 7 },
+            },
+          },
+        },
+        {
+          shipping_rate_data: {
+            type:         "fixed_amount",
+            fixed_amount: { amount: 1999, currency: "usd" },
+            display_name: "Express Shipping",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 1 },
+              maximum: { unit: "business_day", value: 3 },
+            },
+          },
+        },
+      ],
       line_items: [{
         quantity:    1,
         price_data: {
@@ -26,11 +53,11 @@ export async function POST(req: Request) {
           unit_amount:  totalUSD,
           product_data: {
             name:        description,
-            description: `PSA 10 graded card · ${shares} fractional share${shares > 1 ? "s" : ""}`,
+            description: `PSA 10 graded baseball card`,
           },
         },
       }],
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/app?bought=true&cardId=${cardId}&shares=${shares}&price=${pricePerShare}`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/app?bought=true&cardId=${cardId}`,
       cancel_url:  `${process.env.NEXT_PUBLIC_SITE_URL}/app`,
       metadata:    { cardId, shares: String(shares), pricePerShare: String(pricePerShare), userId, playerName },
     });
