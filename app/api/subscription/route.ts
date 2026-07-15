@@ -30,7 +30,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { userId, tier } = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
+  const { userId, tier } = body;
+  if (!["free", "pro", "elite"].includes(tier)) return Response.json({ error: "Invalid tier" }, { status: 400 });
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { error } = await supabaseAdmin
