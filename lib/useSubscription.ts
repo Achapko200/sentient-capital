@@ -5,6 +5,30 @@ import { supabase }            from "@/lib/supabase";
 
 export type Tier = "free" | "pro" | "elite";
 
+export const LIMITS = {
+  free: {
+    maxAlerts:    3,
+    maxAiMessages: 5,
+    scanner:      false,
+    export:       false,
+    realtimeEbay: false,
+  },
+  pro: {
+    maxAlerts:     999,
+    maxAiMessages: 999,
+    scanner:       true,
+    export:        true,
+    realtimeEbay:  false,
+  },
+  elite: {
+    maxAlerts:     999,
+    maxAiMessages: 999,
+    scanner:       true,
+    export:        true,
+    realtimeEbay:  true,
+  },
+};
+
 export function useSubscription() {
   const [tier,    setTier]    = useState<Tier>("free");
   const [loading, setLoading] = useState(true);
@@ -12,20 +36,22 @@ export function useSubscription() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { setLoading(false); return; }
-      const res  = await fetch(`/api/subscription?userId=${data.user.id}`);
-      const sub  = await res.json();
-      setTier(sub.tier ?? "free");
+      try {
+        const res = await fetch(`/api/subscription?userId=${data.user.id}`);
+        const sub = await res.json();
+        setTier(sub.tier ?? "free");
+      } catch {
+        setTier("free");
+      }
       setLoading(false);
     });
   }, []);
 
-  const canUseFeature = (feature: string): boolean => {
-    const proFeatures  = ["unlimited_alerts", "unlimited_ai", "scanner", "export"];
-    const eliteFeatures = ["realtime_ebay", "priority_ai", "advanced_analytics"];
-    if (eliteFeatures.includes(feature)) return tier === "elite";
-    if (proFeatures.includes(feature))   return tier === "pro" || tier === "elite";
-    return true; // free features
+  const limits = LIMITS[tier];
+
+  const canUseFeature = (feature: keyof typeof LIMITS.free): boolean => {
+    return !!limits[feature];
   };
 
-  return { tier, loading, canUseFeature };
+  return { tier, loading, limits, canUseFeature };
 }

@@ -12,6 +12,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
   const [messages,     setMessages]     = useState<Message[]>([]);
   const [input,        setInput]        = useState("");
   const [loading,      setLoading]      = useState(false);
+  const [msgCount,     setMsgCount]     = useState(0);
   const [userId,       setUserId]       = useState<string | null>(null);
   const [showSidebar,  setShowSidebar]  = useState(true);
   const [loadingChats, setLoadingChats] = useState(false);
@@ -69,6 +70,11 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
   };
 
   const send = async () => {
+    if (msgCount >= 5) {
+      setMessages(prev => [...prev, { role: "assistant" as const, content: "You've reached the free plan limit of 5 AI messages per day. Upgrade to Pro for unlimited messages — sentient-capital.vercel.app/pricing" }]);
+      return;
+    }
+    setMsgCount(c => c + 1);
     if (!input.trim() || loading || !userId) return;
     const userMsg: Message = { role: "user", content: input.trim() };
     const newMessages      = [...messages, userMsg];
