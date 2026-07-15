@@ -15,6 +15,17 @@ export async function GET(req: Request) {
     .single();
 
   if (!data || data.status !== "active") return Response.json({ tier: "free" });
+  
+  // Check if subscription has expired
+  if (data.current_period_end && new Date(data.current_period_end) < new Date()) {
+    // Expire the subscription
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({ tier: "free", status: "expired", updated_at: new Date().toISOString() })
+      .eq("user_id", userId);
+    return Response.json({ tier: "free" });
+  }
+
   return Response.json({ tier: data.tier, status: data.status, currentPeriodEnd: data.current_period_end });
 }
 
