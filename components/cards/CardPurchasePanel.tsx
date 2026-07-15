@@ -17,16 +17,22 @@ export default function CardPurchasePanel({ player }: Props) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [cardData,  setCardData]  = useState<any>(null);
 
+  const [orderbookData, setOrderbookData] = useState<any>(null);
+
   useEffect(() => {
     fetch(`/api/cards/${player.id}`)
       .then(r => r.json())
       .then(setCardData)
       .catch(() => {});
+    fetch(`/api/cards/orderbook?cardId=${player.id}`)
+      .then(r => r.json())
+      .then(setOrderbookData)
+      .catch(() => {});
   }, [player.id]);
 
   const price    = cardData?.avgPrice ?? 0;
   const signal   = cardData?.cardSignal?.signal ?? "HOLD";
-  const candles  = cardData?.candles ?? [];
+  const candles  = orderbookData?.candles ?? [];
 
   // Candlestick chart
   const CandleChart = () => {
@@ -76,6 +82,22 @@ export default function CardPurchasePanel({ player }: Props) {
         ))}
       </svg>
     );
+  };
+
+  const handleUsdcPay = async () => {
+    if (!email) { setError("Sign in to buy"); return; }
+    if (mode === "buy" && !address.trim()) { setError("Enter your shipping address"); return; }
+    setLoading(true); setError("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setError("Sign in to buy"); return; }
+      // For now redirect to login with Dynamic wallet
+      window.location.href = "/login?crypto=true";
+    } catch (err: any) {
+      setError(err.message ?? "Payment failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBuy = async () => {
@@ -252,10 +274,20 @@ export default function CardPurchasePanel({ player }: Props) {
                     ${mode === "buy" ? (price * 1.05).toFixed(2) : (price * 0.95).toFixed(2)}
                   </span>
                 </div>
-                {mode === "buy" && address && (
-                  <div className="border-t border-gray-800 pt-1">
-                    <span className="text-gray-500">Ship to</span>
-                    <p className="text-gray-300 text-xs mt-0.5">{address}</p>
+                {mode === "buy" && (
+                  <div className="border-t border-gray-800 pt-1 space-y-1">
+                    <span className="text-gray-500 block">Ship to</span>
+                    {address ? (
+                      <p className="text-gray-300 text-xs">{address}</p>
+                    ) : (
+                      <textarea
+                        value={address}
+                        onChange={e => setAddress(e.target.value)}
+                        placeholder="Enter your full shipping address..."
+                        rows={2}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none focus:border-green-500 resize-none placeholder-gray-600 mt-1"
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -273,7 +305,11 @@ export default function CardPurchasePanel({ player }: Props) {
               </div>
               <button onClick={handleBuy} disabled={loading}
                 className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-black transition disabled:opacity-50">
-                💳 Pay with Card
+                💳 Pay with Credit Card
+              </button>
+              <button onClick={handleUsdcPay} disabled={loading}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-900 text-sm font-black transition disabled:opacity-50">
+                ⚡ Pay with USDC (Crypto)
               </button>
             </div>
           ) : (
