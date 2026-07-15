@@ -5,8 +5,14 @@ import { useRouter }                    from "next/navigation";
 import { supabase }                     from "@/lib/supabase";
 
 export default function ScanPage() {
-  const router     = useRouter();
-  const [authorized, setAuthorized] = useState(false);
+  const router                        = useRouter();
+  const [authorized, setAuthorized]   = useState(false);
+  const fileRef                       = useRef<HTMLInputElement>(null);
+  const cameraRef                     = useRef<HTMLInputElement>(null);
+  const [image,   setImage]           = useState<string | null>(null);
+  const [loading, setLoading]         = useState(false);
+  const [result,  setResult]          = useState<any>(null);
+  const [error,   setError]           = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -26,12 +32,6 @@ export default function ScanPage() {
       <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  const fileRef   = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const [image,   setImage]   = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [result,  setResult]  = useState<any>(null);
-  const [error,   setError]   = useState("");
 
   const handleFile = (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
