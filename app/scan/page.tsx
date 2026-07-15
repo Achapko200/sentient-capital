@@ -5,7 +5,8 @@ import { useRouter }                    from "next/navigation";
 import { supabase }                     from "@/lib/supabase";
 
 export default function ScanPage() {
-  const router  = useRouter();
+  const router     = useRouter();
+  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -14,9 +15,17 @@ export default function ScanPage() {
       const sub = await res.json();
       if (sub.tier === "free") {
         router.push("/pricing");
+        return;
       }
+      setAuthorized(true);
     });
   }, [router]);
+
+  if (!authorized) return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
   const fileRef   = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [image,   setImage]   = useState<string | null>(null);
