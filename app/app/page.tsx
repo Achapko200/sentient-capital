@@ -315,6 +315,58 @@ function UpgradeBanner() {
   );
 }
 
+function ScanTab() {
+  const [tier, setTier] = useState<string>("free");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { setLoading(false); return; }
+      const res = await fetch(`/api/subscription?userId=${data.user.id}`);
+      const sub = await res.json();
+      setTier(sub.tier ?? "free");
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <div className="h-40 animate-pulse bg-gray-100 rounded-2xl" />;
+
+  if (tier === "free") {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 max-w-sm mx-auto text-center">
+        <div className="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center text-4xl mb-4">📸</div>
+        <h2 className="text-xl font-black text-gray-900 mb-2">Card Scanner</h2>
+        <p className="text-gray-500 text-sm mb-2">AI-powered card grading and valuation</p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 w-full">
+          <p className="text-amber-700 text-sm font-semibold">🔒 Pro feature</p>
+          <p className="text-amber-600 text-xs mt-0.5">Upgrade to Pro to access the card scanner</p>
+        </div>
+        <a href="/pricing"
+          className="px-8 py-3 rounded-xl font-black text-white text-sm transition w-full text-center"
+          style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+          Upgrade to Pro — $9.99/mo
+        </a>
+        <p className="text-gray-400 text-xs mt-3">Unlimited alerts · Unlimited AI · Card scanner</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="text-6xl mb-4">📸</div>
+      <h2 className="text-xl font-black text-gray-900 mb-2">Card Scanner</h2>
+      <p className="text-gray-500 text-sm mb-6 text-center max-w-xs">
+        Take a photo of any baseball card to get an AI-powered grade estimate and valuation
+      </p>
+      <a href="/scan"
+        className="px-8 py-3 rounded-xl font-black text-white text-sm transition"
+        style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
+        Open Card Scanner
+      </a>
+    </div>
+  );
+}
+
 function TradingPanelLoader({ player }: { player: Player }) {
   const [token, setToken] = useState<CardToken | null>(null);
 
@@ -846,18 +898,7 @@ export default function Home() {
         )}
 
         {tab === "scan" && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="text-6xl mb-4">📸</div>
-            <h2 className="text-xl font-black text-gray-900 mb-2">Card Scanner</h2>
-            <p className="text-gray-500 text-sm mb-6 text-center max-w-xs">
-              Take a photo of any baseball card to get an AI-powered grade estimate and valuation
-            </p>
-            <a href="/scan"
-              className="px-8 py-3 rounded-xl font-black text-white text-sm transition"
-              style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
-              Open Card Scanner
-            </a>
-          </div>
+          <ScanTab />
         )}
 
       </div>
