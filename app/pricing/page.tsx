@@ -75,15 +75,16 @@ export default function PricingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
-      // For now — direct upgrade (Stripe integration coming soon)
-      const res = await fetch("/api/subscription", {
+      
+      const res = await fetch("/api/stripe/checkout", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ userId: user.id, tier: planId }),
+        body:    JSON.stringify({ tier: planId, userId: user.id, email: user.email }),
       });
 
-      if (res.ok) {
-        router.push("/app?upgraded=true");
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
       }
     } catch (err) {
       console.error(err);
