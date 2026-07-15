@@ -1,10 +1,22 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useRouter }        from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { useRouter }                    from "next/navigation";
+import { supabase }                     from "@/lib/supabase";
 
 export default function ScanPage() {
   const router  = useRouter();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { router.push("/login"); return; }
+      const res = await fetch(`/api/subscription?userId=${data.user.id}`);
+      const sub = await res.json();
+      if (sub.tier === "free") {
+        router.push("/pricing");
+      }
+    });
+  }, [router]);
   const fileRef   = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [image,   setImage]   = useState<string | null>(null);
