@@ -21,7 +21,7 @@ import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
 import { useAuth }                from "@/lib/auth-context";
 import { supabase }              from "@/lib/supabase";
 
-type Tab = "cards" | "buy" | "mycards" | "signals" | "alerts" | "ai" | "scan";
+type Tab = "cards" | "buy" | "mycards" | "sell" | "signals" | "alerts" | "ai" | "scan";
 
 function ProfileModal({ email, onClose }: {
   email: string | null;
@@ -570,6 +570,52 @@ export default function Home() {
           <AuthGate>
             <MyCards />
           </AuthGate>
+        )}
+
+        {/* ── SELL TAB ───────────────────────────────────────────────────── */}
+        {tab === "sell" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <AuthGate>
+                <ListCardForm onSuccess={() => setTab("mycards")} />
+              </AuthGate>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-3">How selling works</h3>
+                <div className="space-y-3">
+                  {[
+                    { step: "1", text: "List your card with photos and price" },
+                    { step: "2", text: "We review and approve your listing" },
+                    { step: "3", text: "Ship card to our secure vault" },
+                    { step: "4", text: "Card listed on marketplace" },
+                    { step: "5", text: "Get paid when card sells" },
+                  ].map(s => (
+                    <div key={s.step} className="flex gap-3 items-center">
+                      <span className="w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-black flex items-center justify-center shrink-0">{s.step}</span>
+                      <p className="text-gray-600 text-sm">{s.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-gray-900 font-bold mb-2">Fees</h3>
+                <div className="space-y-2 text-sm">
+                  {[
+                    { label: "Platform fee",  value: "5%" },
+                    { label: "Shipping to vault", value: "You pay" },
+                    { label: "Shipping to buyer", value: "Buyer pays" },
+                    { label: "Payment",       value: "3-5 business days" },
+                  ].map(r => (
+                    <div key={r.label} className="flex justify-between">
+                      <span className="text-gray-400">{r.label}</span>
+                      <span className="text-gray-700 font-semibold">{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── SIGNALS TAB ─────────────────────────────────────────────────── */}
