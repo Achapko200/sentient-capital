@@ -100,6 +100,31 @@ export default function CardPurchasePanel({ player }: Props) {
     }
   };
 
+  const handleSellRequest = async () => {
+    if (!email) { setError("Sign in to sell"); return; }
+    setLoading(true); setError("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setError("Sign in to sell"); return; }
+      const { error: dbError } = await supabase.from("card_orders").insert({
+        user_id:     user.id,
+        player_name: player.name,
+        card_name:   player.cardName ?? "",
+        price:       price,
+        fee:         price * 0.05,
+        type:        "sell",
+        status:      "pending",
+      });
+      if (dbError) throw dbError;
+      setSuccess("Sale request submitted! We will email you a prepaid shipping label within 24 hours.");
+      setShowConfirm(false);
+    } catch (err: any) {
+      setError(err.message ?? "Failed to submit sale request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBuy = async () => {
     if (!email) { setError("Sign in to buy"); return; }
 
@@ -275,22 +300,30 @@ export default function CardPurchasePanel({ player }: Props) {
                 <button onClick={() => setShowConfirm(false)}
                   className="py-2.5 rounded-xl border border-gray-700 text-gray-400 text-sm font-bold hover:border-gray-500 transition">
                   Back
+                  Back
                 </button>
-                <button onClick={handleBuy} disabled={loading}
-                  className={`py-2.5 rounded-xl text-white text-sm font-black transition disabled:opacity-50 ${
-                    mode === "buy" ? "bg-green-600 hover:bg-green-500" : "bg-red-600 hover:bg-red-500"
-                  }`}>
-                  {loading ? "..." : mode === "buy" ? "Pay Now" : "Confirm Sale"}
-                </button>
+                {mode === "buy" ? (
+                  <button onClick={handleBuy} disabled={loading}
+                    className="py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-black transition disabled:opacity-50">
+                    {loading ? "..." : "Pay Now"}
+                  </button>
+                ) : (
+                  <button onClick={handleSellRequest} disabled={loading}
+                    className="py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-black transition disabled:opacity-50">
+                    {loading ? "..." : "Submit Sale"}
+                  </button>
+                )}
               </div>
-              <button onClick={handleBuy} disabled={loading}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-black transition disabled:opacity-50">
-                💳 Pay with Credit Card
-              </button>
-              <button onClick={handleUsdcPay} disabled={loading}
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-900 text-sm font-black transition disabled:opacity-50">
-                ⚡ Pay with USDC (Crypto)
-              </button>
+              {mode === "buy" && (<>
+                <button onClick={handleBuy} disabled={loading}
+                  className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-black transition disabled:opacity-50">
+                  💳 Pay with Credit Card
+                </button>
+                <button onClick={handleUsdcPay} disabled={loading}
+                  className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-900 text-sm font-black transition disabled:opacity-50">
+                  ⚡ Pay with USDC (Crypto)
+                </button>
+              </>)}
             </div>
           ) : (
             <button
