@@ -117,6 +117,7 @@ export default function CardPurchasePanel({ player }: Props) {
       });
       if (dbError) throw dbError;
       setSuccess("Sale request submitted! We will email you a prepaid shipping label within 24 hours.");
+      setTimeout(() => { setShowConfirm(false); setSuccess(""); }, 3000);
       setShowConfirm(false);
     } catch (err: any) {
       setError(err.message ?? "Failed to submit sale request");
@@ -299,7 +300,6 @@ export default function CardPurchasePanel({ player }: Props) {
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => setShowConfirm(false)}
                   className="py-2.5 rounded-xl border border-gray-700 text-gray-400 text-sm font-bold hover:border-gray-500 transition">
-                  Back
                   Back
                 </button>
                 {mode === "buy" ? (
