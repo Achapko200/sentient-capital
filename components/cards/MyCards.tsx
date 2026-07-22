@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 
 import { useState, useEffect } from "react";
 import { supabase }            from "@/lib/supabase";
@@ -13,6 +14,16 @@ type CardOrder = {
   createdAt:  string;
   address?:   string;
 };
+
+async function cancelOrder(id: string, setOrders: React.Dispatch<React.SetStateAction<CardOrder[]>>) {
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  await supabase.from("card_orders").update({ status: "cancelled" }).eq("id", id);
+  setOrders(prev => prev.filter(o => o.id !== id));
+}
 
 export default function MyCards() {
   const [orders,  setOrders]  = useState<CardOrder[]>([]);
@@ -66,7 +77,7 @@ export default function MyCards() {
                 <p className="text-gray-400 text-xs mt-0.5">{new Date(order.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right flex flex-col items-end gap-1">
               <p className="font-black text-gray-900">${order.price.toFixed(2)}</p>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                 order.status === "completed" ? "bg-green-100 text-green-700" :
@@ -76,6 +87,13 @@ export default function MyCards() {
               }`}>
                 {order.status}
               </span>
+              {(order.status === "pending" || order.status === "paid") && (
+                <button
+                  onClick={() => cancelOrder(order.id, setOrders)}
+                  className="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-2 py-0.5 rounded-full transition">
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
         ))}
