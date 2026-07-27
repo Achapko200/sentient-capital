@@ -9,6 +9,7 @@ import TraderLeaderboard          from "@/components/cards/TraderLeaderboard";
 import AnalystPanel               from "@/components/cards/AnalystPanel";
 import Marketplace                from "@/components/cards/Marketplace";
 import ListCardForm               from "@/components/cards/ListCardForm";
+import ScoutChat                   from "@/components/cards/ScoutChat";
 import TradingPanel               from "@/components/cards/TradingPanel";
 import Portfolio                  from "@/components/cards/Portfolio";
 import SearchPlayers              from "@/components/cards/SearchPlayers";
@@ -695,6 +696,7 @@ export default function Home() {
           <ScanTab />
         )}
       </div>
+      <ScoutChat players={players} />
     </div>
   );
 }
