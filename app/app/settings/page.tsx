@@ -213,6 +213,7 @@ function MFAModal({
 function PasskeyToggle() {
   const [enabled,  setEnabled]  = useState(false);
   const [loading,  setLoading]  = useState(false);
+  const [errMsg,   setErrMsg]   = useState("");
 
   const isMac     = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
   const isIPhone  = typeof navigator !== "undefined" && /iPhone/.test(navigator.userAgent);
@@ -244,8 +245,11 @@ function PasskeyToggle() {
       setEnabled(true);
     } catch (err: any) {
       const msg = err.message ?? "";
-      if (!msg.includes("abort") && !msg.includes("cancel")) {
-        console.error(msg);
+      console.error("Passkey error:", msg);
+      setEnabled(false);
+      // Show error in UI
+      if (typeof window !== "undefined") {
+        window.alert("Error: " + (msg || "Unknown error"));
       }
     } finally {
       setLoading(false);
@@ -257,6 +261,7 @@ function PasskeyToggle() {
       <div>
         <p className="text-sm text-gray-900">{label}</p>
         <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+        {errMsg && <p className="text-xs text-red-500 mt-0.5">{errMsg}</p>}
       </div>
       <button onClick={handleToggle} disabled={loading}
         className={`w-11 h-6 rounded-full relative transition-colors shrink-0 disabled:opacity-50 ${enabled ? "bg-blue-600" : "bg-gray-300"}`}>
