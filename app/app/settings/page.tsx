@@ -398,9 +398,26 @@ export default function SettingsPage() {
             {section === "security" && (<>
               <h2 className="text-base font-semibold text-gray-900 mb-4">Security and login</h2>
               <ChevronRow label="Password" />
-              <ChevronRow label="Security keys & passkeys"
-                desc="Use hardware security keys or passkeys to sign in. These phishing-resistant methods provide stronger protection than passwords."
-                right="Add" />
+              <div className="flex items-start justify-between py-4 border-b border-gray-100 gap-6">
+                <div>
+                  <p className="text-sm text-gray-900">Face ID / Passkey</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Sign in with Face ID, Touch ID, or your device biometrics</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const { supabase } = await import("@/lib/supabase");
+                      const { error } = await (supabase.auth as any).registerPasskey({});
+                      if (error) throw error;
+                      alert("Face ID registered successfully!");
+                    } catch (err: any) {
+                      alert(err.message ?? "Failed to register Face ID");
+                    }
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium shrink-0">
+                  Add
+                </button>
+              </div>
               <SectionTitle title="Multi-factor authentication (MFA)" />
               <ToggleRow label="Authenticator app" desc="Use one-time codes from an authenticator app — free and works offline"
                 value={mfaApp} onChange={() => { if (!mfaApp) setShowMFA(true); else setMfaApp(false); }} />
