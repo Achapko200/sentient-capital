@@ -54,11 +54,44 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
     }
   };
 
+  const [showTeaser, setShowTeaser] = useState(false);
+
+  useEffect(() => {
+    if (open) { setShowTeaser(false); return; }
+    const timer = setTimeout(() => setShowTeaser(true), 3000);
+    return () => clearTimeout(timer);
+  }, [open]);
+
   return (
     <>
+      {/* Teaser popup */}
+      {showTeaser && !open && (
+        <div className="fixed bottom-24 right-6 z-50 max-w-[220px] animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3.5 relative">
+            <button onClick={() => setShowTeaser(false)}
+              className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 text-xs">✕</button>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-lg">⚾</span>
+              <p className="font-black text-gray-900 text-sm">Scout</p>
+              <span className="w-2 h-2 bg-green-400 rounded-full" />
+            </div>
+            <p className="text-gray-600 text-xs leading-relaxed">
+              Hey! Need help finding the best cards to buy right now? 👋
+            </p>
+            <button onClick={() => { setOpen(true); setShowTeaser(false); }}
+              className="mt-2 w-full py-1.5 rounded-xl text-xs font-bold text-white transition"
+              style={{ background: "linear-gradient(135deg, #1a1a2e, #2563eb)" }}>
+              Chat with Scout →
+            </button>
+            {/* Arrow pointing down */}
+            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-gray-100 rotate-45" />
+          </div>
+        </div>
+      )}
+
       {/* Floating button */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => { setOpen(v => !v); setShowTeaser(false); }}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition hover:scale-105"
         style={{ background: "linear-gradient(135deg, #1a1a2e, #2563eb)" }}
       >
