@@ -75,7 +75,7 @@ export default function LoginPage() {
   const handlePasskey = async () => {
     setLoading(true); setError("");
     try {
-      const { error } = await (supabase.auth as any).signInWithPasskey({});
+      const { error } = await (supabase.auth as any).signInWithPasskey({ authenticatorAttachment: "platform" });
       if (error) throw error;
       router.push("/app");
     } catch (err: any) {

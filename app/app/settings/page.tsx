@@ -407,7 +407,7 @@ export default function SettingsPage() {
                   onClick={async () => {
                     try {
                       const { supabase } = await import("@/lib/supabase");
-                      const { error } = await (supabase.auth as any).registerPasskey({});
+                      const { error } = await (supabase.auth as any).registerPasskey({ authenticatorAttachment: "platform" });
                       if (error) throw error;
                       alert("Face ID / Touch ID registered successfully!");
                     } catch (err: any) {
