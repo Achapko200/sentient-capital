@@ -210,6 +210,54 @@ function MFAModal({
   );
 }
 
+function PasskeyToggle() {
+  const [enabled,  setEnabled]  = useState(false);
+  const [loading,  setLoading]  = useState(false);
+
+  const isMac     = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+  const isIPhone  = typeof navigator !== "undefined" && /iPhone/.test(navigator.userAgent);
+  const isAndroid = typeof navigator !== "undefined" && /Android/.test(navigator.userAgent);
+  const label     = isIPhone ? "Face ID" : isMac ? "Touch ID" : isAndroid ? "Fingerprint" : "Passkey";
+  const desc      = isIPhone ? "Sign in instantly with Face ID" :
+                    isMac    ? "Sign in instantly with Touch ID" :
+                    isAndroid ? "Sign in instantly with fingerprint" :
+                               "Sign in with your device biometrics";
+
+  const handleToggle = async () => {
+    if (enabled) {
+      setEnabled(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { error }    = await (supabase.auth as any).registerPasskey({ authenticatorAttachment: "platform" });
+      if (error) throw error;
+      setEnabled(true);
+    } catch (err: any) {
+      const msg = err.message ?? "";
+      if (!msg.includes("abort") && !msg.includes("cancel")) {
+        console.error(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-start justify-between py-4 border-b border-gray-100 gap-6">
+      <div>
+        <p className="text-sm text-gray-900">{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+      </div>
+      <button onClick={handleToggle} disabled={loading}
+        className={`w-11 h-6 rounded-full relative transition-colors shrink-0 disabled:opacity-50 ${enabled ? "bg-blue-600" : "bg-gray-300"}`}>
+        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${enabled ? "right-0.5" : "left-0.5"}`} />
+      </button>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const [section, setSection] = useState<Section>("general");
@@ -398,33 +446,7 @@ export default function SettingsPage() {
             {section === "security" && (<>
               <h2 className="text-base font-semibold text-gray-900 mb-4">Security and login</h2>
               <ChevronRow label="Password" />
-              <div className="flex items-start justify-between py-4 border-b border-gray-100 gap-6">
-                <div>
-                  <p className="text-sm text-gray-900">Face ID / Passkey</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Sign in with Face ID, Touch ID, or your device biometrics</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    try {
-                      const { supabase } = await import("@/lib/supabase");
-                      const { error } = await (supabase.auth as any).registerPasskey({ authenticatorAttachment: "platform" });
-                      if (error) throw error;
-                      alert("Face ID / Touch ID registered successfully!");
-                    } catch (err: any) {
-                      const msg = err.message ?? "";
-                      if (msg.includes("abort") || msg.includes("cancel")) {
-                        alert("Registration cancelled. Try again and complete the prompt.");
-                      } else if (msg.includes("domain") || msg.includes("origin")) {
-                        alert("Domain mismatch. Make sure you are on sentient-capital.vercel.app");
-                      } else {
-                        alert(msg || "Failed to register Face ID");
-                      }
-                    }
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium shrink-0">
-                  Add
-                </button>
-              </div>
+              <PasskeyToggle />
               <SectionTitle title="Multi-factor authentication (MFA)" />
               <ToggleRow label="Authenticator app" desc="Use one-time codes from an authenticator app — free and works offline"
                 value={mfaApp} onChange={() => { if (!mfaApp) setShowMFA(true); else setMfaApp(false); }} />
