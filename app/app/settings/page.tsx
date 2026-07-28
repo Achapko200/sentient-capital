@@ -417,7 +417,14 @@ export default function SettingsPage() {
                       } else if (msg.includes("domain") || msg.includes("origin")) {
                         alert("Domain mismatch. Make sure you are on sentient-capital.vercel.app");
                       } else {
-                        alert(msg || "Failed to register Face ID / Touch ID");
+                        alert(msg || "Failed to register Face ID");
+                      }
+                    }
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium shrink-0">
+                  Add
+                </button>
+              </div>
                       }
                     }
                   }}
