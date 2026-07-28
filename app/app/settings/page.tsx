@@ -223,8 +223,15 @@ function PasskeyToggle() {
                     isAndroid ? "Sign in instantly with fingerprint" :
                                "Sign in with your device biometrics";
 
+  useEffect(() => {
+    // Check if passkey is already registered
+    const registered = localStorage.getItem("passkey_registered");
+    if (registered === "true") setEnabled(true);
+  }, []);
+
   const handleToggle = async () => {
     if (enabled) {
+      localStorage.removeItem("passkey_registered");
       setEnabled(false);
       return;
     }
@@ -233,6 +240,7 @@ function PasskeyToggle() {
       const { supabase } = await import("@/lib/supabase");
       const { error }    = await (supabase.auth as any).registerPasskey({ authenticatorAttachment: "platform" });
       if (error) throw error;
+      localStorage.setItem("passkey_registered", "true");
       setEnabled(true);
     } catch (err: any) {
       const msg = err.message ?? "";

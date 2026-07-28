@@ -27,6 +27,7 @@ export default function PasskeyPrompt() {
         authenticatorAttachment: "platform",
       });
       if (error) throw error;
+      localStorage.setItem("passkey_registered", "true");
       sessionStorage.setItem("passkey_prompt_dismissed", "true");
       setShow(false);
     } catch (err: any) {
