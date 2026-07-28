@@ -72,6 +72,23 @@ export default function LoginPage() {
     if (error) setError(error.message);
   };
 
+  const handlePasskey = async () => {
+    setLoading(true); setError("");
+    try {
+      const { error } = await (supabase.auth as any).signInWithPasskey({});
+      if (error) throw error;
+      router.push("/app");
+    } catch (err: any) {
+      if (err.message?.includes("passkey") || err.message?.includes("WebAuthn")) {
+        setError("No passkey found. Sign in with email first, then register Face ID in Settings.");
+      } else {
+        setError(err.message ?? "Face ID sign-in failed");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
 
@@ -147,6 +164,15 @@ export default function LoginPage() {
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
                 Continue with Google
+              </button>
+
+              {/* Face ID / Passkey */}
+              <button onClick={handlePasskey}
+                className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-gray-800 text-white font-bold text-sm hover:bg-gray-700 transition">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Sign in with Face ID / Passkey
               </button>
             </div>
 
