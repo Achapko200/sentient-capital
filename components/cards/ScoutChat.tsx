@@ -64,23 +64,22 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
       setLoading(false);
     }
   };
-
   const [showTeaser, setShowTeaser] = useState(false);
 
-  const [teaserDismissed, setTeaserDismissed] = useState(false);
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!open && !teaserDismissed) setShowTeaser(true);
-    }, 3000);
+    const dismissed = sessionStorage.getItem("scout_teaser_dismissed");
+    if (dismissed) return;
+    const timer = setTimeout(() => setShowTeaser(true), 3000);
     return () => clearTimeout(timer);
   }, []);
 
+  const dismissTeaser = () => {
+    setShowTeaser(false);
+    sessionStorage.setItem("scout_teaser_dismissed", "true");
+  };
+
   useEffect(() => {
-    if (open) {
-      setShowTeaser(false);
-      setTeaserDismissed(true);
-    }
+    if (open) dismissTeaser();
   }, [open]);
 
   return (
@@ -89,7 +88,7 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
       {showTeaser && !open && (
         <div className="max-w-[220px] mb-2">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3.5 relative">
-            <button onClick={() => { setShowTeaser(false); setTeaserDismissed(true); }}
+            <button onClick={() => { dismissTeaser(); }}
               className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 text-xs">✕</button>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-lg">⚾</span>
@@ -99,7 +98,7 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
             <p className="text-gray-600 text-xs leading-relaxed">
               Hey! Need help finding the best cards to buy right now? 👋
             </p>
-            <button onClick={() => { setOpen(true); setShowTeaser(false); setTeaserDismissed(true); }}
+            <button onClick={() => { setOpen(true); dismissTeaser(); }}
               className="mt-2 w-full py-1.5 rounded-xl text-xs font-bold text-white transition"
               style={{ background: "linear-gradient(135deg, #1a1a2e, #2563eb)" }}>
               Chat with Scout →
