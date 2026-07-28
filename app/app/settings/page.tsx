@@ -255,14 +255,22 @@ function PasskeyToggle() {
     try {
       const { supabase } = await import("@/lib/supabase");
       const { error }    = await (supabase.auth as any).registerPasskey({ authenticatorAttachment: "platform" });
-      if (error) throw error;
-      localStorage.setItem("passkey_registered", "true");
-      setEnabled(true);
+      if (error) {
+        // Already registered — just mark as enabled
+        if (error.message?.includes("previously registered") || error.message?.includes("already")) {
+          localStorage.setItem("passkey_registered", "true");
+          setEnabled(true);
+        } else {
+          throw error;
+        }
+      } else {
+        localStorage.setItem("passkey_registered", "true");
+        setEnabled(true);
+      }
     } catch (err: any) {
       const msg = err.message ?? "";
       console.error("Passkey error:", msg);
       setEnabled(false);
-      // Show error in UI
       if (typeof window !== "undefined") {
         window.alert("Error: " + (msg || "Unknown error"));
       }
