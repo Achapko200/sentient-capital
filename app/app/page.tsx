@@ -697,6 +697,7 @@ export default function Home() {
         )}
       </div>
       <ScoutChat players={players} />
+      <ScoutChat players={players} />
     </div>
   );
 }
