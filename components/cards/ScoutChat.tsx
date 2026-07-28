@@ -13,6 +13,17 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
   const [msgCount, setMsgCount] = useState(0);
   const [userId,   setUserId]   = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const chatRef   = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (open && chatRef.current && !chatRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -73,10 +84,10 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
   }, [open]);
 
   return (
-    <>
+    <div ref={chatRef} className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
       {/* Teaser popup */}
       {showTeaser && !open && (
-        <div className="fixed bottom-24 right-6 z-50 max-w-[220px] animate-fade-in">
+        <div className="max-w-[220px] mb-2">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3.5 relative">
             <button onClick={() => { setShowTeaser(false); setTeaserDismissed(true); }}
               className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 text-xs">✕</button>
@@ -119,7 +130,7 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
 
       {/* Chat window */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+        <div className="w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden mb-2"
           style={{ height: "480px" }}>
 
           {/* Header */}
@@ -226,6 +237,6 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
