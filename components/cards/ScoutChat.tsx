@@ -67,15 +67,12 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
   const [showTeaser, setShowTeaser] = useState(false);
 
   useEffect(() => {
-    const dismissed = sessionStorage.getItem("scout_teaser_dismissed");
-    if (dismissed) return;
     const timer = setTimeout(() => setShowTeaser(true), 3000);
     return () => clearTimeout(timer);
   }, []);
 
   const dismissTeaser = () => {
     setShowTeaser(false);
-    sessionStorage.setItem("scout_teaser_dismissed", "true");
   };
 
   useEffect(() => {
