@@ -409,9 +409,16 @@ export default function SettingsPage() {
                       const { supabase } = await import("@/lib/supabase");
                       const { error } = await (supabase.auth as any).registerPasskey({});
                       if (error) throw error;
-                      alert("Face ID registered successfully!");
+                      alert("Face ID / Touch ID registered successfully!");
                     } catch (err: any) {
-                      alert(err.message ?? "Failed to register Face ID");
+                      const msg = err.message ?? "";
+                      if (msg.includes("abort") || msg.includes("cancel")) {
+                        alert("Registration cancelled. Try again and complete the prompt.");
+                      } else if (msg.includes("domain") || msg.includes("origin")) {
+                        alert("Domain mismatch. Make sure you are on sentient-capital.vercel.app");
+                      } else {
+                        alert(msg || "Failed to register Face ID / Touch ID");
+                      }
                     }
                   }}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium shrink-0">
