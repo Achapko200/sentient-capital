@@ -57,9 +57,15 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
   const [showTeaser, setShowTeaser] = useState(false);
 
   useEffect(() => {
-    if (open) { setShowTeaser(false); return; }
-    const timer = setTimeout(() => setShowTeaser(true), 3000);
+    // Show teaser 3 seconds after page load
+    const timer = setTimeout(() => {
+      if (!open) setShowTeaser(true);
+    }, 3000);
     return () => clearTimeout(timer);
+  }, []); // only on mount
+
+  useEffect(() => {
+    if (open) setShowTeaser(false);
   }, [open]);
 
   return (
