@@ -425,13 +425,6 @@ export default function SettingsPage() {
                   Add
                 </button>
               </div>
-                      }
-                    }
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium shrink-0">
-                  Add
-                </button>
-              </div>
               <SectionTitle title="Multi-factor authentication (MFA)" />
               <ToggleRow label="Authenticator app" desc="Use one-time codes from an authenticator app — free and works offline"
                 value={mfaApp} onChange={() => { if (!mfaApp) setShowMFA(true); else setMfaApp(false); }} />
