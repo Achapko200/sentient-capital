@@ -232,8 +232,23 @@ function PasskeyToggle() {
 
   const handleToggle = async () => {
     if (enabled) {
-      localStorage.removeItem("passkey_registered");
-      setEnabled(false);
+      setLoading(true);
+      try {
+        const { supabase } = await import("@/lib/supabase");
+        // List and unenroll all webauthn factors
+        const { data } = await supabase.auth.mfa.listFactors();
+        const webauthnFactors = (data?.totp ?? []).filter((f: any) => f.factor_type === "webauthn");
+        for (const factor of webauthnFactors) {
+          await supabase.auth.mfa.unenroll({ factorId: factor.id });
+        }
+        localStorage.removeItem("passkey_registered");
+        setEnabled(false);
+      } catch {
+        localStorage.removeItem("passkey_registered");
+        setEnabled(false);
+      } finally {
+        setLoading(false);
+      }
       return;
     }
     setLoading(true);
