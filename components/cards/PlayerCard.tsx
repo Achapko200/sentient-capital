@@ -7,6 +7,7 @@ import SignalBadge                          from "@/components/cards/SignalBadge
 import PriceChart                           from "@/components/cards/PriceChart";
 import { subscribeToTrades }                from "@/lib/realtime";
 import { supabase }                         from "@/lib/supabase";
+import { useSubscription }               from "@/lib/useSubscription";
 
 const SENTIMENT_COLOR: Record<string, string> = {
   "VERY BULLISH": "text-green-600",
@@ -101,6 +102,8 @@ export default function PlayerCard({ player, onTrade }: Props) {
   const [data,           setData]           = useState<CardData | null>(null);
   const [loading,        setLoading]        = useState(true);
   const [expanded,       setExpanded]       = useState(false);
+  const { tier } = useSubscription();
+  const canSeeEbay = tier === "pro" || tier === "elite";
   const [lastTradePrice, setLastTradePrice] = useState<number | null>(null);
   const [priceFlash,     setPriceFlash]     = useState<"up" | "down" | null>(null);
 
@@ -294,9 +297,15 @@ export default function PlayerCard({ player, onTrade }: Props) {
       </div>
 
       {/* CHART */}
-      {sales.length > 0 && (
+      {sales.length > 0 && canSeeEbay && (
         <div className="mx-4 mb-3">
           <PriceChart sales={sales} />
+        </div>
+      )}
+      {!canSeeEbay && (
+        <div className="mx-4 mb-3 bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between">
+          <p className="text-gray-500 text-xs">🔒 eBay price chart — Pro feature</p>
+          <a href="/pricing" className="text-xs text-blue-600 font-semibold hover:text-blue-700">Upgrade</a>
         </div>
       )}
 
@@ -345,17 +354,24 @@ export default function PlayerCard({ player, onTrade }: Props) {
               </ul>
             </div>
 
-            <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-              <p className="text-gray-500 text-xs font-semibold mb-2">Recent eBay sales</p>
-              <div className="space-y-1.5">
-                {sales.slice(0, 4).map((s) => (
-                  <div key={s.id} className="flex justify-between text-xs">
-                    <span className="text-gray-400">{s.date}</span>
-                    <span className="text-gray-900 font-bold">${s.price}</span>
-                  </div>
-                ))}
+            {canSeeEbay ? (
+              <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
+                <p className="text-gray-500 text-xs font-semibold mb-2">Recent eBay sales</p>
+                <div className="space-y-1.5">
+                  {sales.slice(0, 4).map((s) => (
+                    <div key={s.id} className="flex justify-between text-xs">
+                      <span className="text-gray-400">{s.date}</span>
+                      <span className="text-gray-900 font-bold">${s.price}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-lg p-3 bg-gray-50 border border-gray-200 flex items-center justify-between">
+                <p className="text-gray-500 text-xs">🔒 eBay sales data — Pro feature</p>
+                <a href="/pricing" className="text-xs text-blue-600 font-semibold">Upgrade →</a>
+              </div>
+            )}
           </div>
         )}
       </div>

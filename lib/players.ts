@@ -114,7 +114,7 @@ async function fetchLeadersByCategory(category: string): Promise<Player[]> {
     try {
       const res = await fetch(
         `https://statsapi.mlb.com/api/v1/stats/leaders?` +
-        `leaderCategories=${category}&season=${season}&sportId=1&limit=10`,
+        `leaderCategories=${category}&season=${season}&sportId=1&limit=25`,
         { next: { revalidate: 3600 } }
       );
       if (!res.ok) continue;
@@ -137,14 +137,25 @@ async function fetchLeadersByCategory(category: string): Promise<Player[]> {
 }
 
 async function fetchTopPlayers(): Promise<Player[]> {
-  // Try each stat category in order until we get players
-  for (const category of LEADER_CATEGORIES) {
-    const players = await fetchLeadersByCategory(category);
-    if (players.length > 0) return players;
+  try {
+    // Fetch from all categories in parallel and deduplicate
+    const results = await Promise.all(
+      LEADER_CATEGORIES.map(cat => fetchLeadersByCategory(cat))
+    );
+    const seen   = new Set<string>();
+    const merged: Player[] = [];
+    for (const players of results) {
+      for (const p of players) {
+        if (!seen.has(p.id)) {
+          seen.add(p.id);
+          merged.push(p);
+        }
+      }
+    }
+    return merged;
+  } catch {
+    return [];
   }
-
-  // If all categories fail return empty — the UI shows the "no players" message
-  return [];
 }
 
 export async function getWatchlist(): Promise<Player[]> {
