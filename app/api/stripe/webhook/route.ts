@@ -35,41 +35,95 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    // Handle one-time card purchase (not subscription)
+    // Handle one-time card purchase
     if (session.mode === "payment" && session.metadata?.cardId) {
-      const { cardId, shares, pricePerShare, userId, playerName } = session.metadata;
+      const { cardId, pricePerShare, userId, playerName } = session.metadata;
       const { supabaseAdmin } = await import("@/lib/supabase-server");
-      
-      // Add shares to user portfolio
-      const wallet = `stripe:${userId}`;
-      const existing = await supabaseAdmin
-        .from("positions")
-        .select()
-        .eq("wallet", wallet)
-        .eq("card_id", cardId)
-        .single();
 
-      if (existing.data) {
-        const totalShares = existing.data.shares + parseInt(shares);
-        const avgCost     = ((existing.data.avg_cost * existing.data.shares) + (parseFloat(pricePerShare) * parseInt(shares))) / totalShares;
-        await supabaseAdmin.from("positions")
-          .update({ shares: totalShares, avg_cost: avgCost })
-          .eq("wallet", wallet).eq("card_id", cardId);
-      } else {
-        await supabaseAdmin.from("positions")
-          .insert({ wallet, card_id: cardId, shares: parseInt(shares), avg_cost: parseFloat(pricePerShare) });
-      }
+      // Get buyer shipping address from Stripe
+      const buyerAddress  = session.shipping_details?.address;
+      const buyerName     = session.shipping_details?.name ?? session.customer_details?.name ?? "Buyer";
+      const buyerEmail    = session.customer_details?.email ?? "";
+      const shippingRate  = session.shipping_cost?.amount_total ?? 999;
+      const shippingSpeed = shippingRate > 1000 ? "Express (1-3 days)" : "Standard (3-7 days)";
 
-      // Record trade
-      await supabaseAdmin.from("trades").insert({
-        id:          `trd_stripe_${Date.now()}`,
-        card_id:     cardId,
-        price:       parseFloat(pricePerShare),
-        shares:      parseInt(shares),
-        buy_wallet:  wallet,
-        sell_wallet: "platform",
-        executed_at: new Date().toISOString(),
+      const addressStr = buyerAddress
+        ? `${buyerAddress.line1}${buyerAddress.line2 ? ", " + buyerAddress.line2 : ""}, ${buyerAddress.city}, ${buyerAddress.state} ${buyerAddress.postal_code}, ${buyerAddress.country}`
+        : "Address not provided";
+
+      // Save order to card_orders
+      await supabaseAdmin.from("card_orders").insert({
+        user_id:           userId,
+        player_name:       playerName,
+        card_name:         `${playerName} PSA 10`,
+        price:             parseFloat(pricePerShare),
+        fee:               parseFloat(pricePerShare) * 0.05,
+        type:              "buy",
+        status:            "paid",
+        address:           addressStr,
+        stripe_session_id: session.id,
       });
+
+      // Email YOU (admin) with full order details
+      if (process.env.RESEND_API_KEY) {
+        await fetch("https://api.resend.com/emails", {
+          method:  "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from:    "Card Tracker <orders@cardtracker.app>",
+            to:      ["anna.chapko.2004@gmail.com"],
+            subject: `🎉 New Card Sale — ${playerName}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>⚾ New Card Sale!</h2>
+                <table style="width:100%; border-collapse: collapse;">
+                  <tr><td style="padding:8px; border:1px solid #eee;"><strong>Card</strong></td><td style="padding:8px; border:1px solid #eee;">${playerName} PSA 10</td></tr>
+                  <tr><td style="padding:8px; border:1px solid #eee;"><strong>Sale Price</strong></td><td style="padding:8px; border:1px solid #eee;">$${pricePerShare}</td></tr>
+                  <tr><td style="padding:8px; border:1px solid #eee;"><strong>Your Fee (5%)</strong></td><td style="padding:8px; border:1px solid #eee;">$${(parseFloat(pricePerShare) * 0.05).toFixed(2)}</td></tr>
+                  <tr><td style="padding:8px; border:1px solid #eee;"><strong>Buyer</strong></td><td style="padding:8px; border:1px solid #eee;">${buyerName} (${buyerEmail})</td></tr>
+                  <tr><td style="padding:8px; border:1px solid #eee;"><strong>Ship To</strong></td><td style="padding:8px; border:1px solid #eee;">${addressStr}</td></tr>
+                  <tr><td style="padding:8px; border:1px solid #eee;"><strong>Shipping</strong></td><td style="padding:8px; border:1px solid #eee;">${shippingSpeed}</td></tr>
+                </table>
+                <p style="margin-top:16px; color:#666;">Go to your admin dashboard to manage this order.</p>
+                <a href="https://sentient-capital.vercel.app/admin" style="background:#1a1a2e; color:white; padding:12px 24px; border-radius:8px; text-decoration:none; display:inline-block; margin-top:8px;">View Admin Dashboard</a>
+              </div>
+            `,
+          }),
+        });
+
+        // Email BUYER confirmation
+        if (buyerEmail) {
+          await fetch("https://api.resend.com/emails", {
+            method:  "POST",
+            headers: {
+              "Content-Type":  "application/json",
+              "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+              from:    "Card Tracker <orders@cardtracker.app>",
+              to:      [buyerEmail],
+              subject: `✅ Order Confirmed — ${playerName} PSA 10`,
+              html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2>⚾ Your order is confirmed!</h2>
+                  <p>Thanks for your purchase, ${buyerName}!</p>
+                  <div style="background:#f3f4f6; padding:16px; border-radius:8px; margin:16px 0;">
+                    <p><strong>Card:</strong> ${playerName} PSA 10</p>
+                    <p><strong>Price:</strong> $${pricePerShare}</p>
+                    <p><strong>Shipping to:</strong> ${addressStr}</p>
+                    <p><strong>Delivery:</strong> ${shippingSpeed}</p>
+                  </div>
+                  <p>Your card will be shipped once we verify it with our vault. We'll email you a tracking number when it ships.</p>
+                  <a href="https://sentient-capital.vercel.app/app" style="background:#2563eb; color:white; padding:12px 24px; border-radius:8px; text-decoration:none; display:inline-block;">Track your order</a>
+                </div>
+              `,
+            }),
+          });
+        }
+      }
     }
   }
 
