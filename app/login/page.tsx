@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [loading,  setLoading]         = useState(false);
   const [error,    setError]           = useState("");
   const [success,  setSuccess]         = useState("");
+  const [hasPasskey, setHasPasskey]     = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) router.push("/app");
@@ -27,6 +28,10 @@ export default function LoginPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.push("/app");
     });
+    // Check if user has registered a passkey on this device
+    if (localStorage.getItem("passkey_registered") === "true") {
+      setHasPasskey(true);
+    }
   }, [router]);
 
   const handleEmailAuth = async () => {
@@ -153,6 +158,21 @@ export default function LoginPage() {
                 </svg>
                 Connect crypto wallet
               </DynamicConnectButton>
+
+              {/* Face ID / Touch ID — only show if previously registered */}
+              {hasPasskey && (
+                <button onClick={handlePasskey}
+                  className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-gray-900 text-white font-bold text-sm hover:bg-gray-800 transition">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {typeof navigator !== "undefined" && /iPhone/.test(navigator.userAgent)
+                    ? "Sign in with Face ID"
+                    : typeof navigator !== "undefined" && /Mac/.test(navigator.platform)
+                    ? "Sign in with Touch ID"
+                    : "Sign in with Passkey"}
+                </button>
+              )}
 
               {/* Google */}
               <button onClick={() => handleOAuth("google")}
