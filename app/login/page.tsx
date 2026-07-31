@@ -202,7 +202,7 @@ export default function LoginPage() {
                   onChange={e => setName(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600" />
               )}
-              <input suppressHydrationWarning type="email" placeholder="Email address" value={email}
+              <input suppressHydrationWarning type="email" placeholder="Email address" autoComplete="email" value={email}
                 onChange={e => { setEmail(e.target.value); setError(""); }}
                 onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-gray-600" />
