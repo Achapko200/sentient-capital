@@ -21,19 +21,32 @@ export default function PlayerCard({ player, onTrade }: Props) {
   const canSeeEbay = tier === "pro" || tier === "elite";
 
   const load = useCallback(async () => {
+    // If player already has price data from batch load, use it
+    if ((player as any).avgPrice !== undefined) {
+      setData({
+        avgPrice:     (player as any).avgPrice,
+        priceChange:  (player as any).priceChange ?? 0,
+        priceHistory: (player as any).priceHistory ?? {},
+        liquidity:    (player as any).liquidity ?? {},
+        sales:        (player as any).sales ?? [],
+        stats:        null,
+        sentiment:    null,
+        cardSignal:   { signal: "HOLD", confidence: 50, reasons: [] },
+        candles:      [],
+      } as any);
+      setLoading(false);
+      return;
+    }
     try {
-      const res  = await fetch(`/api/cards/${player.id}`, {
-        next: { revalidate: 1800 }
-      });
+      const res  = await fetch(`/api/cards/${player.id}`);
       const json = await res.json();
       setData(json);
     } catch {}
     finally { setLoading(false); }
-  }, [player.id]);
+  }, [player.id, player]);
 
   useEffect(() => {
-    // Delay load to stagger API calls and avoid rate limiting
-    const timer = setTimeout(load, Math.random() * 500);
+    const timer = setTimeout(load, Math.random() * 200);
     return () => clearTimeout(timer);
   }, [load]);
 
