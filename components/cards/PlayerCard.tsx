@@ -21,7 +21,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
   const canSeeEbay = tier === "pro" || tier === "elite";
 
   const load = useCallback(async () => {
-    // If player already has price data from batch load, use it
+    // Use pre-loaded batch data immediately — no API call needed
     if ((player as any).avgPrice !== undefined) {
       setData({
         avgPrice:     (player as any).avgPrice,
@@ -37,6 +37,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
       setLoading(false);
       return;
     }
+    // Fallback: fetch individual player data
     try {
       const res  = await fetch(`/api/cards/${player.id}`);
       const json = await res.json();
@@ -45,10 +46,22 @@ export default function PlayerCard({ player, onTrade }: Props) {
     finally { setLoading(false); }
   }, [player.id, player]);
 
+  // Load full stats only when expanded
+  const loadFullStats = useCallback(async () => {
+    try {
+      const res  = await fetch(`/api/cards/${player.id}`);
+      const json = await res.json();
+      setData(json);
+    } catch {}
+  }, [player.id]);
+
+  useEffect(() => { load(); }, [load]);
+
   useEffect(() => {
-    const timer = setTimeout(load, Math.random() * 200);
-    return () => clearTimeout(timer);
-  }, [load]);
+    if (expanded && data && !(data as any).stats) {
+      loadFullStats();
+    }
+  }, [expanded, loadFullStats]);
 
   useEffect(() => {
     const channel = subscribeToTrades((cardId, price) => {
