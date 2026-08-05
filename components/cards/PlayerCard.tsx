@@ -1,97 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Image                                from "next/image";
 import type { CardData, Player }            from "@/lib/cardTypes";
-import SignalBadge                          from "@/components/cards/SignalBadge";
-import PriceChart                           from "@/components/cards/PriceChart";
 import { subscribeToTrades }                from "@/lib/realtime";
 import { supabase }                         from "@/lib/supabase";
-import { useSubscription }               from "@/lib/useSubscription";
-
-const SENTIMENT_COLOR: Record<string, string> = {
-  "VERY BULLISH": "text-green-600",
-  "BULLISH":      "text-green-600",
-  "NEUTRAL":      "text-yellow-600",
-  "BEARISH":      "text-red-600",
-  "VERY BEARISH": "text-red-600",
-};
-
-const SIGNAL_BORDER: Record<string, string> = {
-  BUY:  "border-green-400",
-  SELL: "border-red-400",
-  HOLD: "border-yellow-400",
-};
-
-const LIQUIDITY_BG: Record<string, string> = {
-  "VERY LIQUID": "bg-green-50 border-green-200",
-  "LIQUID":      "bg-blue-50 border-blue-200",
-  "MODERATE":    "bg-yellow-50 border-yellow-200",
-  "THIN":        "bg-orange-50 border-orange-200",
-  "ILLIQUID":    "bg-red-50 border-red-200",
-};
-
-function PctChange({ value }: { value: number }) {
-  const isUp = value >= 0;
-  return (
-    <span className={`font-black text-sm ${isUp ? "text-green-600" : "text-red-600"}`}>
-      {isUp ? "+" : ""}{value}%
-    </span>
-  );
-}
-
-function BaseballCard({ player, signal }: { player: Player; signal: string }) {
-  const [imgError, setImgError] = useState(false);
-
-  return (
-    <div
-      className="relative rounded-lg overflow-hidden shrink-0"
-      style={{
-        width: 90,
-        height: 126,
-        background: `linear-gradient(145deg, ${player.cardColor}, ${player.teamColor})`,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-      }}
-    >
-      <div className="absolute inset-0 opacity-20"
-        style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 50%)" }} />
-
-      <div className="absolute top-1 right-1 bg-black/40 text-white font-black px-1 rounded"
-        style={{ fontSize: 7 }}>PSA 10</div>
-
-      <div className="absolute inset-0 flex items-start justify-center pt-3 pb-8">
-        {!imgError ? (
-          <Image
-            src={player.cardImage}
-            alt={player.name}
-            width={70}
-            height={80}
-            className="object-contain drop-shadow-lg"
-            style={{ maxHeight: "65%", width: "auto" }}
-            onError={() => setImgError(true)}
-            unoptimized
-          />
-        ) : (
-          <span className="text-4xl mt-2">⚾</span>
-        )}
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1"
-        style={{ background: "rgba(0,0,0,0.65)" }}>
-        <p className="text-white font-black leading-tight truncate" style={{ fontSize: 8 }}>{player.name}</p>
-        <p className="text-white/60" style={{ fontSize: 7 }}>{player.position}</p>
-      </div>
-
-      <div className={`absolute top-4 -left-5 -rotate-45 px-6 py-px font-black ${
-        signal === "BUY"  ? "bg-green-500 text-white" :
-        signal === "SELL" ? "bg-red-500 text-white" :
-        "bg-yellow-400 text-yellow-900"
-      }`} style={{ fontSize: 7 }}>
-        {signal}
-      </div>
-    </div>
-  );
-}
+import { useSubscription }                  from "@/lib/useSubscription";
+import PriceChart                           from "@/components/cards/PriceChart";
 
 type Props = {
   player:   Player;
@@ -99,227 +13,155 @@ type Props = {
 };
 
 export default function PlayerCard({ player, onTrade }: Props) {
-  const [data,           setData]           = useState<CardData | null>(null);
-  const [loading,        setLoading]        = useState(true);
-  const [expanded,       setExpanded]       = useState(false);
+  const [data,          setData]          = useState<CardData | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [expanded,      setExpanded]      = useState(false);
+  const [lastTradePrice, setLastTradePrice] = useState<number | null>(null);
+  const [priceFlash,    setPriceFlash]    = useState<"up" | "down" | null>(null);
   const { tier } = useSubscription();
   const canSeeEbay = tier === "pro" || tier === "elite";
-  const [lastTradePrice, setLastTradePrice] = useState<number | null>(null);
-  const [priceFlash,     setPriceFlash]     = useState<"up" | "down" | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res  = await fetch(`/api/cards/${player.id}`);
       const json = await res.json();
       setData(json);
-    } catch {
-      // retry on next interval
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   }, [player.id]);
 
-  useEffect(() => {
-    load();
-    const interval = setInterval(load, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  // ─── Realtime price flash ─────────────────────────────────────────────────
   useEffect(() => {
     const channel = subscribeToTrades((cardId, price) => {
       if (cardId !== player.id) return;
       setLastTradePrice(prev => {
         setPriceFlash(prev === null ? null : price > prev ? "up" : "down");
-        setTimeout(() => setPriceFlash(null), 1500);
         return price;
       });
     });
-    return () => { supabase.removeChannel(channel); };
+    return () => { channel?.unsubscribe?.(); };
   }, [player.id]);
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-sm p-4 animate-pulse">
-        <div className="flex gap-3">
-          <div className="shrink-0 rounded-lg bg-gray-100" style={{ width: 90, height: 126 }} />
-          <div className="flex-1 space-y-2 pt-1">
-            <div className="h-4 bg-gray-100 rounded w-24" />
-            <div className="h-6 bg-gray-100 rounded w-16" />
-            <div className="h-3 bg-gray-100 rounded w-full" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="rounded-2xl animate-pulse h-48"
+      style={{ backgroundColor: "#151515" }} />
+  );
 
-  if (!data || !data.cardSignal) return null;
+  if (!data) return null;
 
   const { stats, sales, sentiment, cardSignal, avgPrice, priceChange, priceHistory, liquidity } = data;
-  const isUp        = priceChange >= 0;
-  const borderClass = SIGNAL_BORDER[cardSignal.signal] ?? "border-gray-200";
-  const liqBg       = LIQUIDITY_BG[liquidity.label]    ?? "bg-gray-50 border-gray-200";
+  const displayPrice = lastTradePrice ?? avgPrice;
+  const isUp         = priceChange >= 0;
+  const signal       = cardSignal?.signal ?? "HOLD";
+
+  const signalColor = signal === "BUY"  ? "#00c278" :
+                      signal === "SELL" ? "#ff3b30" : "#f59e0b";
+
+  const signalBg = signal === "BUY"  ? "rgba(0,194,120,0.1)" :
+                   signal === "SELL" ? "rgba(255,59,48,0.1)" : "rgba(245,158,11,0.1)";
 
   return (
-    <div className={`bg-white rounded-2xl border-2 ${borderClass} shadow-sm hover:shadow-md transition-shadow overflow-hidden`}>
+    <div className="rounded-2xl overflow-hidden transition-all hover:scale-[1.01]"
+      style={{ backgroundColor: "#151515", border: "1px solid #2a2a2a" }}>
 
-      {/* TOP ROW */}
-      <div className="flex items-start gap-3 p-4 pb-3">
-        <BaseballCard player={player} signal={cardSignal.signal} />
+      {/* Top bar — signal color */}
+      <div className="h-0.5 w-full" style={{ backgroundColor: signalColor }} />
 
-        <div className="flex-1 min-w-0 flex flex-col gap-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="text-gray-900 font-black text-sm leading-tight truncate">{player.name}</h3>
-              <p className="text-gray-400 text-xs truncate">{player.team}</p>
-              <p className="text-gray-300 text-xs truncate">{player.cardName}</p>
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <img src={player.cardImage} alt={player.name}
+                className="w-10 h-10 rounded-full object-cover"
+                style={{ backgroundColor: "#222" }} />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
+                style={{ backgroundColor: signalColor, borderColor: "#151515" }} />
             </div>
-            <div className="text-right shrink-0">
-              <p className={`text-2xl font-black leading-none ${isUp ? "text-green-600" : "text-red-600"}`}>
-                {isUp ? "+" : ""}{priceChange}%
-              </p>
-              <p className="text-gray-400 text-xs mt-0.5">14-day</p>
-            </div>
-          </div>
-
-          <SignalBadge signal={cardSignal.signal} confidence={cardSignal.confidence} />
-
-          <div className="flex items-end gap-3 flex-wrap">
             <div>
-              <p className="text-gray-400 text-xs">Avg PSA 10</p>
-              <p className={`text-xl font-black transition-colors duration-300 ${
-                priceFlash === "up"   ? "text-green-500" :
-                priceFlash === "down" ? "text-red-500"   : "text-gray-900"
-              }`}>
-                ${lastTradePrice ?? avgPrice}
-                {priceFlash && (
-                  <span className={`text-xs ml-1 ${priceFlash === "up" ? "text-green-500" : "text-red-500"}`}>
-                    {priceFlash === "up" ? "▲" : "▼"}
-                  </span>
-                )}
-              </p>
+              <p className="font-black text-white text-sm">{player.name}</p>
+              <p className="text-xs" style={{ color: "#888" }}>{player.team}</p>
             </div>
-            {cardSignal.buyBelow && (
-              <div>
-                <p className="text-gray-400 text-xs">Buy below</p>
-                <p className="text-green-600 font-black text-sm">${cardSignal.buyBelow}</p>
-              </div>
-            )}
-            {cardSignal.sellAbove && !cardSignal.buyBelow && (
-              <div>
-                <p className="text-gray-400 text-xs">Sell above</p>
-                <p className="text-red-600 font-black text-sm">${cardSignal.sellAbove}</p>
-              </div>
-            )}
           </div>
+          <div className="text-right">
+            <p className={`text-xl font-black transition-colors ${
+              priceFlash === "up"   ? "text-green-400" :
+              priceFlash === "down" ? "text-red-400"   : "text-white"
+            }`}>${displayPrice}</p>
+            <p className="text-xs font-bold"
+              style={{ color: isUp ? "#00c278" : "#ff3b30" }}>
+              {isUp ? "+" : ""}{priceChange}%
+            </p>
+          </div>
+        </div>
 
-          {onTrade && (
-            <button
-              onClick={() => onTrade(player)}
-              className={`w-full py-1.5 rounded-xl text-xs font-black transition ${
-                cardSignal.signal === "BUY"
-                  ? "bg-green-600 hover:bg-green-500 text-white"
-                  : cardSignal.signal === "SELL"
-                  ? "bg-red-600 hover:bg-red-500 text-white"
-                  : "bg-gray-900 hover:bg-gray-700 text-white"
-              }`}
-            >
-              📊 Trade {player.name.split(" ").pop()} shares
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* PRICE HISTORY */}
-      <div className="mx-4 mb-3 rounded-lg border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-3 divide-x divide-gray-200">
-          {[
-            { label: "1 Week",   data: priceHistory.week       },
-            { label: "3 Months", data: priceHistory.threeMonth },
-            { label: "1 Year",   data: priceHistory.year       },
-          ].map((period) => (
-            <div key={period.label} className="p-3 text-center">
-              <p className="text-gray-400 text-xs mb-1">{period.label}</p>
-              <PctChange value={period.data.changePct} />
-              <p className="text-gray-400 text-xs mt-0.5">
-                ${period.data.previous} → ${period.data.current}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* LIQUIDITY */}
-      <div className={`mx-4 mb-3 rounded-lg p-3 border ${liqBg}`}>
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-gray-600 text-xs font-semibold uppercase tracking-wider">Liquidity</span>
-          <span className={`text-xs font-black ${liquidity.color}`}>{liquidity.label}</span>
-        </div>
-        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-2">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${
-              liquidity.score >= 80 ? "bg-green-500"  :
-              liquidity.score >= 55 ? "bg-blue-500"   :
-              liquidity.score >= 35 ? "bg-yellow-400" :
-              liquidity.score >= 18 ? "bg-orange-400" : "bg-red-500"
-            }`}
-            style={{ width: `${liquidity.score}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>~{liquidity.salesPerMonth} sales/month</span>
-          <span>~{liquidity.daysToSell} days to sell</span>
-        </div>
-      </div>
-
-      {/* SENTIMENT */}
-      <div className="mx-4 mb-3 rounded-lg p-3 bg-gray-50 border border-gray-200">
-        <div className="flex justify-between items-center mb-1.5">
-          <span className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Sentiment</span>
-          <span className={`text-xs font-black ${SENTIMENT_COLOR[sentiment.label] ?? "text-gray-600"}`}>
-            {sentiment.label}
+        {/* Signal badge */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black px-2.5 py-1 rounded-full"
+              style={{ backgroundColor: signalBg, color: signalColor }}>
+              {signal} {cardSignal?.confidence ?? 0}%
+            </span>
+            <span className="text-xs" style={{ color: "#555" }}>
+              {sentiment?.label ?? ""}
+            </span>
+          </div>
+          <span className="text-xs font-mono" style={{ color: "#555" }}>
+            PSA 10
           </span>
         </div>
-        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1.5">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${
-              sentiment.score >= 60 ? "bg-green-500"  :
-              sentiment.score >= 40 ? "bg-yellow-400" : "bg-red-500"
-            }`}
-            style={{ width: `${sentiment.score}%` }}
-          />
-        </div>
-        <ul className="space-y-0.5">
-          {sentiment.reasons.slice(0, 2).map((r, i) => (
-            <li key={i} className="text-gray-500 text-xs">• {r}</li>
+
+        {/* eBay price chart */}
+        {canSeeEbay && sales.length > 0 && (
+          <div className="mb-3 rounded-xl overflow-hidden" style={{ backgroundColor: "#0d0d0d" }}>
+            <PriceChart sales={sales} />
+          </div>
+        )}
+        {!canSeeEbay && (
+          <div className="mb-3 rounded-xl px-3 py-2.5 flex items-center justify-between"
+            style={{ backgroundColor: "#0d0d0d", border: "1px solid #2a2a2a" }}>
+            <p className="text-xs" style={{ color: "#555" }}>🔒 eBay price chart</p>
+            <a href="/pricing" className="text-xs font-semibold" style={{ color: "#2563eb" }}>Upgrade</a>
+          </div>
+        )}
+
+        {/* Price history */}
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {[
+            { label: "1W",  data: priceHistory?.week       },
+            { label: "3M",  data: priceHistory?.threeMonth },
+            { label: "1Y",  data: priceHistory?.year       },
+          ].map(({ label, data: d }) => (
+            <div key={label} className="rounded-xl p-2 text-center"
+              style={{ backgroundColor: "#0d0d0d" }}>
+              <p className="text-xs mb-0.5" style={{ color: "#555" }}>{label}</p>
+              <p className="text-xs font-bold"
+                style={{ color: (d?.changePct ?? 0) >= 0 ? "#00c278" : "#ff3b30" }}>
+                {(d?.changePct ?? 0) >= 0 ? "+" : ""}{d?.changePct ?? 0}%
+              </p>
+            </div>
           ))}
-        </ul>
-      </div>
-
-      {/* CHART */}
-      {sales.length > 0 && canSeeEbay && (
-        <div className="mx-4 mb-3">
-          <PriceChart sales={sales} />
         </div>
-      )}
-      {!canSeeEbay && (
-        <div className="mx-4 mb-3 bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between">
-          <p className="text-gray-500 text-xs">🔒 eBay price chart — Pro feature</p>
-          <a href="/pricing" className="text-xs text-blue-600 font-semibold hover:text-blue-700">Upgrade</a>
-        </div>
-      )}
 
-      {/* EXPAND */}
-      <div className="px-4 pb-4">
+        {/* Buy button */}
+        <button
+          onClick={() => onTrade?.(player)}
+          className="w-full py-2.5 rounded-xl font-black text-sm transition hover:opacity-90"
+          style={{ backgroundColor: "#00c278", color: "#000" }}>
+          Trade {player.name.split(" ").pop()}
+        </button>
+
+        {/* Expand */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-blue-600 text-xs font-semibold hover:text-blue-700 transition"
-        >
-          {expanded ? "▲ Hide details" : "▼ Show stats & reasoning"}
+          className="w-full mt-2 text-xs font-semibold transition"
+          style={{ color: "#555" }}>
+          {expanded ? "▲ Hide details" : "▼ Show details"}
         </button>
 
         {expanded && (
-          <div className="space-y-3 mt-3">
+          <div className="mt-3 space-y-3">
             {stats && (
               <div className="grid grid-cols-4 gap-2">
                 {[
@@ -327,49 +169,38 @@ export default function PlayerCard({ player, onTrade }: Props) {
                   { label: "HR",  value: String(stats.hr)     },
                   { label: "RBI", value: String(stats.rbi)    },
                   { label: "OPS", value: stats.ops.toFixed(3) },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-lg p-2 text-center bg-gray-50 border border-gray-200">
-                    <p className="text-gray-400 text-xs">{s.label}</p>
-                    <p className="text-gray-900 font-black text-sm">{s.value}</p>
+                ].map(s => (
+                  <div key={s.label} className="rounded-xl p-2 text-center"
+                    style={{ backgroundColor: "#0d0d0d" }}>
+                    <p className="text-xs mb-0.5" style={{ color: "#555" }}>{s.label}</p>
+                    <p className="text-white font-black text-sm">{s.value}</p>
                   </div>
                 ))}
               </div>
             )}
 
-            {stats?.lastGame && (
-              <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-                <p className="text-gray-500 text-xs font-semibold mb-1">Last game — {stats.lastGame.date}</p>
-                <p className="text-gray-900 font-bold text-sm">
-                  {stats.lastGame.hits}H · {stats.lastGame.hr}HR · {stats.lastGame.rbi}RBI
-                </p>
+            {cardSignal?.reasons && (
+              <div className="rounded-xl p-3" style={{ backgroundColor: "#0d0d0d" }}>
+                <p className="text-xs font-semibold mb-2" style={{ color: "#555" }}>Signal reasoning</p>
+                <ul className="space-y-1">
+                  {cardSignal.reasons.map((r: string, i: number) => (
+                    <li key={i} className="text-xs" style={{ color: "#888" }}>• {r}</li>
+                  ))}
+                </ul>
               </div>
             )}
 
-            <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-              <p className="text-gray-500 text-xs font-semibold mb-2">Signal reasoning</p>
-              <ul className="space-y-1">
-                {cardSignal.reasons.map((r, i) => (
-                  <li key={i} className="text-gray-700 text-xs">• {r}</li>
-                ))}
-              </ul>
-            </div>
-
-            {canSeeEbay ? (
-              <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
-                <p className="text-gray-500 text-xs font-semibold mb-2">Recent eBay sales</p>
+            {canSeeEbay && sales.length > 0 && (
+              <div className="rounded-xl p-3" style={{ backgroundColor: "#0d0d0d" }}>
+                <p className="text-xs font-semibold mb-2" style={{ color: "#555" }}>Recent eBay sales</p>
                 <div className="space-y-1.5">
-                  {sales.slice(0, 4).map((s) => (
+                  {sales.slice(0, 4).map(s => (
                     <div key={s.id} className="flex justify-between text-xs">
-                      <span className="text-gray-400">{s.date}</span>
-                      <span className="text-gray-900 font-bold">${s.price}</span>
+                      <span style={{ color: "#555" }}>{s.date}</span>
+                      <span className="text-white font-bold">${s.price}</span>
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className="rounded-lg p-3 bg-gray-50 border border-gray-200 flex items-center justify-between">
-                <p className="text-gray-500 text-xs">🔒 eBay sales data — Pro feature</p>
-                <a href="/pricing" className="text-xs text-blue-600 font-semibold">Upgrade →</a>
               </div>
             )}
           </div>

@@ -95,7 +95,7 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen text-white" style={{ backgroundColor: "#0d0d0d" }}>
       {/* Header */}
       <div className="border-b border-gray-800 px-4 py-4 flex items-center gap-3">
         <a href="/app" className="text-gray-400 hover:text-white transition">

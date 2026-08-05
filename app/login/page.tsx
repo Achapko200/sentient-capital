@@ -95,7 +95,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+    <div className="min-h-screen text-white flex flex-col" style={{ backgroundColor: "#0d0d0d" }}>
 
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">

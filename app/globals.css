@@ -25,6 +25,27 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Polymarket/Robinhood dark theme */
+:root {
+  --bg-primary:   #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --bg-card:      #151515;
+  --bg-hover:     #222222;
+  --border:       #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+  --text-muted:   #555555;
+  --green:        #00c278;
+  --red:          #ff3b30;
+  --blue:         #2563eb;
+  --accent:       #00c278;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
 /* Prevent iOS auto-zoom on input focus */
 @media screen and (-webkit-min-device-pixel-ratio: 0) {
   input, textarea, select {
