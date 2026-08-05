@@ -62,8 +62,26 @@ export default function PlayerCard({ player, onTrade }: Props) {
   }, [player.id]);
 
   if (loading) return (
-    <div className="rounded-2xl animate-pulse h-52"
-      style={{ backgroundColor: "var(--bg-card)" }} />
+    <div className="rounded-2xl p-4 space-y-3"
+      style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)" }}>
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-full animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3 w-32 rounded animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />
+          <div className="h-2 w-20 rounded animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />
+        </div>
+        <div className="text-right space-y-1.5">
+          <div className="h-5 w-16 rounded animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />
+          <div className="h-2 w-10 rounded animate-pulse ml-auto" style={{ backgroundColor: "var(--bg-hover)" }} />
+        </div>
+      </div>
+      <div className="h-2 w-24 rounded animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />
+      <div className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />
+      <div className="grid grid-cols-3 gap-2">
+        {[1,2,3].map(i => <div key={i} className="h-10 rounded-xl animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />)}
+      </div>
+      <div className="h-10 rounded-xl animate-pulse" style={{ backgroundColor: "var(--bg-hover)" }} />
+    </div>
   );
 
   if (!data) return null;
