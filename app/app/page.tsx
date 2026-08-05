@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "@/lib/useTheme";
 import type { Player }            from "@/lib/cardTypes";
 import type { CardToken }         from "@/lib/cardToken";
 import PlayerCard                 from "@/components/cards/PlayerCard";
@@ -386,6 +387,7 @@ function TradingPanelLoader({ player }: { player: Player }) {
 }
 
 export default function Home() {
+  const { theme } = useTheme();
   const [tab,         setTab]         = useState<Tab>("cards");
   const [players,     setPlayers]     = useState<Player[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -414,7 +416,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--bg-primary)" }}>
+    <div className="min-h-screen" data-theme={theme} style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
 
       {/* Header */}
       <div className="px-4 py-3 sticky top-0 z-40" style={{ backgroundColor: "var(--bg-primary)", borderBottom: "1px solid var(--border)" }}>
