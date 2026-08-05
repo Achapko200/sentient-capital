@@ -2,6 +2,8 @@
 import { getWatchlist }   from "@/lib/players";
 import { checkRateLimit } from "@/lib/ratelimit";
 
+export const revalidate = 1800;
+
 export async function GET(req: Request) {
   const limited = await checkRateLimit(req, "read");
   if (limited) return limited;

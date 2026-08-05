@@ -6,6 +6,9 @@ import { calcSentiment }      from "@/lib/sentiment";
 import { generateSignal }     from "@/lib/cardSignal";
 import { getPlayer }          from "@/lib/players";
 
+// Cache results for 30 minutes
+export const revalidate = 1800;
+
 export async function GET(
   _req: Request,
   context: { params: Promise<{ playerId: string }> },

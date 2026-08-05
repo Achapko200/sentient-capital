@@ -22,14 +22,20 @@ export default function PlayerCard({ player, onTrade }: Props) {
 
   const load = useCallback(async () => {
     try {
-      const res  = await fetch(`/api/cards/${player.id}`);
+      const res  = await fetch(`/api/cards/${player.id}`, {
+        next: { revalidate: 1800 }
+      });
       const json = await res.json();
       setData(json);
     } catch {}
     finally { setLoading(false); }
   }, [player.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // Delay load to stagger API calls and avoid rate limiting
+    const timer = setTimeout(load, Math.random() * 500);
+    return () => clearTimeout(timer);
+  }, [load]);
 
   useEffect(() => {
     const channel = subscribeToTrades((cardId, price) => {
