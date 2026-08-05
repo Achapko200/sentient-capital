@@ -85,14 +85,14 @@ export default function PlayerCard({ player, onTrade }: Props) {
                 style={{ backgroundColor: pal.dot, borderColor: "var(--bg-card)" }} />
             </div>
             <div>
-              <p className="font-black text-sm" style={{ color: "#f5f5f5" }}>{player.name}</p>
+              <p className="font-black text-sm" style={{ color: "var(--text-primary)" }}>{player.name}</p>
               <p className="text-xs mt-0.5" style={{ color: "#8a8a8a" }}>{player.team}</p>
             </div>
           </div>
           <div className="text-right">
             <p className={`text-2xl font-black leading-none transition-colors ${
               priceFlash === "up" ? "text-green-400" : priceFlash === "down" ? "text-red-400" : ""
-            }`} style={ !priceFlash ? { color: "#f5f5f5" } : {}}>
+            }`} style={ !priceFlash ? { color: "var(--text-primary)" } : {}}>
               ${displayPrice}
             </p>
             <p className="text-sm font-black mt-0.5"
@@ -113,13 +113,13 @@ export default function PlayerCard({ player, onTrade }: Props) {
           {/* Sentiment */}
           {sentiment?.label && (
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{ backgroundColor: "var(--bg-primary)", color: "#f5f5f5", border: "1px solid var(--border)" }}>
+              style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
               {sentiment.label}
             </span>
           )}
 
           <span className="ml-auto text-xs font-mono font-bold"
-            style={{ color: "#f5f5f5" }}>PSA 10</span>
+            style={{ color: "var(--text-primary)" }}>PSA 10</span>
         </div>
 
         {/* eBay chart */}
@@ -188,7 +188,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
                   <div key={s.label} className="rounded-xl p-2 text-center"
                     style={{ backgroundColor: "var(--bg-primary)" }}>
                     <p className="text-xs mb-0.5" style={{ color: "#8a8a8a" }}>{s.label}</p>
-                    <p className="font-black text-sm" style={{ color: "#f5f5f5" }}>{s.value}</p>
+                    <p className="font-black text-sm" style={{ color: "var(--text-primary)" }}>{s.value}</p>
                   </div>
                 ))}
               </div>
@@ -206,7 +206,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
                 </p>
                 <ul className="space-y-1">
                   {cardSignal.reasons.map((r: string, i: number) => (
-                    <li key={i} className="text-xs" style={{ color: "#c0c0c0" }}>• {r}</li>
+                    <li key={i} className="text-xs" style={{ color: "var(--text-secondary)" }}>• {r}</li>
                   ))}
                 </ul>
               </div>
@@ -223,7 +223,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
                   {sales.slice(0, 4).map(s => (
                     <div key={s.id} className="flex justify-between text-xs">
                       <span style={{ color: "#8a8a8a" }}>{s.date}</span>
-                      <span className="font-black" style={{ color: "#f5f5f5" }}>${s.price}</span>
+                      <span className="font-black" style={{ color: "var(--text-primary)" }}>${s.price}</span>
                     </div>
                   ))}
                 </div>

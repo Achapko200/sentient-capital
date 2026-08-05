@@ -423,7 +423,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">⚾</span>
-            <h1 className="text-lg font-black text-white tracking-tight">Card Tracker</h1>
+            <h1 className="text-lg font-black tracking-tight" style={{ color: "var(--text-primary)" }}>Card Tracker</h1>
           </div>
           <div className="flex items-center gap-2">
             {isAuthenticated && (
