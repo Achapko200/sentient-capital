@@ -300,7 +300,13 @@ export default function SettingsPage() {
   const [section, setSection] = useState<Section>("general");
 
   const { theme, toggleTheme } = useTheme();
-  const [appearance,       setAppearance]       = useState("Dark");
+  const [appearance,       setAppearance]       = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("theme");
+      if (saved === "light") return "Light";
+    }
+    return "Dark";
+  });
   const [contrast,         setContrast]         = useState("System");
   const [accent,           setAccent]           = useState("Default");
   const [language,         setLanguage]         = useState("Auto-detect");
