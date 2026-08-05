@@ -414,10 +414,10 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#0d0d0d" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--bg-primary)" }}>
 
       {/* Header */}
-      <div className="px-4 py-3 sticky top-0 z-40" style={{ backgroundColor: "#0d0d0d", borderBottom: "1px solid #1a1a1a" }}>
+      <div className="px-4 py-3 sticky top-0 z-40" style={{ backgroundColor: "var(--bg-primary)", borderBottom: "1px solid var(--border)" }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">⚾</span>
@@ -439,7 +439,7 @@ export default function Home() {
       </div>
 
       {/* Tabs — desktop */}
-      <div className="sticky top-[52px] z-30 hidden md:block" style={{ backgroundColor: "#111111", borderBottom: "1px solid #1a1a1a" }}>
+      <div className="sticky top-[52px] z-30 hidden md:block" style={{ backgroundColor: "var(--bg-secondary)", borderBottom: "1px solid var(--border)" }}>
         <div className="max-w-7xl mx-auto flex overflow-x-auto scrollbar-hide">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -456,13 +456,13 @@ export default function Home() {
       </div>
 
       {/* Tabs — mobile */}
-      <div className="md:hidden overflow-x-auto scrollbar-hide" style={{ backgroundColor: "#111111", borderBottom: "1px solid #1a1a1a" }}>
+      <div className="md:hidden overflow-x-auto scrollbar-hide" style={{ backgroundColor: "var(--bg-secondary)", borderBottom: "1px solid var(--border)" }}>
         <div className="flex px-2 py-2 gap-1.5">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap shrink-0"
               style={{
-                backgroundColor: tab === t.id ? "#00c278" : "transparent",
+                backgroundColor: tab === t.id ? "var(--accent)" : "transparent",
                 color:           tab === t.id ? "#000000" : "#888888",
               }}>
               {t.icon} {t.label}

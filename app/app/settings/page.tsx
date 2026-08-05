@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTheme }            from "@/lib/useTheme";
 import { useRouter }           from "next/navigation";
 import { supabase }            from "@/lib/supabase";
 
@@ -298,7 +299,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const [section, setSection] = useState<Section>("general");
 
-  const [appearance,       setAppearance]       = useState("System");
+  const { theme, toggleTheme } = useTheme();
+  const [appearance,       setAppearance]       = useState("Dark");
   const [contrast,         setContrast]         = useState("System");
   const [accent,           setAccent]           = useState("Default");
   const [language,         setLanguage]         = useState("Auto-detect");
@@ -445,7 +447,11 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
-              <SelectRow label="Appearance"   value={appearance} onChange={setAppearance} options={["System","Dark","Light"]} />
+              <SelectRow label="Appearance" value={appearance} onChange={(v) => {
+                setAppearance(v);
+                if (v === "Dark")  toggleTheme("dark");
+                if (v === "Light") toggleTheme("light");
+              }} options={["Dark","Light"]} />
               <SelectRow label="Contrast"     value={contrast}   onChange={setContrast}   options={["System","Medium","Increased"]} />
               <SelectRow label="Accent color" value={accent}     onChange={setAccent}     options={["Default","Blue","Green","Yellow","Pink","Orange","Purple"]} />
               <SelectRow label="Language"     value={language}   onChange={setLanguage}   options={["Auto-detect","English (US)","Spanish","French","German","Russian","Chinese","Japanese"]} />
