@@ -388,6 +388,7 @@ function TradingPanelLoader({ player }: { player: Player }) {
 
 export default function Home() {
   const { theme } = useTheme();
+  const [visibleCount,    setVisibleCount]    = useState(12);
   const [tab,         setTab]         = useState<Tab>("cards");
   const [players,     setPlayers]     = useState<Player[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -493,8 +494,9 @@ export default function Home() {
                   <p className="text-gray-400 text-sm">No cards available</p>
                 </div>
               ) : (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {players.map((player) => (
+                  {players.slice(0, visibleCount).map((player) => (
                     <PlayerCard
                       key={player.id}
                       player={player}
@@ -502,6 +504,15 @@ export default function Home() {
                     />
                   ))}
                 </div>
+                {visibleCount < players.length && (
+                  <button
+                    onClick={() => setVisibleCount(v => v + 12)}
+                    className="w-full mt-4 py-3 rounded-xl font-bold text-sm transition"
+                    style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
+                    Load more ({players.length - visibleCount} remaining)
+                  </button>
+                )}
+                </>
               )}
             </div>
             <div className="space-y-4">
