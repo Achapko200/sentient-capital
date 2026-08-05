@@ -121,7 +121,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
         {!canSeeEbay && (
           <div className="mb-3 rounded-xl px-3 py-2.5 flex items-center justify-between"
             style={{ backgroundColor: "#0d0d0d", border: "1px solid #2a2a2a" }}>
-            <p className="text-xs" style={{ color: "#555" }}>🔒 eBay price chart</p>
+            <p className="text-xs" style={{ color: "#aaaaaa" }}>🔒 eBay price chart</p>
             <a href="/pricing" className="text-xs font-semibold" style={{ color: "#2563eb" }}>Upgrade</a>
           </div>
         )}
@@ -135,7 +135,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
           ].map(({ label, data: d }) => (
             <div key={label} className="rounded-xl p-2 text-center"
               style={{ backgroundColor: "#0d0d0d" }}>
-              <p className="text-xs mb-0.5" style={{ color: "#555" }}>{label}</p>
+              <p className="text-xs mb-0.5" style={{ color: "#aaaaaa" }}>{label}</p>
               <p className="text-xs font-bold"
                 style={{ color: (d?.changePct ?? 0) >= 0 ? "#00c278" : "#ff3b30" }}>
                 {(d?.changePct ?? 0) >= 0 ? "+" : ""}{d?.changePct ?? 0}%
@@ -156,7 +156,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
         <button
           onClick={() => setExpanded(!expanded)}
           className="w-full mt-2 text-xs font-semibold transition"
-          style={{ color: "#555" }}>
+          style={{ color: "#888888" }}>
           {expanded ? "▲ Hide details" : "▼ Show details"}
         </button>
 
@@ -172,7 +172,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
                 ].map(s => (
                   <div key={s.label} className="rounded-xl p-2 text-center"
                     style={{ backgroundColor: "#0d0d0d" }}>
-                    <p className="text-xs mb-0.5" style={{ color: "#555" }}>{s.label}</p>
+                    <p className="text-xs mb-0.5" style={{ color: "#aaaaaa" }}>{s.label}</p>
                     <p className="text-white font-black text-sm">{s.value}</p>
                   </div>
                 ))}
@@ -181,10 +181,10 @@ export default function PlayerCard({ player, onTrade }: Props) {
 
             {cardSignal?.reasons && (
               <div className="rounded-xl p-3" style={{ backgroundColor: "#0d0d0d" }}>
-                <p className="text-xs font-semibold mb-2" style={{ color: "#555" }}>Signal reasoning</p>
+                <p className="text-xs font-semibold mb-2" style={{ color: "#aaaaaa" }}>Signal reasoning</p>
                 <ul className="space-y-1">
                   {cardSignal.reasons.map((r: string, i: number) => (
-                    <li key={i} className="text-xs" style={{ color: "#888" }}>• {r}</li>
+                    <li key={i} className="text-xs" style={{ color: "#cccccc" }}>• {r}</li>
                   ))}
                 </ul>
               </div>
@@ -192,11 +192,11 @@ export default function PlayerCard({ player, onTrade }: Props) {
 
             {canSeeEbay && sales.length > 0 && (
               <div className="rounded-xl p-3" style={{ backgroundColor: "#0d0d0d" }}>
-                <p className="text-xs font-semibold mb-2" style={{ color: "#555" }}>Recent eBay sales</p>
+                <p className="text-xs font-semibold mb-2" style={{ color: "#aaaaaa" }}>Recent eBay sales</p>
                 <div className="space-y-1.5">
                   {sales.slice(0, 4).map(s => (
                     <div key={s.id} className="flex justify-between text-xs">
-                      <span style={{ color: "#555" }}>{s.date}</span>
+                      <span style={{ color: "#888888" }}>{s.date}</span>
                       <span className="text-white font-bold">${s.price}</span>
                     </div>
                   ))}
