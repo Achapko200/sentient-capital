@@ -111,7 +111,7 @@ export default function CardPurchasePanel({ player }: Props) {
         player_name: player.name,
         card_name:   player.cardName ?? "",
         price:       price,
-        fee:         price * 0.05,
+        fee:         price * 0.10,
         type:        "sell",
         status:      "pending",
       });
@@ -236,15 +236,15 @@ export default function CardPurchasePanel({ player }: Props) {
               <span className="text-white font-bold">${price.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Transaction fee (5%)</span>
-              <span className="text-gray-400">${(price * 0.05).toFixed(2)}</span>
+              <span className="text-gray-500">Transaction fee (10%)</span>
+              <span className="text-gray-400">${(price * 0.10).toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-t border-gray-800 pt-1">
               <span className="text-gray-400 font-semibold">
                 {mode === "buy" ? "Total to pay" : "You receive"}
               </span>
               <span className="text-white font-black">
-                ${mode === "buy" ? (price * 1.05).toFixed(2) : (price * 0.95).toFixed(2)}
+                ${mode === "buy" ? (price * 1.10).toFixed(2) : (price * 0.90).toFixed(2)}
               </span>
             </div>
           </div>
@@ -285,12 +285,12 @@ export default function CardPurchasePanel({ player }: Props) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Fee (5%)</span>
-                  <span className="text-gray-400">${(price * 0.05).toFixed(2)}</span>
+                  <span className="text-gray-400">${(price * 0.10).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between border-t border-gray-800 pt-1">
                   <span className="text-gray-400 font-semibold">Total</span>
                   <span className="text-white font-black">
-                    ${mode === "buy" ? (price * 1.05).toFixed(2) : (price * 0.95).toFixed(2)}
+                    ${mode === "buy" ? (price * 1.10).toFixed(2) : (price * 0.90).toFixed(2)}
                   </span>
                 </div>
                 <div className="border-t border-gray-800 pt-1">
@@ -333,7 +333,7 @@ export default function CardPurchasePanel({ player }: Props) {
                   ? "bg-green-600 hover:bg-green-500 text-white"
                   : "bg-red-600 hover:bg-red-500 text-white"
               }`}>
-              {!email ? "Sign in to trade" : mode === "buy" ? `Buy for $${(price * 1.05).toFixed(2)}` : `Sell for $${(price * 0.95).toFixed(2)}`}
+              {!email ? "Sign in to trade" : mode === "buy" ? `Buy for $${(price * 1.10).toFixed(2)}` : `Sell for $${(price * 0.90).toFixed(2)}`}
             </button>
           )}
 

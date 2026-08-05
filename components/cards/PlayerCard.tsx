@@ -161,8 +161,8 @@ export default function PlayerCard({ player, onTrade }: Props) {
         {/* CTA */}
         <button onClick={() => onTrade?.(player)}
           className="w-full py-2.5 rounded-xl font-black text-sm transition hover:opacity-90 active:scale-95"
-          style={{ backgroundColor: pal.border, color: signal === "HOLD" ? "#000" : "#000" }}>
-          Trade {player.name.split(" ").pop()} →
+          style={{ backgroundColor: pal.border, color: "#000" }}>
+          Buy for ${(displayPrice * 1.10).toFixed(2)} (incl. 10% fee) →
         </button>
 
         {/* Expand toggle */}
