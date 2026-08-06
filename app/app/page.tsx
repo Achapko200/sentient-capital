@@ -6,6 +6,7 @@ import type { Player }            from "@/lib/cardTypes";
 import type { CardToken }         from "@/lib/cardToken";
 import PlayerCard                 from "@/components/cards/PlayerCard";
 import NewsTickerCard             from "@/components/cards/NewsTickerCard";
+import NewsTicker                  from "@/components/cards/NewsTicker";
 import TraderLeaderboard          from "@/components/cards/TraderLeaderboard";
 import AnalystPanel               from "@/components/cards/AnalystPanel";
 import Marketplace                from "@/components/cards/Marketplace";
@@ -476,6 +477,7 @@ export default function Home() {
       {/* Upgrade banner for free users */}
       <UpgradeBanner />
 
+      <NewsTicker />
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8 pb-24 md:pb-8">
 
         {/* ── CARDS TAB — public ─────────────────────────────────────────────── */}
