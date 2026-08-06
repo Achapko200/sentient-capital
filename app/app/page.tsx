@@ -477,7 +477,6 @@ export default function Home() {
       {/* Upgrade banner for free users */}
       <UpgradeBanner />
 
-      <NewsTicker />
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8 pb-24 md:pb-8">
 
         {/* ── CARDS TAB — public ─────────────────────────────────────────────── */}
@@ -514,10 +513,14 @@ export default function Home() {
                     Load more ({players.length - visibleCount} remaining)
                   </button>
                 )}
+                {/* Mobile news — only visible on small screens */}
+                <div className="lg:hidden mt-4">
+                  <NewsTickerCard />
+                </div>
                 </>
               )}
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 hidden lg:block">
               <NewsTickerCard />
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold text-base mb-4">How signals work</h3>
