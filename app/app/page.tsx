@@ -484,7 +484,7 @@ export default function Home() {
         {/* ── MARKET TAB ─────────────────────────────────────────────────── */}
         {tab === "cards" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 order-2 lg:order-1">
+            <div className="lg:col-span-2">
               {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => (
@@ -517,7 +517,7 @@ export default function Home() {
                 </>
               )}
             </div>
-            <div className="space-y-4 order-1 lg:order-2">
+            <div className="space-y-4">
               <NewsTickerCard />
               <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
                 <h3 className="text-gray-900 font-bold text-base mb-4">How signals work</h3>
