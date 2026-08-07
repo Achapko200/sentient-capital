@@ -16,13 +16,9 @@ type CardOrder = {
 };
 
 async function cancelOrder(id: string, setOrders: React.Dispatch<React.SetStateAction<CardOrder[]>>) {
-  const { createClient } = await import("@supabase/supabase-js");
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  await supabase.from("card_orders").update({ status: "cancelled" }).eq("id", id);
-  setOrders(prev => prev.filter(o => o.id !== id));
+  const { supabase } = await import("@/lib/supabase");
+  const { error } = await supabase.from("card_orders").update({ status: "cancelled" }).eq("id", id);
+  if (!error) setOrders(prev => prev.filter(o => o.id !== id));
 }
 
 export default function MyCards() {
