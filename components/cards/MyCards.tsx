@@ -33,7 +33,8 @@ export default function MyCards() {
         .select("*")
         .eq("user_id", data.user.id)
         .neq("status", "cancelled")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(50);
       setOrders(orders ?? []);
       setLoading(false);
     });
