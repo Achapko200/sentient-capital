@@ -36,6 +36,7 @@ export default function MyCards() {
         .from("card_orders")
         .select("*")
         .eq("user_id", data.user.id)
+        .neq("status", "cancelled")
         .order("created_at", { ascending: false });
       setOrders(orders ?? []);
       setLoading(false);
