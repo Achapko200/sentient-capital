@@ -55,40 +55,47 @@ export default function InstallPrompt() {
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[400] p-4 animate-slide-up">
-      <div className="max-w-lg mx-auto rounded-2xl shadow-2xl overflow-hidden"
+    <div className="fixed inset-0 z-[400] flex items-end md:items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
         style={{ backgroundColor: "#1a1a1a", border: "1px solid #2a2a2a" }}>
-        <div className="p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+
+        {/* Header */}
+        <div className="p-6 text-center">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4"
             style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
             ⚾
           </div>
-          <div className="flex-1">
-            <p className="font-black text-white text-sm">Add Card Tracker to Home Screen</p>
-            {isIOS ? (
-              <p className="text-xs mt-0.5" style={{ color: "#888" }}>
-                Tap <strong style={{ color: "#ccc" }}>Share</strong> then <strong style={{ color: "#ccc" }}>Add to Home Screen</strong>
-              </p>
-            ) : (
-              <p className="text-xs mt-0.5" style={{ color: "#888" }}>
-                Get the full app experience — faster and works offline
-              </p>
-            )}
+          <h3 className="font-black text-white text-lg mb-1">Card Tracker</h3>
+          <p className="text-sm" style={{ color: "#888" }}>
+            {isIOS
+              ? "Add to your Home Screen for the best experience"
+              : "Install the app for a faster, full-screen experience"}
+          </p>
+        </div>
+
+        {/* iOS instructions */}
+        {isIOS && (
+          <div className="mx-4 mb-4 p-3 rounded-xl text-xs text-center"
+            style={{ backgroundColor: "#2a2a2a", color: "#ccc" }}>
+            Tap <strong>Share ↑</strong> then <strong>Add to Home Screen</strong>
           </div>
-          <div className="flex flex-col gap-2 shrink-0">
-            {!isIOS && (
-              <button onClick={handleInstall}
-                className="px-4 py-2 rounded-xl text-xs font-black text-black transition"
-                style={{ backgroundColor: "#00c278" }}>
-                Install
-              </button>
-            )}
-            <button onClick={handleDismiss}
-              className="px-4 py-2 rounded-xl text-xs font-semibold transition"
-              style={{ color: "#888", backgroundColor: "#2a2a2a" }}>
-              {isIOS ? "Got it" : "Not now"}
+        )}
+
+        {/* Buttons */}
+        <div className="p-4 space-y-2">
+          {!isIOS && (
+            <button onClick={handleInstall}
+              className="w-full py-3 rounded-xl font-black text-sm text-black transition hover:opacity-90"
+              style={{ backgroundColor: "#00c278" }}>
+              📲 Install App
             </button>
-          </div>
+          )}
+          <button onClick={handleDismiss}
+            className="w-full py-3 rounded-xl font-semibold text-sm transition"
+            style={{ backgroundColor: "#2a2a2a", color: "#aaa" }}>
+            Continue in Browser
+          </button>
         </div>
       </div>
     </div>
