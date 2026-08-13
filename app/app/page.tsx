@@ -12,6 +12,7 @@ import AnalystPanel               from "@/components/cards/AnalystPanel";
 import Marketplace                from "@/components/cards/Marketplace";
 import ListCardForm               from "@/components/cards/ListCardForm";
 import ScoutChat                   from "@/components/cards/ScoutChat";
+import InstallPrompt                from "@/components/InstallPrompt";
 import PasskeyPrompt                from "@/components/PasskeyPrompt";
 import TradingPanel               from "@/components/cards/TradingPanel";
 import Portfolio                  from "@/components/cards/Portfolio";
@@ -717,7 +718,9 @@ export default function Home() {
         )}
       </div>
       <ScoutChat players={players} />
+      <InstallPrompt />
       <ScoutChat players={players} />
+      <InstallPrompt />
     </div>
   );
 }
