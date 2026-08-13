@@ -8,21 +8,16 @@ export default function InstallPrompt() {
   const [isIOS,       setIsIOS]       = useState(false);
 
   useEffect(() => {
-    // Check if iOS
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(ios);
 
-    // Check if already installed
+    // Don't show if already installed as PWA
     const isInstalled = window.matchMedia("(display-mode: standalone)").matches;
     if (isInstalled) return;
 
-    // Check if dismissed
-    const dismissed = sessionStorage.getItem("install_prompt_dismissed");
-    if (dismissed) return;
-
+    // Show after 2 seconds on every page load
     if (ios) {
-      // Show iOS instructions after 3 seconds
-      const timer = setTimeout(() => setShow(true), 3000);
+      const timer = setTimeout(() => setShow(true), 2000);
       return () => clearTimeout(timer);
     }
 
@@ -30,25 +25,33 @@ export default function InstallPrompt() {
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setTimeout(() => setShow(true), 3000);
+      setTimeout(() => setShow(true), 2000);
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstall = async () => {
+    if (isIOS) {
+      // iOS — open App Store (update with your real App Store link when published)
+      window.open("https://apps.apple.com/search?term=card+tracker", "_blank");
+      setShow(false);
+      return;
+    }
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") setShow(false);
+      if (outcome === "accepted") {
+        setShow(false);
+        return;
+      }
       setDeferredPrompt(null);
     }
-    sessionStorage.setItem("install_prompt_dismissed", "true");
     setShow(false);
   };
 
   const handleDismiss = () => {
-    sessionStorage.setItem("install_prompt_dismissed", "true");
+    // Just close — will show again on next page load
     setShow(false);
   };
 
