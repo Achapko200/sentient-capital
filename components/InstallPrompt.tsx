@@ -55,7 +55,7 @@ export default function InstallPrompt() {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-end md:items-center justify-center p-4"
+    <div className="fixed inset-0 z-[400] flex items-end justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
       <div className="w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
         style={{ backgroundColor: "#1a1a1a", border: "1px solid #2a2a2a" }}>
