@@ -33,8 +33,8 @@ export default function InstallPrompt() {
 
   const handleInstall = async () => {
     if (isIOS) {
-      // iOS — open App Store (update with your real App Store link when published)
-      window.open("https://apps.apple.com/search?term=card+tracker", "_blank");
+      // iOS — show instructions since app isn't on App Store yet
+      alert("To install: tap the Share button (□↑) at the bottom of Safari, then tap 'Add to Home Screen'");
       setShow(false);
       return;
     }
@@ -59,8 +59,9 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed inset-0 z-[400] flex items-end justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
-      <div className="w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
+      style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+      onClick={handleDismiss}>
+      <div className="w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}
         style={{ backgroundColor: "#1a1a1a", border: "1px solid #2a2a2a" }}>
 
         {/* Header */}
