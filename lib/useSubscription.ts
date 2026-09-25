@@ -37,7 +37,10 @@ export function useSubscription() {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { setLoading(false); return; }
       try {
-        const res = await fetch(`/api/subscription?userId=${data.user.id}`);
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(`/api/subscription?userId=${data.user.id}`, {
+          headers: { authorization: `Bearer ${session?.access_token ?? ""}` }
+        });
         const sub = await res.json();
         setTier(sub.tier ?? "free");
       } catch {

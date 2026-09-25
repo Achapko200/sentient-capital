@@ -8,6 +8,17 @@ export async function GET(req: Request) {
   const userId = searchParams.get("userId");
   if (!userId) return Response.json({ tier: "free" });
 
+  // Verify the session matches the userId
+  const authHeader = req.headers.get("authorization") ?? "";
+  const { createClient } = await import("@supabase/supabase-js");
+  const userClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { authorization: authHeader } } }
+  );
+  const { data: { user } } = await userClient.auth.getUser();
+  if (!user || user.id !== userId) return Response.json({ tier: "free" });
+
   const { data } = await supabaseAdmin
     .from("subscriptions")
     .select("tier, status, current_period_end")
