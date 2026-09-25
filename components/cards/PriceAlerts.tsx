@@ -126,7 +126,7 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
           <div>
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1 block">Player</label>
             <select value={cardId} onChange={e => setCardId(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-blue-400">
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" style={{ backgroundColor: "var(--bg-card)", color: "var(--text-primary)", borderColor: "var(--border)" }}>
               {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
