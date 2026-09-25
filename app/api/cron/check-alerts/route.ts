@@ -47,7 +47,7 @@ export async function GET(req: Request) {
                 "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
               },
               body: JSON.stringify({
-                from:    "Card Tracker <alerts@cardtracker.app>",
+                from:    "Card Tracker <onboarding@resend.dev>",
                 to:      [alert.email],
                 subject: `🔔 Price Alert: ${alert.player_name} ${alert.direction === "ABOVE" ? "above" : "below"} $${alert.target_price}`,
                 html: `

@@ -73,7 +73,7 @@ export async function POST(req: Request) {
             "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
           },
           body: JSON.stringify({
-            from:    "Card Tracker <orders@cardtracker.app>",
+            from:    "Card Tracker <onboarding@resend.dev>",
             to:      ["anna.chapko.2004@gmail.com"],
             subject: `🎉 New Card Sale — ${playerName}`,
             html: `
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
               "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
             },
             body: JSON.stringify({
-              from:    "Card Tracker <orders@cardtracker.app>",
+              from:    "Card Tracker <onboarding@resend.dev>",
               to:      [buyerEmail],
               subject: `✅ Order Confirmed — ${playerName} PSA 10`,
               html: `
