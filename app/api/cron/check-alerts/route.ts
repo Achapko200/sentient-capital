@@ -51,17 +51,52 @@ export async function GET(req: Request) {
                 to:      [alert.email],
                 subject: `🔔 Price Alert: ${alert.player_name} ${alert.direction === "ABOVE" ? "above" : "below"} $${alert.target_price}`,
                 html: `
-                  <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-                    <h2>⚾ Card Tracker Price Alert</h2>
-                    <p>Your price alert for <strong>${alert.player_name}</strong> has been triggered!</p>
-                    <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                      <p><strong>Current Price:</strong> $${currentPrice.toFixed(2)}</p>
-                      <p><strong>Your Target:</strong> ${alert.direction === "ABOVE" ? "Above" : "Below"} $${alert.target_price}</p>
+                  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; background: #ffffff;">
+                    
+                    <!-- Header -->
+                    <div style="background: #0d0d0d; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 28px;">⚾</span>
+                        <span style="color: #ffffff; font-size: 20px; font-weight: 900; letter-spacing: -0.5px;">Card Tracker</span>
+                      </div>
                     </div>
-                    <a href="https://sentient-capital.vercel.app/app" 
-                       style="background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">
-                      View on Card Tracker
-                    </a>
+
+                    <!-- Body -->
+                    <div style="padding: 32px; background: #111111; border-radius: 0 0 12px 12px;">
+                      
+                      <!-- Alert badge -->
+                      <div style="display: inline-block; background: ${alert.direction === "ABOVE" ? "#0a2e1a" : "#2e0a0a"}; border: 1px solid ${alert.direction === "ABOVE" ? "#00c278" : "#ff3b30"}; border-radius: 20px; padding: 6px 14px; margin-bottom: 20px;">
+                        <span style="color: ${alert.direction === "ABOVE" ? "#00c278" : "#ff3b30"}; font-size: 12px; font-weight: 800;">🔔 PRICE ALERT TRIGGERED</span>
+                      </div>
+
+                      <!-- Player name -->
+                      <h1 style="color: #ffffff; font-size: 28px; font-weight: 900; margin: 0 0 4px 0; letter-spacing: -0.5px;">${alert.player_name}</h1>
+                      <p style="color: #888888; font-size: 14px; margin: 0 0 24px 0;">PSA 10 Rookie Card</p>
+
+                      <!-- Price box -->
+                      <div style="background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                          <span style="color: #888888; font-size: 13px;">Current Market Price</span>
+                          <span style="color: #00c278; font-size: 24px; font-weight: 900;">$${currentPrice.toFixed(2)}</span>
+                        </div>
+                        <div style="border-top: 1px solid #2a2a2a; padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #888888; font-size: 13px;">Your Target</span>
+                          <span style="color: #ffffff; font-size: 14px; font-weight: 700;">${alert.direction === "ABOVE" ? "📈 Above" : "📉 Below"} $${alert.target_price}</span>
+                        </div>
+                      </div>
+
+                      <!-- CTA -->
+                      <a href="https://sentient-capital.vercel.app/app" 
+                         style="display: block; background: #00c278; color: #000000; text-align: center; padding: 14px 24px; border-radius: 10px; text-decoration: none; font-weight: 900; font-size: 15px; margin-bottom: 24px;">
+                        View Card & Trade Now →
+                      </a>
+
+                      <!-- Footer -->
+                      <p style="color: #555555; font-size: 12px; text-align: center; margin: 0;">
+                        You're receiving this because you set a price alert on Card Tracker.<br/>
+                        <a href="https://sentient-capital.vercel.app/app" style="color: #555555;">Manage alerts</a>
+                      </p>
+                    </div>
                   </div>
                 `,
               }),
