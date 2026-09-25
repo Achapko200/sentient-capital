@@ -16,9 +16,20 @@ export async function GET(req: Request) {
   const limited = await checkRateLimit(req, "read");
   if (limited) return limited;
 
+  // Verify session
+  const userClient = getUserClient(req);
+  const { data: { user } } = await userClient.auth.getUser();
+  if (!user) return Response.json({ alerts: [] });
+
   const { searchParams } = new URL(req.url);
   const wallet = searchParams.get("wallet") ?? "";
   if (!wallet.trim()) return Response.json({ alerts: [] });
+
+  // Make sure wallet belongs to this user
+  const expectedWallet = `email:${user.email}`;
+  if (wallet !== expectedWallet && wallet !== user.id) {
+    return Response.json({ alerts: [] });
+  }
 
   const alerts = await getAlerts(wallet);
   return Response.json({ alerts });

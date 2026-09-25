@@ -33,7 +33,11 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
     }
 
     try {
-      const res = await fetch(`/api/cards/alerts?wallet=${encodeURIComponent(walletKey)}`);
+      const { supabase } = await import("@/lib/supabase");
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/cards/alerts?wallet=${encodeURIComponent(walletKey)}`, {
+        headers: { Authorization: `Bearer ${session?.access_token ?? ""}` }
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Unable to load alerts");
       setAlerts(data.alerts ?? []);
