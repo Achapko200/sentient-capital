@@ -110,7 +110,7 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
   };
 
   if (!walletKey) return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+    <div className="rounded-2xl p-8 text-center" style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)" }}>
       <p className="text-gray-400 text-sm">Sign in to create and manage price alerts.</p>
     </div>
   );
@@ -119,7 +119,7 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
     <div className="space-y-4">
 
       {/* Create alert */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+      <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)" }}>
         <h3 className="text-gray-900 font-black mb-4">🔔 Set Price Alert</h3>
         <div className="space-y-3">
 
@@ -147,7 +147,7 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
           <div>
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1 block">Target Price ($)</label>
             <input type="number" placeholder="e.g. 3.50" value={price} onChange={e => setPrice(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+              className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border)" }} />
           </div>
 
           <div>
@@ -155,7 +155,7 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
               Email (optional — get notified)
             </label>
             <input type="email" placeholder="you@email.com" value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+              className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border)" }} />
           </div>
 
           {error && <p className="text-red-600 text-xs">{error}</p>}
@@ -170,8 +170,8 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
 
       {/* Active alerts */}
       {alerts.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100">
+        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
             <h3 className="text-gray-900 font-black text-sm">Active Alerts</h3>
           </div>
           <div className="divide-y divide-gray-100">
