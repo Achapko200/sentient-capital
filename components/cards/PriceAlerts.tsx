@@ -159,7 +159,7 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
           </div>
 
           {error && <p className="text-red-600 text-xs">{error}</p>}
-          {success && <p className="text-green-600 text-xs">{success}</p>}
+          {success {success && <p className="text-green-600 text-xs">{success}</p>}{success && <p className="text-green-600 text-xs">{success}</p>} <p className="text-green-600 text-xs">{success} Check spam if you do not see the email.</p>}
 
           <button onClick={handleCreate} disabled={loading || !price}
             className="w-full py-3 rounded-xl bg-blue-600 text-white font-black text-sm hover:bg-blue-700 transition disabled:opacity-50">
