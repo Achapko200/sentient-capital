@@ -1,20 +1,35 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { checkRateLimit } from "@/lib/ratelimit";
+import { createClient }   from "@supabase/supabase-js";
+
+function getUserClient(req: Request) {
+  const token = req.headers.get("authorization")?.replace("Bearer ", "") ?? "";
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  );
+}
+
+async function getVerifiedUser(req: Request) {
+  const userClient = getUserClient(req);
+  const { data: { user } } = await userClient.auth.getUser();
+  return user;
+}
 
 export async function GET(req: Request) {
   const limited = await checkRateLimit(req, "read");
   if (limited) return limited;
 
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-  if (!userId) return Response.json({ chats: [] });
+  const user = await getVerifiedUser(req);
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data } = await supabaseAdmin
     .from("ai_chats")
     .select("id, title, created_at, updated_at")
-    .eq("user_id", userId)
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
-    .limit(50);
+    .limit(20);
 
   return Response.json({ chats: data ?? [] });
 }
@@ -23,40 +38,46 @@ export async function POST(req: Request) {
   const limited = await checkRateLimit(req, "write");
   if (limited) return limited;
 
-  const { action, userId, chatId, title, messages } = await req.json();
+  const user = await getVerifiedUser(req);
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  let body: any;
+  try { body = await req.json(); }
+  catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  if (action === "create") {
-    const { data, error } = await supabaseAdmin
+  const { chatId, title, messages } = body;
+
+  if (chatId) {
+    const { data } = await supabaseAdmin
       .from("ai_chats")
-      .insert({ user_id: userId, title: title ?? "New chat", messages: messages ?? [] })
+      .update({ title, messages, updated_at: new Date().toISOString() })
+      .eq("id", chatId)
+      .eq("user_id", user.id)
       .select()
       .single();
-    if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json({ chat: data });
   }
 
-  if (action === "update") {
-    const { data, error } = await supabaseAdmin
-      .from("ai_chats")
-      .update({ messages, title, updated_at: new Date().toISOString() })
-      .eq("id", chatId)
-      .eq("user_id", userId)
-      .select()
-      .single();
-    if (error) return Response.json({ error: error.message }, { status: 500 });
-    return Response.json({ chat: data });
-  }
+  const { data } = await supabaseAdmin
+    .from("ai_chats")
+    .insert({ user_id: user.id, title, messages })
+    .select()
+    .single();
 
-  if (action === "delete") {
-    await supabaseAdmin
-      .from("ai_chats")
-      .delete()
-      .eq("id", chatId)
-      .eq("user_id", userId);
-    return Response.json({ success: true });
-  }
+  return Response.json({ chat: data });
+}
 
-  return Response.json({ error: "Invalid action" }, { status: 400 });
+export async function DELETE(req: Request) {
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
+
+  const user = await getVerifiedUser(req);
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const chatId = searchParams.get("id");
+  if (!chatId) return Response.json({ error: "Missing id" }, { status: 400 });
+
+  await supabaseAdmin.from("ai_chats").delete().eq("id", chatId).eq("user_id", user.id);
+  return Response.json({ ok: true });
 }

@@ -11,6 +11,12 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
   const { primaryWallet } = useDynamicContext();
   const { email: authEmail } = useAuth();
   const walletKey = primaryWallet?.address ?? (authEmail ? `email:${authEmail}` : null);
+
+  const getAuthHeaders = async () => {
+    const { supabase } = await import("@/lib/supabase");
+    const { data: { session } } = await supabase.auth.getSession();
+    return { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token ?? ""}` };
+  };
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [cardId, setCardId] = useState(players[0]?.id ?? "");
   const [direction, setDirection] = useState<"ABOVE" | "BELOW">("ABOVE");
@@ -66,9 +72,10 @@ export default function PriceAlerts({ players }: { players: Player[] }) {
 
     try {
       const player = players.find((p) => p.id === cardId);
+      const authHeaders = await getAuthHeaders();
       const res = await fetch("/api/cards/alerts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({
           wallet: walletKey,
           cardId,

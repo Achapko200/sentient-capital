@@ -8,6 +8,12 @@ type Chat    = { id: string; title: string; updated_at: string };
 
 export default function AIAssistant({ players }: { players: { name: string; id: string }[] }) {
   const [chats,        setChats]        = useState<Chat[]>([]);
+
+  const getAuthHeaders = async () => {
+    const { supabase } = await import("@/lib/supabase");
+    const { data: { session } } = await supabase.auth.getSession();
+    return { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token ?? ""}` };
+  };
   const [chatId,       setChatId]       = useState<string | null>(null);
   const [messages,     setMessages]     = useState<Message[]>([]);
   const [input,        setInput]        = useState("");
@@ -27,10 +33,12 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
   useEffect(() => {
     if (!userId) return;
     setLoadingChats(true);
-    fetch(`/api/cards/chats?userId=${userId}`)
-      .then(r => r.json())
-      .then(d => setChats(d.chats ?? []))
-      .finally(() => setLoadingChats(false));
+    import("@/lib/supabase").then(({ supabase }) => supabase.auth.getSession()).then(({ data: { session } }) => {
+      fetch("/api/cards/chats", { headers: { Authorization: `Bearer ${session?.access_token ?? ""}` } })
+        .then(r => r.json())
+        .then(d => setChats(d.chats ?? []))
+        .finally(() => setLoadingChats(false));
+    });
   }, [userId]);
 
   useEffect(() => {
@@ -60,11 +68,8 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
 
   const deleteChat = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await fetch("/api/cards/chats", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ action: "delete", userId, chatId: id }),
-    });
+    const headers = await getAuthHeaders();
+    await fetch(`/api/cards/chats?id=${id}`, { method: "DELETE", headers });
     setChats(prev => prev.filter(c => c.id !== id));
     if (chatId === id) newChat();
   };
@@ -93,18 +98,20 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
       setMessages(finalMessages);
 
       if (chatId) {
+        const headers2 = await getAuthHeaders();
         await fetch("/api/cards/chats", {
           method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ action: "update", userId, chatId, messages: finalMessages, title: chats.find(c => c.id === chatId)?.title ?? generateTitle(userMsg.content) }),
+          headers: headers2,
+          body:    JSON.stringify({ chatId, messages: finalMessages, title: chats.find(c => c.id === chatId)?.title ?? generateTitle(userMsg.content) }),
         });
         setChats(prev => prev.map(c => c.id === chatId ? { ...c, updated_at: new Date().toISOString() } : c));
       } else {
         const title = generateTitle(userMsg.content);
+        const headers3 = await getAuthHeaders();
         const cRes  = await fetch("/api/cards/chats", {
           method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ action: "create", userId, title, messages: finalMessages }),
+          headers: headers3,
+          body:    JSON.stringify({ title, messages: finalMessages }),
         });
         const cData = await cRes.json();
         if (cData.chat) { setChatId(cData.chat.id); setChats(prev => [cData.chat, ...prev]); }
