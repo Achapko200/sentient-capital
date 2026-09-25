@@ -11,6 +11,7 @@ const RATING_STYLE: Record<string, string> = {
   "STRONG SELL": "bg-red-100 text-red-700 border-red-200",
 };
 
+// Disclaimer: Analyst ratings are illustrative examples, not real research
 export default function AnalystPanel() {
   const [analyses, setAnalyses] = useState<CardAnalysis[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -29,7 +30,7 @@ export default function AnalystPanel() {
       <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
         <div>
           <h3 className="text-gray-900 font-black text-base">Analyst Picks</h3>
-          <p className="text-gray-400 text-xs mt-0.5">AI-generated from live MLB stats</p>
+          <p className="text-gray-400 text-xs mt-0.5">AI-generated from live MLB stats · For illustrative purposes only</p>
         </div>
         <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
           LIVE

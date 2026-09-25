@@ -30,6 +30,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // Only allow internal calls from Stripe webhook — not public
+  const secret = req.headers.get("x-internal-secret");
+  if (secret !== process.env.ADMIN_SECRET_KEY) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
   let body: any;
   try { body = await req.json(); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
   const { userId, tier } = body;

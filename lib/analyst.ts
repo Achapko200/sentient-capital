@@ -29,8 +29,8 @@ export type CardAnalysis = {
 };
 
 const ANALYSTS: Analyst[] = [
-  { name: "Mike Torres",  firm: "CardAlpha Research", avatar: "🎓", specialty: "Rookies & Prospects" },
-  { name: "Sarah Chen",   firm: "Diamond Grade LLC",  avatar: "💎", specialty: "Vintage & HOF Cards"  },
+  { name: "Mike Torres",  firm: "Illustrative Research", avatar: "🎓", specialty: "Rookies & Prospects" },
+  { name: "Sarah Chen",   firm: "Illustrative Research",  avatar: "💎", specialty: "Vintage & HOF Cards"  },
   { name: "James Wright", firm: "Beckett Analytics",  avatar: "📊", specialty: "Market Timing"        },
 ];
 
