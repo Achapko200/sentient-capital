@@ -44,6 +44,8 @@ function deriveColors(abbrev: string): { cardColor: string; teamColor: string } 
   return MLB_COLORS[abbrev] ?? DEFAULT_COLORS;
 }
 
+// Card name lookup — MLB player IDs mapped to their most valuable rookie card
+// IDs sourced from MLB Stats API, names from Topps/PSA official records
 const KNOWN_CARDS: Record<string, string> = {
   "656941": "Kyle Schwarber 2015 Topps Chrome Rookie PSA 10",
   "670541": "Yordan Alvarez 2019 Topps Chrome Rookie PSA 10",

@@ -103,10 +103,10 @@ export default function Landing() {
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { name: "Kyle Schwarber",   team: "Philadelphia Phillies", signal: "BUY",  pct: "+7.1%",  price: "$687", color: "border-green-500/40 bg-green-950/20"  },
-              { name: "Paul Skenes",      team: "Pittsburgh Pirates",    signal: "BUY",  pct: "+12.3%", price: "$420", color: "border-green-500/40 bg-green-950/20"  },
-              { name: "Yordan Alvarez",   team: "Houston Astros",        signal: "HOLD", pct: "+2.1%",  price: "$164", color: "border-yellow-500/40 bg-yellow-950/20" },
-              { name: "Gunnar Henderson", team: "Baltimore Orioles",     signal: "SELL", pct: "-3.2%",  price: "$312", color: "border-red-500/40 bg-red-950/20"       },
+              { name: "Top HR Leader",    team: "MLB",          signal: "BUY",  pct: "+7.1%",  price: "$687", color: "border-green-500/40 bg-green-950/20"  },
+              { name: "Top Prospect",     team: "MLB",          signal: "BUY",  pct: "+12.3%", price: "$420", color: "border-green-500/40 bg-green-950/20"  },
+              { name: "OPS Leader",       team: "MLB",          signal: "HOLD", pct: "+2.1%",  price: "$164", color: "border-yellow-500/40 bg-yellow-950/20" },
+              { name: "Rising Star",      team: "MLB",          signal: "SELL", pct: "-3.2%",  price: "$312", color: "border-red-500/40 bg-red-950/20"       },
             ].map(card => (
               <div key={card.name} className={"border " + card.color + " rounded-2xl p-4 flex items-center justify-between"}>
                 <div className="flex items-center gap-3">
