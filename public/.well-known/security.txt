@@ -1,0 +1,4 @@
+Contact: mailto:anna.chapko.2004@gmail.com
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://sentient-capital.vercel.app/.well-known/security.txt

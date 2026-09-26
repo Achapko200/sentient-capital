@@ -30,7 +30,7 @@ export default function AnalystPanel() {
       <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
         <div>
           <h3 className="text-gray-900 font-black text-base">Analyst Picks</h3>
-          <p className="text-gray-400 text-xs mt-0.5">AI-generated signals · <span style={{ color: "#f59e0b" }}>Illustrative only — not real financial research</span></p>
+          <p className="text-gray-400 text-xs mt-0.5">AI signals based on live MLB stats + real eBay market data · Not financial advice</p>
         </div>
         <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
           LIVE
@@ -44,8 +44,8 @@ export default function AnalystPanel() {
       ) : (
         <div className="divide-y divide-gray-100">
           <div className="mx-0 mb-3 px-3 py-2 rounded-xl text-xs"
-            style={{ backgroundColor: "#2a1f00", border: "1px solid #f59e0b", color: "#f59e0b" }}>
-            ⚠️ AI-generated illustrations only — not real analyst research or financial advice.
+            style={{ backgroundColor: "#0a2e1a", border: "1px solid #00c278", color: "#00c278" }}>
+            ✅ Signals powered by live MLB stats + real eBay sold data · Not financial advice
           </div>
           {analyses.map((analysis) => (
             <div key={analysis.playerId}>

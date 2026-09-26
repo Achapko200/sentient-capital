@@ -5,6 +5,25 @@ export async function POST(req: Request) {
     apiVersion: "2026-06-24.dahlia" as any,
   });
 
+  // Zero trust verification for payments
+  const authHeader = req.headers.get("authorization") ?? "";
+  const { createClient } = await import("@supabase/supabase-js");
+  const userClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+  const { data: { user } } = await userClient.auth.getUser();
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Anomaly detection on payment
+  const { requireContinuousAuth } = await import("@/lib/zero-trust");
+  const { authorized, reason } = await requireContinuousAuth(req, user.id, "payment");
+  if (!authorized) {
+    await (await import("@/lib/audit")).audit("AUTH_FAILURE", user.id, { reason, action: "payment" }, req);
+    return Response.json({ error: "Security check failed. Please try again." }, { status: 403 });
+  }
+
   try {
     const { cardId, playerName, shares, pricePerShare, userId, email } = await req.json();
 

@@ -244,7 +244,48 @@ export default function PlayerCard({ player, onTrade }: Props) {
               </div>
             )}
 
-            {/* Signal reasoning — colored left border */}
+            {/* PSA Population Data */}
+            {(data as any)?.psaPopulation && (
+              <div className="rounded-xl p-3"
+                style={{ backgroundColor: "var(--bg-primary)", borderLeft: "3px solid #2563eb" }}>
+                <p className="text-xs font-black mb-2" style={{ color: "#2563eb" }}>
+                  PSA Population Report
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p style={{ color: "var(--text-muted)" }}>PSA 10 copies</p>
+                    <p className="font-black" style={{ color: "var(--text-primary)" }}>
+                      {(data as any).psaPopulation.psa10Count.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ color: "var(--text-muted)" }}>Total graded</p>
+                    <p className="font-black" style={{ color: "var(--text-primary)" }}>
+                      {(data as any).psaPopulation.totalGraded.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ color: "var(--text-muted)" }}>Grade rate</p>
+                    <p className="font-black" style={{ color: "var(--text-primary)" }}>
+                      {(data as any).psaPopulation.psa10Percent}% PSA 10
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ color: "var(--text-muted)" }}>Rarity</p>
+                    <span className="font-black px-2 py-0.5 rounded-full text-xs" style={{
+                      backgroundColor: (data as any).psaPopulation.rarity === "ultra-rare" ? "#0a2e1a" :
+                                       (data as any).psaPopulation.rarity === "rare"       ? "#1a1a2e" : "#1a1a1a",
+                      color:           (data as any).psaPopulation.rarity === "ultra-rare" ? "#00c278" :
+                                       (data as any).psaPopulation.rarity === "rare"       ? "#2563eb" : "#888",
+                    }}>
+                      {(data as any).psaPopulation.rarity.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {/* Signal reasoning — colored left border */}
             {cardSignal?.reasons && (
               <div className="rounded-xl p-3"
                 style={{

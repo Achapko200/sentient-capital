@@ -13,6 +13,11 @@ function getUserClient(req: Request) {
 }
 
 export async function GET(req: Request) {
+  // Check IP ban
+  const { isIPBanned } = await import("@/lib/audit");
+  const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  if (await isIPBanned(ip)) return Response.json({ error: "Forbidden" }, { status: 403 });
+
   const limited = await checkRateLimit(req, "read");
   if (limited) return limited;
 

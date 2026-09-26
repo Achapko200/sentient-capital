@@ -41,6 +41,10 @@ export async function GET(
   const sentiment    = calcSentiment(stats, priceChange);
   const cardSignal   = generateSignal(stats, sales, sentiment);
 
+  // Add PSA population data
+  const { getPSAPopulation } = await import("@/lib/psa-population");
+  const psaPopulation = await getPSAPopulation(playerId, player.cardName ?? "");
+
   return NextResponse.json({
     player,
     stats,
@@ -48,6 +52,7 @@ export async function GET(
     avgPrice,
     priceChange,
     priceHistory,
+    psaPopulation,
     liquidity,
     sentiment,
     cardSignal,

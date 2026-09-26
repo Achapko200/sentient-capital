@@ -29,10 +29,18 @@ export type CardAnalysis = {
 };
 
 const ANALYSTS: Analyst[] = [
-  { name: "Performance Model",  firm: "Card Tracker AI", avatar: "📊", specialty: "Stats-based signals" },
-  { name: "Market Model",       firm: "Card Tracker AI", avatar: "💹", specialty: "eBay price trends"   },
-  { name: "Momentum Model",     firm: "Card Tracker AI", avatar: "🤖", specialty: "Collector demand"    },
+  { name: "Stats Signal",    firm: "Card Tracker AI", avatar: "📊", specialty: "MLB performance analysis" },
+  { name: "Market Signal",   firm: "Card Tracker AI", avatar: "💹", specialty: "eBay price trend analysis" },
+  { name: "Momentum Signal", firm: "Card Tracker AI", avatar: "🤖", specialty: "Collector demand analysis" },
 ];
+
+// ─── PSA Population Signal ────────────────────────────────────────────────────
+export function psaPopulationSignal(psa10Count: number): { signal: AnalystRating; reason: string } {
+  if (psa10Count < 50)   return { signal: "STRONG BUY", reason: `Only ${psa10Count} PSA 10s exist — ultra-rare` };
+  if (psa10Count < 200)  return { signal: "BUY",        reason: `Only ${psa10Count} PSA 10s exist — rare card` };
+  if (psa10Count < 1000) return { signal: "HOLD",       reason: `${psa10Count} PSA 10s exist — moderate supply` };
+  return { signal: "HOLD", reason: `${psa10Count} PSA 10s exist — high supply` };
+}
 
 // ─── Derive rating from live stats ────────────────────────────────────────────
 function deriveRating(stats: MLBStats | null): AnalystRating {

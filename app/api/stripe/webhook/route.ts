@@ -16,6 +16,11 @@ export async function POST(req: Request) {
     return Response.json({ error: err.message }, { status: 400 });
   }
 
+  const { isReplayAttack } = await import("@/lib/data-integrity");
+  if (await isReplayAttack(event.id)) {
+    return Response.json({ received: true });
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const userId  = session.metadata?.userId;
@@ -35,6 +40,13 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+    // Audit log
+    const { audit } = await import("@/lib/audit");
+    await audit("PURCHASE", session.metadata?.userId ?? null, {
+      amount: session.amount_total,
+      card:   session.metadata?.playerName,
+    });
+
     // Handle one-time card purchase
     if (session.mode === "payment" && session.metadata?.cardId) {
       const { cardId, pricePerShare, userId, playerName } = session.metadata;

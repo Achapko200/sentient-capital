@@ -55,6 +55,7 @@ const nextConfig = {
             "base-uri 'self'",
             "form-action 'self'",
             "upgrade-insecure-requests",
+            "report-uri /api/csp-report",
           ].join("; "),
         },
       ],
@@ -70,6 +71,13 @@ const nextConfig = {
   poweredByHeader:             false,
   compress:                    true,
   productionBrowserSourceMaps: false,
+
+  // Security: block server actions from cross-origin requests
+  experimental: {
+    serverActions: {
+      allowedOrigins: ["sentient-capital.vercel.app", "localhost:3000"],
+    },
+  },
 };
 
 module.exports = nextConfig;

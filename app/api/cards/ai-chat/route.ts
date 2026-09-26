@@ -8,13 +8,36 @@ export async function POST(req: Request) {
   try { body = await req.json(); }
   catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { messages, players } = body as {
+  const { messages: rawMessages, players: rawPlayers } = body as {
     messages: { role: string; content: string }[];
     players:  { name: string; id: string }[];
   };
 
+  // Sanitize and validate
+  const messages = (rawMessages ?? []).slice(-20);
+  const players  = (rawPlayers  ?? []).slice(-100);
+
   if (!Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: "No messages" }, { status: 400 });
+  }
+
+  for (const msg of messages) {
+    if (!["user", "assistant"].includes(msg.role)) {
+      return Response.json({ error: "Invalid message format" }, { status: 400 });
+    }
+    if (typeof msg.content !== "string" || msg.content.length > 2000) {
+      return Response.json({ error: "Message too long" }, { status: 400 });
+    }
+  }
+
+  // DLP scan on user input
+  const { scanForSensitiveData } = await import("@/lib/dlp");
+  const lastUserMsg = messages[messages.length - 1]?.content ?? "";
+  const { found: hasSensitive, types } = scanForSensitiveData(lastUserMsg);
+  if (hasSensitive) {
+    return Response.json({
+      reply: `I noticed your message may contain sensitive information (${types.join(", ")}). Please don't share private data in chat.`
+    });
   }
 
   if (!process.env.GROQ_API_KEY) {
@@ -73,7 +96,9 @@ Be concise, enthusiastic about baseball cards, and knowledgeable. Not financial 
     }
 
     const data  = await res.json();
-    const reply = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't generate a response.";
+    const rawReply = data.choices?.[0]?.message?.content ?? "Sorry, I couldn't generate a response.";
+    const { sanitizeAIResponse } = await import("@/lib/dlp");
+    const reply = sanitizeAIResponse(rawReply);
     return Response.json({ reply });
   } catch (err) {
     console.error("AI chat error:", err);

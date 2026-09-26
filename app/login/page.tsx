@@ -35,6 +35,17 @@ export default function LoginPage() {
   }, [router]);
 
   const handleEmailAuth = async () => {
+    // Client-side rate limiting
+    const attempts = parseInt(sessionStorage.getItem("login_attempts") ?? "0");
+    const lastAttempt = parseInt(sessionStorage.getItem("last_attempt") ?? "0");
+    const now = Date.now();
+    
+    if (attempts >= 5 && now - lastAttempt < 900000) {
+      setError(`Too many attempts. Try again in ${Math.ceil((900000 - (now - lastAttempt)) / 60000)} minutes.`);
+      return;
+    }
+    sessionStorage.setItem("login_attempts", String(attempts + 1));
+    sessionStorage.setItem("last_attempt", String(now));
     if (!email || !password) { setError("Fill in all fields"); return; }
     if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
     setLoading(true); setError(""); setSuccess("");
@@ -57,7 +68,11 @@ export default function LoginPage() {
           }
           return;
         }
-        if (data.session) router.push("/app");
+        if (data.session) {
+          sessionStorage.removeItem("login_attempts");
+          sessionStorage.removeItem("last_attempt");
+          router.push("/app");
+        }
       }
     } catch (err: any) {
       setError(err.message ?? "Something went wrong");
