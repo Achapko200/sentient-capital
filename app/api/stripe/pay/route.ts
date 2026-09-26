@@ -5,6 +5,14 @@ export async function POST(req: Request) {
     apiVersion: "2026-06-24.dahlia" as any,
   });
 
+  // Idempotency check — prevent duplicate payments
+  const idempotencyKey = req.headers.get("x-idempotency-key");
+  if (idempotencyKey) {
+    const { checkIdempotency } = await import("@/lib/api-security");
+    const { isDuplicate, cachedResponse } = await checkIdempotency(idempotencyKey);
+    if (isDuplicate) return Response.json(cachedResponse);
+  }
+
   // Zero trust verification for payments
   const authHeader = req.headers.get("authorization") ?? "";
   const { createClient } = await import("@supabase/supabase-js");

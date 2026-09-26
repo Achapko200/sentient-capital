@@ -14,6 +14,10 @@ const nextConfig = {
         { key: "Cross-Origin-Opener-Policy",   value: "same-origin-allow-popups"        },
         { key: "Cross-Origin-Resource-Policy", value: "cross-origin"                    },
         { key: "Permissions-Policy",           value: "camera=(), microphone=(), geolocation=(), payment=()" },
+        { key: "Report-To",                    value: JSON.stringify({ group: "csp-endpoint", max_age: 86400, endpoints: [{ url: "/api/csp-report" }] }) },
+        { key: "NEL",                          value: JSON.stringify({ report_to: "csp-endpoint", max_age: 86400, include_subdomains: true }) },
+        { key: "Cross-Origin-Resource-Policy", value: "same-site" },
+        { key: "Origin-Agent-Cluster",         value: "?1" },
         { key: "Strict-Transport-Security",    value: "max-age=63072000; includeSubDomains; preload" },
         {
           key: "Content-Security-Policy",
