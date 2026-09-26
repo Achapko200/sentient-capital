@@ -29,9 +29,9 @@ export type CardAnalysis = {
 };
 
 const ANALYSTS: Analyst[] = [
-  { name: "Mike Torres",  firm: "Illustrative Research", avatar: "🎓", specialty: "Rookies & Prospects" },
-  { name: "Sarah Chen",   firm: "Illustrative Research",  avatar: "💎", specialty: "Vintage & HOF Cards"  },
-  { name: "James Wright", firm: "Beckett Analytics",  avatar: "📊", specialty: "Market Timing"        },
+  { name: "Performance Model",  firm: "Card Tracker AI", avatar: "📊", specialty: "Stats-based signals" },
+  { name: "Market Model",       firm: "Card Tracker AI", avatar: "💹", specialty: "eBay price trends"   },
+  { name: "Momentum Model",     firm: "Card Tracker AI", avatar: "🤖", specialty: "Collector demand"    },
 ];
 
 // ─── Derive rating from live stats ────────────────────────────────────────────
