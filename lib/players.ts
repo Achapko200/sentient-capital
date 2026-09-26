@@ -97,48 +97,126 @@ async function fetchMLBPlayer(playerId: string): Promise<Player | null> {
   }
 }
 
-// ─── Try multiple stat categories until one returns players ───────────────────
+// ─── Fetch ALL active MLB players ────────────────────────────────────────────
 const LEADER_CATEGORIES = [
   "homeRuns",
   "battingAverage",
   "onBasePlusSlugging",
   "rbi",
   "hits",
+  "strikeouts",
+  "wins",
+  "era",
+  "saves",
+  "stolenBases",
 ];
+
+async function fetchAllActiveMLBPlayers(): Promise<Player[]> {
+  const currentYear = new Date().getFullYear();
+  const seen = new Set<string>();
+  const all:  Player[] = [];
+
+  try {
+    // Fetch all players on active 40-man rosters for all 30 teams
+    const teamsRes = await fetch(
+      "https://statsapi.mlb.com/api/v1/teams?sportId=1&activeStatus=Active",
+      { next: { revalidate: 86400 } }
+    );
+    const teamsData = await teamsRes.json();
+    const teamIds   = (teamsData.teams ?? []).map((t: any) => t.id);
+
+    // Fetch rosters in parallel batches of 5 teams
+    for (let i = 0; i < teamIds.length; i += 5) {
+      const batch = teamIds.slice(i, i + 5);
+      const rosters = await Promise.all(
+        batch.map((teamId: number) =>
+          fetch(
+            `https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=40Man&season=${currentYear}`,
+            { next: { revalidate: 86400 } }
+          ).then(r => r.json()).catch(() => ({ roster: [] }))
+        )
+      );
+
+      const playerIds: string[] = [];
+      for (const r of rosters) {
+        for (const p of r.roster ?? []) {
+          const id = String(p.person?.id);
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            playerIds.push(id);
+          }
+        }
+      }
+
+      // Fetch player details in batches of 10
+      for (let j = 0; j < playerIds.length; j += 10) {
+        const playerBatch = playerIds.slice(j, j + 10);
+        const players = await Promise.all(
+          playerBatch.map(id => fetchMLBPlayer(id))
+        );
+        for (const p of players) {
+          if (p) all.push(p);
+        }
+      }
+    }
+  } catch {
+    // fallback to leader categories
+  }
+
+  // Also fetch stat leaders to fill gaps and prioritize top performers
+  try {
+    const results = await Promise.all(
+      LEADER_CATEGORIES.map(cat =>
+        fetch(
+          `https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=${cat}&season=${currentYear}&sportId=1&limit=50`,
+          { next: { revalidate: 3600 } }
+        ).then(r => r.json()).catch(() => ({}))
+      )
+    );
+    for (const data of results) {
+      const leaders = data.leagueLeaders?.[0]?.leaders ?? [];
+      for (const l of leaders) {
+        const id = String(l.person?.id);
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          const p = await fetchMLBPlayer(id);
+          if (p) all.push(p);
+        }
+      }
+    }
+  } catch {}
+
+  return all;
+}
 
 async function fetchLeadersByCategory(category: string): Promise<Player[]> {
   const currentYear = new Date().getFullYear();
-
-  // Try current year first, then previous year
   for (const season of [currentYear, currentYear - 1]) {
     try {
       const res = await fetch(
         `https://statsapi.mlb.com/api/v1/stats/leaders?` +
-        `leaderCategories=${category}&season=${season}&sportId=1&limit=25`,
+        `leaderCategories=${category}&season=${season}&sportId=1&limit=50`,
         { next: { revalidate: 3600 } }
       );
       if (!res.ok) continue;
-
       const data    = await res.json();
       const leaders = data.leagueLeaders?.[0]?.leaders ?? [];
       if (leaders.length === 0) continue;
-
       const players = await Promise.all(
         leaders.map((l: any) => fetchMLBPlayer(String(l.person.id)))
       );
       const valid = players.filter(Boolean) as Player[];
       if (valid.length > 0) return valid;
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
-
   return [];
 }
 
 async function fetchTopPlayers(): Promise<Player[]> {
   try {
-    // Fetch from all categories in parallel and deduplicate
+    return await fetchAllActiveMLBPlayers();
+  } catch {
+    // Fallback to leader categories
     const results = await Promise.all(
       LEADER_CATEGORIES.map(cat => fetchLeadersByCategory(cat))
     );
@@ -146,15 +224,10 @@ async function fetchTopPlayers(): Promise<Player[]> {
     const merged: Player[] = [];
     for (const players of results) {
       for (const p of players) {
-        if (!seen.has(p.id)) {
-          seen.add(p.id);
-          merged.push(p);
-        }
+        if (!seen.has(p.id)) { seen.add(p.id); merged.push(p); }
       }
     }
     return merged;
-  } catch {
-    return [];
   }
 }
 
