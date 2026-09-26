@@ -250,6 +250,12 @@ export default function PlayerCard({ player, onTrade }: Props) {
                 style={{ backgroundColor: "var(--bg-primary)", borderLeft: "3px solid #2563eb" }}>
                 <p className="text-xs font-black mb-2" style={{ color: "#2563eb" }}>
                   PSA Population Report
+                  {(data as any).psaPopulation?.source === "estimated" && (
+                    <span className="ml-1 text-xs font-normal" style={{ color: "#555" }}>(estimated)</span>
+                  )}
+                  {(data as any).psaPopulation?.source === "psa" && (
+                    <span className="ml-1 text-xs font-normal" style={{ color: "#00c278" }}>✓ Live PSA data</span>
+                  )}
                 </p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
