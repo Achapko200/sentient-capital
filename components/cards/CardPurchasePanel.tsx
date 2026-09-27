@@ -136,7 +136,7 @@ export default function CardPurchasePanel({ player }: Props) {
 
       const res = await fetch("/api/stripe/pay", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${(await (await import("@/lib/supabase")).supabase.auth.getSession()).data.session?.access_token ?? ""}` },
         body:    JSON.stringify({
           cardId:        player.id,
           playerName:    player.name,
@@ -197,9 +197,9 @@ export default function CardPurchasePanel({ player }: Props) {
           {cardData && (
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[
-                { label: "1 Week",    value: `${cardData.priceHistory?.week?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.week?.changePct ?? 0}%` },
-                { label: "3 Months",  value: `${cardData.priceHistory?.threeMonth?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.threeMonth?.changePct ?? 0}%` },
-                { label: "eBay Avg",  value: `$${cardData.avgPrice ?? 0}` },
+                { label: "1 Week",    value: cardData.priceHistory?.available === false ? "—" : `${cardData.priceHistory?.week?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.week?.changePct ?? 0}%` },
+                { label: "3 Months",  value: cardData.priceHistory?.available === false ? "—" : `${cardData.priceHistory?.threeMonth?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.threeMonth?.changePct ?? 0}%` },
+                { label: "eBay Avg",  value: cardData.avgPrice ? `$${cardData.avgPrice}` : "No recent listings" },
               ].map(s => (
                 <div key={s.label} className="bg-gray-900 rounded-xl p-2 text-center">
                   <p className="text-gray-500 text-xs">{s.label}</p>

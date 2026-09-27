@@ -79,7 +79,7 @@ export default function PricingPage() {
       
       const res = await fetch("/api/stripe/checkout", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${(await (await import("@/lib/supabase")).supabase.auth.getSession()).data.session?.access_token ?? ""}` },
         body:    JSON.stringify({ tier: planId, userId: user.id, email: user.email }),
       });
 

@@ -76,7 +76,7 @@ export default function TradingPanel({ token }: Props) {
       const { data: { user } } = await (await import("@/lib/supabase")).supabase.auth.getUser();
       const res = await fetch("/api/stripe/pay", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${(await (await import("@/lib/supabase")).supabase.auth.getSession()).data.session?.access_token ?? ""}` },
         body:    JSON.stringify({
           cardId:        token.id,
           playerName:    token.playerName,

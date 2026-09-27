@@ -200,8 +200,8 @@ export default function PlayerCard({ player, onTrade }: Props) {
                 style={{ backgroundColor: "var(--bg-primary)" }}>
                 <p className="text-xs mb-0.5" style={{ color: "#8a8a8a" }}>{label}</p>
                 <p className="text-xs font-black"
-                  style={{ color: pct >= 0 ? "#00c278" : "#ff3b30" }}>
-                  {pct >= 0 ? "+" : ""}{pct}%
+                  style={{ color: (priceHistory as any)?.available === false ? "#8a8a8a" : pct >= 0 ? "#00c278" : "#ff3b30" }}>
+                  {(priceHistory as any)?.available === false ? "—" : `${pct >= 0 ? "+" : ""}${pct}%`}
                 </p>
               </div>
             );
@@ -209,10 +209,10 @@ export default function PlayerCard({ player, onTrade }: Props) {
         </div>
 
         {/* CTA */}
-        <button onClick={() => onTrade?.(player)}
-          className="w-full py-2.5 rounded-xl font-black text-sm transition hover:opacity-90 active:scale-95"
+        <button onClick={() => { if (displayPrice > 0) onTrade?.(player); }} disabled={!(displayPrice > 0)}
+          className="w-full py-2.5 rounded-xl font-black text-sm transition hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ backgroundColor: pal.border, color: "#000" }}>
-          Buy for ${(displayPrice * 1.10).toFixed(2)} (incl. 10% fee) →
+          {displayPrice > 0 ? `Buy for $${(displayPrice * 1.10).toFixed(2)} (incl. 10% fee) →` : "No recent eBay price"}
         </button>
 
         {/* Expand toggle */}

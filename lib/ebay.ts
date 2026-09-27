@@ -1,5 +1,12 @@
 // ─── lib/ebay.ts ─────────────────────────────────────────────────────────────
+// Live eBay data for PSA 10 cards. Uses the Browse API, which returns ACTIVE LISTINGS
+// (asking prices), not completed sales. Nothing here is simulated: if eBay has no
+// data, callers get an empty list and should show "no data".
 import type { EbaySale } from "@/lib/cardTypes";
+
+const SEARCH_LIMIT = 50;
+const MAX_RESULTS  = 20;
+const EXCLUDE_RE   = /\b(lot|lots|bundle|reprint|custom|rp|digital|pick|you pick|mystery|break)\b/i;
 
 let ebayToken: string | null = null;
 let tokenExpiry: number      = 0;
@@ -21,99 +28,97 @@ async function getEbayToken(): Promise<string | null> {
       },
       body: "grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope",
     });
-
-    if (!res.ok) return null;
-    const data   = await res.json();
-    ebayToken    = data.access_token;
-    tokenExpiry  = Date.now() + (data.expires_in - 60) * 1000;
+    if (!res.ok) {
+      console.error("[ebay] token request failed:", res.status);
+      return null;
+    }
+    const data  = await res.json();
+    ebayToken   = data.access_token;
+    tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
     return ebayToken;
-  } catch {
+  } catch (err) {
+    console.error("[ebay] token error:", err);
     return null;
   }
 }
 
+// Returns current PSA 10 listings for the player, newest first. Empty array if unavailable.
 export async function fetchEbaySales(
-  playerId:    string,
-  playerName:  string,
+  playerId:   string,
+  playerName: string,
 ): Promise<EbaySale[]> {
   try {
     const token = await getEbayToken();
-    if (!token) return getMockSales(playerId);
+    if (!token) {
+      console.warn("[ebay] no API token - returning no data");
+      return [];
+    }
 
-    // Search for PSA graded cards
-    // Extract just the player name for better search results
-  const nameParts = playerName.split(" ");
-  const justName  = nameParts.slice(0, 2).join(" "); // First + Last name only
-  const query     = encodeURIComponent(`${justName} PSA 10 rookie`);
-    const res     = await fetch(
-      `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&sort=endDateRecent&limit=20`,
+    const nameParts = String(playerName ?? "").split(/\s+/).filter(Boolean);
+    const justName  = nameParts.slice(0, 2).join(" ");
+    const lastName  = (nameParts[1] ?? nameParts[0] ?? "").toLowerCase();
+    if (!justName) return [];
+
+    const query  = encodeURIComponent(`${justName} PSA 10`);
+    const filter = encodeURIComponent("buyingOptions:{FIXED_PRICE},priceCurrency:USD");
+    const res    = await fetch(
+      `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&filter=${filter}&limit=${SEARCH_LIMIT}`,
       {
         headers: {
-          "Authorization":          `Bearer ${token}`,
+          "Authorization":           `Bearer ${token}`,
           "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-          "Content-Type":           "application/json",
+          "Content-Type":            "application/json",
         },
       }
     );
-
-    if (!res.ok) return getMockSales(playerId);
+    if (!res.ok) {
+      console.error("[ebay] search failed:", res.status, "player", playerId);
+      return [];
+    }
 
     const data  = await res.json();
-    const items = data.itemSummaries ?? [];
+    const items: any[] = data.itemSummaries ?? [];
 
-    if (items.length === 0) return getMockSales(playerId);
-
-    return items.slice(0, 10).map((item: any, i: number) => ({
-      id:        item.itemId ?? String(i),
-      date:      new Date(Date.now() - i * 2 * 24 * 60 * 60 * 1000)
-                   .toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      price:     parseFloat(item.price?.value ?? "0"),
-      condition: "PSA 10",
-      title:     item.title ?? playerName,
-    }));
-  } catch {
-    return getMockSales(playerId);
+    return items
+      .filter(it => {
+        const t = String(it.title ?? "").toLowerCase();
+        return t.includes("psa 10") && (!lastName || t.includes(lastName)) && !EXCLUDE_RE.test(t);
+      })
+      .map(it => ({
+        it,
+        price:   parseFloat(it.price?.value ?? "0"),
+        created: it.itemCreationDate ? new Date(it.itemCreationDate) : null,
+      }))
+      .filter(x => Number.isFinite(x.price) && x.price > 0)
+      .sort((a, b) => (b.created?.getTime() ?? 0) - (a.created?.getTime() ?? 0))
+      .slice(0, MAX_RESULTS)
+      .map(({ it, price, created }) => ({
+        id:        String(it.itemId),
+        date:      created ? created.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Active",
+        price,
+        condition: "PSA 10",
+        title:     String(it.title),
+      }));
+  } catch (err) {
+    console.error("[ebay] error:", err);
+    return [];
   }
 }
 
-// Dynamic price estimation — no hardcoded player IDs
-function estimatePrice(playerId: string): number {
-  // Use player ID as a seed for consistent but dynamic pricing
-  const id   = parseInt(playerId) || 600000;
-  const seed = (id * 9301 + 49297) % 233280;
-  const norm = seed / 233280; // 0-1
-
-  // Modern players (higher IDs) tend to have lower prices
-  // Veterans (lower IDs) tend to have higher prices
-  if (id < 500000) return Math.round(200 + norm * 600);  // $200-800
-  if (id < 600000) return Math.round(150 + norm * 400);  // $150-550
-  if (id < 650000) return Math.round(80  + norm * 250);  // $80-330
-  if (id < 680000) return Math.round(60  + norm * 180);  // $60-240
-  if (id < 700000) return Math.round(40  + norm * 120);  // $40-160
-  return Math.round(30 + norm * 80);                     // $30-110
-}
-
-function getMockSales(playerId: string): EbaySale[] {
-  const base = estimatePrice(playerId);
-  return Array.from({ length: 8 }, (_, i) => ({
-    id:        String(i),
-    date:      new Date(Date.now() - i * 3 * 24 * 60 * 60 * 1000)
-                 .toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    price:     Math.round(base * (0.9 + Math.random() * 0.2)),
-    condition: "PSA 10",
-    title:     `PSA 10 Rookie Card`,
-  }));
-}
-
+// Outlier-resistant average: drops the top and bottom 10% when there are 5+ prices. 0 = no data.
 export function calcAvgPrice(sales: EbaySale[]): number {
   if (!sales.length) return 0;
-  return Math.round(sales.reduce((s, sale) => s + sale.price, 0) / sales.length);
+  const prices = sales.map(s => s.price).sort((a, b) => a - b);
+  const trim   = prices.length >= 5 ? Math.floor(prices.length * 0.1) : 0;
+  const kept   = prices.slice(trim, prices.length - trim);
+  return Math.round(kept.reduce((s, p) => s + p, 0) / kept.length);
 }
 
 export type PriceHistory = {
   week:       { current: number; previous: number; changePct: number };
   threeMonth: { current: number; previous: number; changePct: number };
   year:       { current: number; previous: number; changePct: number };
+  available:  boolean;   // false = no historical data; UI should show "—" instead of 0%
 };
 
 export type LiquidityScore = {
@@ -123,28 +128,29 @@ export type LiquidityScore = {
   daysToSell:     number;
 };
 
+// No historical price source yet (needs stored daily snapshots or eBay sold-data access),
+// so report "not available" instead of inventing gains.
 export function calcPriceHistory(sales: EbaySale[]): PriceHistory {
-  const avg     = calcAvgPrice(sales);
-  const current = avg || 100;
-  return {
-    week:       { current, previous: Math.round(current * 0.97), changePct: 3.1  },
-    threeMonth: { current, previous: Math.round(current * 0.88), changePct: 13.6 },
-    year:       { current, previous: Math.round(current * 0.65), changePct: 53.8 },
-  };
+  const current = calcAvgPrice(sales);
+  const flat    = () => ({ current, previous: current, changePct: 0 });
+  return { week: flat(), threeMonth: flat(), year: flat(), available: false };
 }
 
+// Based on how many active listings exist (supply), since completed-sale counts aren't available.
 export function calcLiquidity(sales: EbaySale[]): LiquidityScore {
   const salesPerMonth = sales.length * 3;
   const daysToSell    = salesPerMonth > 30 ? 1 : salesPerMonth > 15 ? 3 : 7;
   const score         = Math.min(100, salesPerMonth * 2);
-  const label         = score > 60 ? "LIQUID" : score > 30 ? "MODERATE" : "ILLIQUID";
+  const label         = sales.length === 0 ? "NO DATA" : score > 60 ? "LIQUID" : score > 30 ? "MODERATE" : "ILLIQUID";
   return { score, label, salesPerMonth, daysToSell };
 }
 
+// % difference between the newest and oldest listings' asking prices (needs 6+ listings)
 export function calcPriceChange(sales: EbaySale[]): number {
-  if (sales.length < 2) return 0;
-  const recent = sales.slice(0, 3).reduce((s, x) => s + x.price, 0) / 3;
-  const older  = sales.slice(-3).reduce((s, x) => s + x.price, 0) / 3;
+  if (sales.length < 6) return 0;
+  const avg    = (xs: EbaySale[]) => xs.reduce((s, x) => s + x.price, 0) / xs.length;
+  const recent = avg(sales.slice(0, 3));
+  const older  = avg(sales.slice(-3));
   if (!older) return 0;
   return Math.round(((recent - older) / older) * 1000) / 10;
 }

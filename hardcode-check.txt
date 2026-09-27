@@ -1,0 +1,58 @@
+===== lib/ebay.ts =====
+41:    if (!token) return getMockSales(playerId);
+59:    if (!res.ok) return getMockSales(playerId);
+64:    if (items.length === 0) return getMockSales(playerId);
+75:    return getMockSales(playerId);
+79:// Dynamic price estimation — no hardcoded player IDs
+96:function getMockSales(playerId: string): EbaySale[] {
+102:    price:     Math.round(base * (0.9 + Math.random() * 0.2)),
+-- external APIs called:
+16:https://api.ebay.com/identity/v1/oauth2/token
+49:https://api.ebay.com/buy/browse/v1/item_summary/search
+-- env keys used:
+10:process.env.EBAY_APP_ID
+11:process.env.EBAY_CERT_ID
+===== lib/mlb.ts =====
+-- external APIs called:
+6:https://statsapi.mlb.com/api/v1
+77:https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/news
+-- env keys used:
+===== lib/players.ts =====
+47:// No hardcoded card names — all generated dynamically from MLB API data
+50:  // Fully dynamic — no hardcoded player names
+98:const LEADER_CATEGORIES = [
+160:    // fallback to leader categories
+-- external APIs called:
+8:https://img.mlbstatic.com/mlb-photos/image/upload/d_people
+71:https://statsapi.mlb.com/api/v1/people/
+119:https://statsapi.mlb.com/api/v1/teams
+131:https://statsapi.mlb.com/api/v1/teams/
+168:https://statsapi.mlb.com/api/v1/stats/leaders
+-- env keys used:
+===== lib/cardSignal.ts =====
+-- external APIs called:
+-- env keys used:
+===== lib/sentiment.ts =====
+-- external APIs called:
+-- env keys used:
+===== lib/psa-population.ts =====
+-- external APIs called:
+-- env keys used:
+5:process.env.UPSTASH_REDIS_REST_URL
+6:process.env.UPSTASH_REDIS_REST_TOKEN
+
+===== ScoutChat =====
+components/cards/ScoutChat.tsx
+10:  const [messages, setMessages] = useState<Message[]>([]);
+34:  }, [messages, open]);
+41:        content: "You've reached the free limit. Sign in or upgrade to Pro for unlimited messages."
+47:    const newMessages = [...messages, userMsg];
+54:      const res  = await fetch("/api/cards/ai-chat", {
+57:        body:    JSON.stringify({ messages: newMessages, players }),
+60:      setMessages(prev => [...prev, { role: "assistant", content: data.reply ?? "Sorry, try again." }]);
+150:            {messages.length === 0 && (
+176:            {messages.map((msg, i) => (
+
+===== did the Scout changes go in? =====
+lib/scout-context.ts
+2

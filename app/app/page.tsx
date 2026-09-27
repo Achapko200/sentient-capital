@@ -293,7 +293,7 @@ function UpgradeBanner() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
-      const res = await fetch(`/api/subscription?userId=${data.user.id}`);
+      const res = await fetch(`/api/subscription?userId=${data.user.id}`, { headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` } });
       const sub = await res.json();
       setTier(sub.tier ?? "free");
     });
@@ -329,7 +329,7 @@ function ScanTab() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { setLoading(false); return; }
-      const res = await fetch(`/api/subscription?userId=${data.user.id}`);
+      const res = await fetch(`/api/subscription?userId=${data.user.id}`, { headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` } });
       const sub = await res.json();
       setTier(sub.tier ?? "free");
       setLoading(false);

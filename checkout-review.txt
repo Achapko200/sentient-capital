@@ -1,0 +1,219 @@
+===== app/api/stripe/pay/route.ts =====
+import Stripe from "stripe";
+
+export async function POST(req: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2026-06-24.dahlia" as any,
+  });
+
+  // Idempotency check — prevent duplicate payments
+  const idempotencyKey = req.headers.get("x-idempotency-key");
+  if (idempotencyKey) {
+    const { checkIdempotency } = await import("@/lib/api-security");
+    const { isDuplicate, cachedResponse } = await checkIdempotency(idempotencyKey);
+    if (isDuplicate) return Response.json(cachedResponse);
+  }
+
+  // Zero trust verification for payments
+  const authHeader = req.headers.get("authorization") ?? "";
+  const { createClient } = await import("@supabase/supabase-js");
+  const userClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+  const { data: { user } } = await userClient.auth.getUser();
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Anomaly detection on payment
+  const { requireContinuousAuth } = await import("@/lib/zero-trust");
+  const { authorized, reason } = await requireContinuousAuth(req, user.id, "payment");
+  if (!authorized) {
+    await (await import("@/lib/audit")).audit("AUTH_FAILURE", user.id, { reason, action: "payment" }, req);
+    return Response.json({ error: "Security check failed. Please try again." }, { status: 403 });
+  }
+
+  try {
+    const { cardId, playerName, shares, pricePerShare, userId, email } = await req.json();
+
+    if (!cardId || !shares || !pricePerShare || !userId) {
+      return Response.json({ error: "Missing params" }, { status: 400 });
+    }
+
+    const totalUSD    = Math.round(shares * pricePerShare * 100); // in cents
+    const description = `${shares} share${shares > 1 ? "s" : ""} of ${playerName} card`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode:                 "payment",
+      payment_method_types: ["card"],
+      customer_email:       email ?? undefined,
+      shipping_address_collection: {
+        allowed_countries: ["US", "CA", "GB", "AU", "JP", "SG", "MX", "DE", "FR", "IT", "ES", "NL", "BR", "IN"],
+      },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type:         "fixed_amount",
+            fixed_amount: { amount: 999, currency: "usd" },
+            display_name: "Standard Shipping",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 3 },
+              maximum: { unit: "business_day", value: 7 },
+            },
+          },
+        },
+        {
+          shipping_rate_data: {
+            type:         "fixed_amount",
+            fixed_amount: { amount: 1999, currency: "usd" },
+            display_name: "Express Shipping",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 1 },
+              maximum: { unit: "business_day", value: 3 },
+            },
+          },
+        },
+      ],
+      line_items: [{
+        quantity:    1,
+        price_data: {
+          currency:     "usd",
+          unit_amount:  totalUSD,
+          product_data: {
+            name:        description,
+            description: `PSA 10 graded baseball card`,
+          },
+        },
+      }],
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/app?bought=true&cardId=${cardId}`,
+      cancel_url:  `${process.env.NEXT_PUBLIC_SITE_URL}/app`,
+      metadata:    { cardId, shares: String(shares), pricePerShare: String(pricePerShare), userId, playerName },
+    });
+
+    return Response.json({ url: session.url });
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}
+
+===== app/api/stripe/checkout/route.ts =====
+import { checkRateLimit } from "@/lib/ratelimit";
+import Stripe from "stripe";
+
+const PRICE_IDS: Record<string, string> = {
+  pro:   "price_1TtHWlRc1DEtwm4Vif6FVkZO",
+  elite: "price_1TtHX1Rc1DEtwm4Veb1efu9j",
+};
+
+export async function POST(req: Request) {
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2026-06-24.dahlia" as any,
+  });
+
+  try {
+    const { tier, userId, email } = await req.json();
+    if (!tier || !userId) return Response.json({ error: "Missing params" }, { status: 400 });
+
+    const priceId = PRICE_IDS[tier];
+    if (!priceId) return Response.json({ error: "Invalid tier" }, { status: 400 });
+
+    const session = await stripe.checkout.sessions.create({
+      mode:                 "subscription",
+      payment_method_types: ["card"],
+      customer_email:       email ?? undefined,
+      line_items:           [{ price: priceId, quantity: 1 }],
+      success_url:          `${process.env.NEXT_PUBLIC_SITE_URL}/app?upgraded=true`,
+      cancel_url:           `${process.env.NEXT_PUBLIC_SITE_URL}/pricing`,
+      metadata:             { userId, tier },
+    });
+
+    return Response.json({ url: session.url });
+  } catch (err: any) {
+    return Response.json({ error: err.message }, { status: 500 });
+  }
+}
+
+===== CardPurchasePanel.tsx 100-175 =====
+    }
+  };
+
+  const handleSellRequest = async () => {
+    if (!email) { setError("Sign in to sell"); return; }
+    setLoading(true); setError("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setError("Sign in to sell"); return; }
+      const { error: dbError } = await supabase.from("card_orders").insert({
+        user_id:     user.id,
+        player_name: player.name,
+        card_name:   player.cardName ?? "",
+        price:       price,
+        fee:         price * 0.10,
+        type:        "sell",
+        status:      "pending",
+      });
+      if (dbError) throw dbError;
+      setSuccess("Sale request submitted! We will email you a prepaid shipping label within 24 hours.");
+      setTimeout(() => { setShowConfirm(false); setSuccess(""); }, 3000);
+      setShowConfirm(false);
+    } catch (err: any) {
+      setError(err.message ?? "Failed to submit sale request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBuy = async () => {
+    if (!email) { setError("Sign in to buy"); return; }
+
+    setLoading(true); setError(""); setSuccess("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setError("Sign in to buy"); return; }
+
+      const res = await fetch("/api/stripe/pay", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          cardId:        player.id,
+          playerName:    player.name,
+          shares:        1,
+          pricePerShare: price,
+          userId:        user.id,
+          email:         user.email,
+
+          mode,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error ?? "Payment failed");
+      }
+    } catch (err: any) {
+      setError(err.message ?? "Something went wrong");
+    } finally {
+      setLoading(false);
+      setShowConfirm(false);
+    }
+  };
+
+  return (
+    <div className="bg-gray-950 rounded-2xl overflow-hidden border border-gray-800 text-white">
+
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-gray-800">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <img src={player.cardImage} alt={player.name}
+              className="w-12 h-12 rounded-full object-cover bg-gray-800" />
+            <div>
+              <h2 className="font-black text-lg">{player.name}</h2>
+
+===== other callers =====
+app/pricing/page.tsx:80:      const res = await fetch("/api/stripe/checkout", {
+components/cards/CardPurchasePanel.tsx:137:      const res = await fetch("/api/stripe/pay", {
+components/cards/TradingPanel.tsx:77:      const res = await fetch("/api/stripe/pay", {

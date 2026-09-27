@@ -115,7 +115,7 @@ export default function PlayerProfileClient({
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
                 <p className="text-gray-500 text-xs mb-1">Avg PSA 10</p>
-                <p className="text-2xl font-black">${avgPrice}</p>
+                <p className="text-2xl font-black">{avgPrice > 0 ? `$${avgPrice}` : "No recent listings"}</p>
               </div>
               {cardSignal.buyBelow && (
                 <div className="bg-green-950 rounded-xl p-4 border border-green-800">
@@ -157,7 +157,7 @@ export default function PlayerProfileClient({
               <div key={period.label} className="bg-gray-900 rounded-xl p-4 border border-gray-800 text-center">
                 <p className="text-gray-500 text-xs mb-1">{period.label}</p>
                 <p className={`text-xl font-black ${up ? "text-green-400" : "text-red-400"}`}>
-                  {up ? "+" : ""}{period.data.changePct}%
+                  {(priceHistory as any).available === false ? "—" : `${up ? "+" : ""}${period.data.changePct}%`}
                 </p>
                 <p className="text-gray-600 text-xs mt-1">
                   ${period.data.previous} → ${period.data.current}
@@ -321,7 +321,7 @@ export default function PlayerProfileClient({
             )}
             <div className="px-5 py-3 border-t border-gray-800 flex justify-between text-sm">
               <span className="text-gray-500">Average</span>
-              <span className="font-black">${avgPrice}</span>
+              <span className="font-black">{avgPrice > 0 ? `$${avgPrice}` : "—"}</span>
             </div>
           </div>
         )}

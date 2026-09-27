@@ -35,13 +35,6 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
 
   const send = async () => {
     if (!input.trim() || loading) return;
-    if (msgCount >= 5 && !userId) {
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "You've reached the free limit. Sign in or upgrade to Pro for unlimited messages."
-      }]);
-      return;
-    }
 
     const userMsg: Message = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMsg];
@@ -53,11 +46,11 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
     try {
       const res  = await fetch("/api/cards/ai-chat", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${(await (await import("@/lib/supabase")).supabase.auth.getSession()).data.session?.access_token ?? ""}` },
         body:    JSON.stringify({ messages: newMessages, players }),
       });
       const data = await res.json();
-      setMessages(prev => [...prev, { role: "assistant", content: data.reply ?? "Sorry, try again." }]);
+      setMessages(prev => [...prev, { role: "assistant", content: data.reply ?? data.error ?? "Sorry, try again." }]);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
     } finally {
