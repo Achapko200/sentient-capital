@@ -1,44 +1,46 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { supabase }                     from "@/lib/supabase";
+import { supabase }                    from "@/lib/supabase";
 
 type Message = { role: "user" | "assistant"; content: string };
 type Chat    = { id: string; title: string; updated_at: string };
 
+const MAX_INPUT   = 2000;
+const SUGGESTIONS = ["Which cards should I buy right now?", "Explain the order book", "How do I redeem a card?", "What affects card prices?"];
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    "Content-Type": "application/json",
+    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+  };
+}
+
 export default function AIAssistant({ players }: { players: { name: string; id: string }[] }) {
   const [chats,        setChats]        = useState<Chat[]>([]);
-
-  const getAuthHeaders = async () => {
-    const { supabase } = await import("@/lib/supabase");
-    const { data: { session } } = await supabase.auth.getSession();
-    return { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token ?? ""}` };
-  };
   const [chatId,       setChatId]       = useState<string | null>(null);
   const [messages,     setMessages]     = useState<Message[]>([]);
   const [input,        setInput]        = useState("");
   const [loading,      setLoading]      = useState(false);
-  const [msgCount,     setMsgCount]     = useState(0);
   const [userId,       setUserId]       = useState<string | null>(null);
   const [showSidebar,  setShowSidebar]  = useState(true);
   const [loadingChats, setLoadingChats] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
   useEffect(() => {
     if (!userId) return;
     setLoadingChats(true);
-    import("@/lib/supabase").then(({ supabase }) => supabase.auth.getSession()).then(({ data: { session } }) => {
-      fetch("/api/cards/chats", { headers: { Authorization: `Bearer ${session?.access_token ?? ""}` } })
-        .then(r => r.json())
-        .then(d => setChats(d.chats ?? []))
-        .finally(() => setLoadingChats(false));
-    });
+    authHeaders()
+      .then(headers => fetch("/api/cards/chats", { headers }))
+      .then(r => r.json())
+      .then(d => setChats(d.chats ?? []))
+      .catch(() => setChats([]))
+      .finally(() => setLoadingChats(false));
   }, [userId]);
 
   useEffect(() => {
@@ -49,15 +51,11 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
     content.slice(0, 40) + (content.length > 40 ? "..." : "");
 
   const loadChat = async (id: string) => {
-    const { data } = await supabase
-      .from("ai_chats")
-      .select("messages")
-      .eq("id", id)
-      .single();
-    if (data) {
-      setMessages(data.messages ?? []);
-      setChatId(id);
-    }
+    const res = await fetch(`/api/cards/chats?id=${encodeURIComponent(id)}`, { headers: await authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    setMessages(data.chat?.messages ?? []);
+    setChatId(id);
   };
 
   const newChat = () => {
@@ -68,54 +66,66 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
 
   const deleteChat = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const headers = await getAuthHeaders();
-    await fetch(`/api/cards/chats?id=${id}`, { method: "DELETE", headers });
+    const res = await fetch(`/api/cards/chats?id=${encodeURIComponent(id)}`, { method: "DELETE", headers: await authHeaders() });
+    if (!res.ok) return;
     setChats(prev => prev.filter(c => c.id !== id));
     if (chatId === id) newChat();
   };
 
-  const send = async () => {
-    if (msgCount >= 5) {
-      setMessages(prev => [...prev, { role: "assistant" as const, content: "You've reached the free plan limit of 5 AI messages per day. Upgrade to Pro for unlimited messages — sentient-capital.vercel.app/pricing" }]);
-      return;
+  const saveChat = async (finalMessages: Message[], firstUserMsg: string) => {
+    const headers = await authHeaders();
+    if (chatId) {
+      await fetch("/api/cards/chats", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          chatId,
+          messages: finalMessages,
+          title: chats.find(c => c.id === chatId)?.title ?? generateTitle(firstUserMsg),
+        }),
+      });
+      setChats(prev => prev.map(c => (c.id === chatId ? { ...c, updated_at: new Date().toISOString() } : c)));
+    } else {
+      const res  = await fetch("/api/cards/chats", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: generateTitle(firstUserMsg), messages: finalMessages }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.chat) {
+        setChatId(data.chat.id);
+        setChats(prev => [data.chat, ...prev]);
+      }
     }
-    setMsgCount(c => c + 1);
-    if (!input.trim() || loading || !userId) return;
-    const userMsg: Message = { role: "user", content: input.trim() };
+  };
+
+  const send = async (text?: string) => {
+    const content = (text ?? input).trim().slice(0, MAX_INPUT);
+    if (!content || loading || !userId) return;
+
+    const userMsg: Message = { role: "user", content };
     const newMessages      = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
     setLoading(true);
+
     try {
       const res  = await fetch("/api/cards/ai-chat", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders(),
         body:    JSON.stringify({ messages: newMessages, players }),
       });
-      const data = await res.json();
-      const assistantMsg: Message = { role: "assistant", content: data.reply ?? "Sorry, try again." };
-      const finalMessages = [...newMessages, assistantMsg];
-      setMessages(finalMessages);
+      const data = await res.json().catch(() => ({}));
 
-      if (chatId) {
-        const headers2 = await getAuthHeaders();
-        await fetch("/api/cards/chats", {
-          method:  "POST",
-          headers: headers2,
-          body:    JSON.stringify({ chatId, messages: finalMessages, title: chats.find(c => c.id === chatId)?.title ?? generateTitle(userMsg.content) }),
-        });
-        setChats(prev => prev.map(c => c.id === chatId ? { ...c, updated_at: new Date().toISOString() } : c));
-      } else {
-        const title = generateTitle(userMsg.content);
-        const headers3 = await getAuthHeaders();
-        const cRes  = await fetch("/api/cards/chats", {
-          method:  "POST",
-          headers: headers3,
-          body:    JSON.stringify({ title, messages: finalMessages }),
-        });
-        const cData = await cRes.json();
-        if (cData.chat) { setChatId(cData.chat.id); setChats(prev => [cData.chat, ...prev]); }
+      if (!res.ok) {
+        const msg = data.error ?? (res.status === 401 ? "Please sign in to use the assistant." : "Something went wrong. Try again.");
+        setMessages(prev => [...prev, { role: "assistant", content: msg }]);
+        return;
       }
+
+      const finalMessages: Message[] = [...newMessages, { role: "assistant", content: data.reply ?? "Sorry, try again." }];
+      setMessages(finalMessages);
+      await saveChat(finalMessages, userMsg.content);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
     } finally {
@@ -161,7 +171,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
           <div className="flex-1 overflow-y-auto py-2">
             {loadingChats ? (
               <div className="space-y-2 px-3">
-                {[1,2,3].map(i => <div key={i} className="h-8 bg-gray-200 rounded-lg animate-pulse" />)}
+                {[1, 2, 3].map(i => <div key={i} className="h-8 bg-gray-200 rounded-lg animate-pulse" />)}
               </div>
             ) : chats.length === 0 ? (
               <p className="text-xs text-gray-400 text-center mt-4 px-3">No chats yet</p>
@@ -175,7 +185,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
                         chatId === chat.id ? "bg-white shadow-sm border border-gray-200" : "hover:bg-gray-100"
                       }`}>
                       <p className="text-xs text-gray-700 truncate flex-1">{chat.title}</p>
-                      <button onClick={e => deleteChat(chat.id, e)}
+                      <button onClick={e => deleteChat(chat.id, e)} aria-label="Delete chat"
                         className="opacity-0 group-hover:opacity-100 md:opacity-0 text-gray-400 hover:text-red-500 transition shrink-0 touch:opacity-100">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -193,7 +203,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
       {/* Main chat */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
-          <button onClick={() => setShowSidebar(v => !v)} className="text-gray-400 hover:text-gray-600 transition">
+          <button onClick={() => setShowSidebar(v => !v)} aria-label="Toggle chat list" className="text-gray-400 hover:text-gray-600 transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -222,9 +232,9 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
                 <p className="text-gray-400 text-xs mt-1">Ask me anything about baseball card trading</p>
               </div>
               <div className="flex flex-wrap gap-2 justify-center max-w-xs">
-                {["Which cards should I buy right now?","Explain the order book","How do I redeem a card?","What affects card prices?"].map(s => (
-                  <button key={s} onClick={() => { setInput(s); setTimeout(send, 50); }}
-                    className="text-xs px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition">
+                {SUGGESTIONS.map(s => (
+                  <button key={s} onClick={() => send(s)} disabled={loading}
+                    className="text-xs px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition disabled:opacity-40">
                     {s}
                   </button>
                 ))}
@@ -240,7 +250,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
                   🤖
                 </div>
               )}
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${
                 msg.role === "user"
                   ? "bg-blue-600 text-white rounded-br-sm"
                   : "bg-gray-100 text-gray-800 rounded-bl-sm"
@@ -270,13 +280,14 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
 
         <div className="p-4 border-t border-gray-100">
           <div className="flex gap-2">
-            <input type="text" value={input}
+            <input type="text" value={input} maxLength={MAX_INPUT}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder="Ask about card trading..."
-              className="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+              placeholder={userId ? "Ask about card trading..." : "Sign in to chat with the assistant"}
+              disabled={!userId}
+              className="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition disabled:opacity-60"
             />
-            <button onClick={send} disabled={loading || !input.trim()}
+            <button onClick={() => send()} disabled={loading || !input.trim() || !userId} aria-label="Send"
               className="w-10 h-10 rounded-xl flex items-center justify-center transition disabled:opacity-40"
               style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
