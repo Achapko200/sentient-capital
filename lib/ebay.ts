@@ -336,3 +336,45 @@ export function calcPriceChange(sales: EbaySale[]): number {
   if (!older) return 0;
   return Math.round(((recent - older) / older) * 1000) / 10;
 }
+
+
+// TEMPORARY: explains how many listings survive each filter (remove after debugging)
+export async function debugListingSearch(cardName: string, days = 14) {
+  const token = await getEbayToken();
+  if (!token) return { error: "no eBay token" };
+  const { name, lastName, setWords, rookie } = parseCardName(cardName);
+  const query  = [name, ...setWords, "PSA 10"].join(" ");
+  const filter = encodeURIComponent("buyingOptions:{FIXED_PRICE},priceCurrency:USD");
+  const cutoff = Date.now() - days * 86_400_000;
+  const counts: Record<string, number> = { raw: 0, hasCreatedDate: 0, psa10: 0, lastName: 0, excludeLots: 0, setPhrase: 0, baseOnly: 0, rookie: 0, withinDays: 0 };
+  const days_ = new Set<string>();
+  const dropped: Record<string, string[]> = {};
+  const note = (k: string, t: string) => { (dropped[k] ??= []).length < 3 && dropped[k].push(t.slice(0, 80)); };
+
+  for (let page = 0; page < 5; page++) {
+    const res = await fetch(
+      `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&category_ids=261328&filter=${filter}&limit=200&offset=${page * 200}&sort=newlyListed`,
+      { headers: { "Authorization": `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US" } }
+    );
+    if (!res.ok) return { error: `search failed ${res.status}`, query, counts };
+    const items: any[] = (await res.json()).itemSummaries ?? [];
+    for (const it of items) {
+      counts.raw++;
+      const t = String(it.title ?? "").toLowerCase();
+      if (it.itemCreationDate) counts.hasCreatedDate++;
+      if (!t.includes("psa 10")) { note("psa10", t); continue; } counts.psa10++;
+      if (lastName && !t.includes(lastName)) { note("lastName", t); continue; } counts.lastName++;
+      if (EXCLUDE_RE.test(t)) { note("excludeLots", t); continue; } counts.excludeLots++;
+      if (setWords.length && !t.includes(setWords.join(" "))) { note("setPhrase", t); continue; } counts.setPhrase++;
+      if (PARALLEL_RE.test(t)) { note("baseOnly", t); continue; } counts.baseOnly++;
+      if (rookie && !/\b(rc|rookie)\b/.test(t)) { note("rookie", t); continue; } counts.rookie++;
+      const created = it.itemCreationDate ? new Date(it.itemCreationDate).getTime() : 0;
+      if (!created || created < cutoff) { note("withinDays", `${it.itemCreationDate ?? "no date"} ${t}`); continue; }
+      counts.withinDays++;
+      days_.add(new Date(created).toLocaleDateString("en-CA", { timeZone: "America/New_York" }));
+    }
+    const oldest = items.length ? new Date(items[items.length - 1]?.itemCreationDate ?? 0).getTime() : 0;
+    if (items.length < 200 || (oldest && oldest < cutoff)) break;
+  }
+  return { cardName, query, setWords, rookie, counts, daysWithListings: [...days_].sort(), droppedExamples: dropped };
+}
