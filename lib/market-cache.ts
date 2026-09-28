@@ -1,5 +1,6 @@
 // Card market data (price, listings, 14-day candles) cached in Supabase.
 // Pages read the cache instantly; stale entries refresh from eBay in the background.
+// If eBay is unavailable (rate limit / outage), fall back to the last saved daily price.
 import { after }                from "next/server";
 import { supabaseAdmin }        from "@/lib/supabase-server";
 import { fetchEbayMarket, type ListingCandle } from "@/lib/ebay";
@@ -17,7 +18,6 @@ export type MarketData = {
   stale:     boolean;
 };
 
-const EMPTY: MarketData = { status: "unavailable", price: 0, listings: [], candles: [], updatedAt: null, stale: true };
 const inflight = new Map<string, Promise<MarketData | null>>();
 
 function fromRow(row: any): MarketData {
@@ -32,7 +32,27 @@ function fromRow(row: any): MarketData {
   };
 }
 
-// Live eBay lookup -> save to cache (+ daily snapshot). Returns null if eBay was unavailable (cache kept as is).
+// Last saved daily price, used only when eBay can't be reached
+async function lastSavedPrice(playerId: string): Promise<MarketData> {
+  const { data } = await supabaseAdmin
+    .from("price_snapshots")
+    .select("close, day")
+    .eq("player_id", String(playerId))
+    .gt("close", 0)
+    .order("day", { ascending: false })
+    .limit(1);
+  const row = data?.[0];
+  return {
+    status:    "unavailable",
+    price:     row ? Number(row.close) || 0 : 0,
+    listings:  [],
+    candles:   [],
+    updatedAt: row ? `${row.day}T00:00:00Z` : null,
+    stale:     true,
+  };
+}
+
+// Live eBay lookup -> save to cache (+ daily snapshot). Returns null if eBay was unavailable (cache untouched).
 export function refreshMarketData(playerId: string, cardName: string): Promise<MarketData | null> {
   const key = String(playerId);
   const running = inflight.get(key);
@@ -40,7 +60,10 @@ export function refreshMarketData(playerId: string, cardName: string): Promise<M
 
   const job = (async () => {
     const m = await fetchEbayMarket(cardName);
-    if (m.status === "unavailable") return null;
+    if (m.status === "unavailable") {
+      console.warn(`[market-cache] eBay unavailable for ${key}`);
+      return null;
+    }
     const row = {
       player_id: key, card_name: cardName, price: m.price,
       listings: m.listings, candles: m.candles, status: m.status, updated_at: m.checkedAt,
@@ -56,11 +79,12 @@ export function refreshMarketData(playerId: string, cardName: string): Promise<M
 }
 
 export async function getMarketData(playerId: string, cardName: string): Promise<MarketData> {
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("card_market_cache")
     .select("*")
     .eq("player_id", String(playerId))
     .maybeSingle();
+  if (error) console.error("[market-cache] read failed:", error.message);
 
   if (data) {
     const cached = fromRow(data);
@@ -71,6 +95,6 @@ export async function getMarketData(playerId: string, cardName: string): Promise
     return cached;
   }
 
-  // Never looked up before: fetch live once
-  return (await refreshMarketData(playerId, cardName)) ?? EMPTY;
+  // Never cached: try eBay once, else show the last saved price instead of $0
+  return (await refreshMarketData(playerId, cardName)) ?? (await lastSavedPrice(playerId));
 }
