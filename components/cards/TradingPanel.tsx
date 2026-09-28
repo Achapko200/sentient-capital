@@ -32,6 +32,8 @@ export default function TradingPanel({ token }: Props) {
 
   const currentPrice = book?.lastPrice || token.pricePerShare;
   const chartCandles = [...candles].sort((a, b) => getCandleTimestamp(a) - getCandleTimestamp(b));
+  const chartEnd = Date.now();
+  const chartStart = chartEnd - 14 * 86_400_000;
   const total = Math.round(parseFloat(price || "0") * parseInt(shares || "0") * 100) / 100;
 
   const load = useCallback(async () => {
@@ -144,19 +146,26 @@ export default function TradingPanel({ token }: Props) {
   // Candlestick chart
   const CandleChart = () => {
     if (chartCandles.length < 2) return null;
+    const visibleCandles = chartCandles.filter(c => {
+      const timestamp = getCandleTimestamp(c);
+      return timestamp >= chartStart && timestamp <= chartEnd;
+    });
+    if (visibleCandles.length < 2) return null;
     const W = 500, H = 160, PAD = { l: 44, r: 40, t: 8, b: 24 };
-    const prices = chartCandles.flatMap(c => [c.high, c.low]);
+    const prices = visibleCandles.flatMap(c => [c.high, c.low]);
     const min    = Math.min(...prices) * 0.995;
     const max    = Math.max(...prices) * 1.005;
     const range  = max - min || 1;
     const chartW = W - PAD.l - PAD.r;
     const chartH = H - PAD.t - PAD.b;
-    const toX    = (i: number) => PAD.l + (i / Math.max(chartCandles.length - 1, 1)) * chartW;
+    const toX = (candle: Candle) => PAD.l +
+      ((getCandleTimestamp(candle) - chartStart) / (chartEnd - chartStart)) * chartW;
     const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
-    const barW   = Math.max(2, (chartW / chartCandles.length) * 0.6);
-    const lastCandle = chartCandles[chartCandles.length - 1];
-    const isUp = lastCandle ? lastCandle.close >= chartCandles[0].open : true;
-    const labelIndices = [...new Set([0, Math.floor(chartCandles.length / 2), chartCandles.length - 1])];
+    const barW   = Math.max(2, (chartW / 14) * 0.6);
+    const lastCandle = visibleCandles[visibleCandles.length - 1];
+    const isUp = lastCandle.close >= visibleCandles[0].open;
+    const dateLabel = (dayOffset: number) => new Date(chartStart + dayOffset * 86_400_000)
+      .toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
     return (
       <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
@@ -171,27 +180,23 @@ export default function TradingPanel({ token }: Props) {
             ${(min + range * f).toFixed(0)}
           </text>
         ))}
-        {chartCandles.map((c, i) => {
+        {visibleCandles.map((c, i) => {
           const up    = c.close >= c.open;
           const color = up ? "#22c55e" : "#ef4444";
           const bodyY = toY(Math.max(c.open, c.close));
           const bodyH = Math.max(1, Math.abs(toY(c.open) - toY(c.close)));
           return (
             <g key={i}>
-              <line x1={toX(i)} x2={toX(i)} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth="1" />
-              <rect x={toX(i) - barW / 2} y={bodyY} width={barW} height={bodyH} fill={color} rx="0.5" />
+              <line x1={toX(c)} x2={toX(c)} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth="1" />
+              <rect x={toX(c) - barW / 2} y={bodyY} width={barW} height={bodyH} fill={color} rx="0.5" />
             </g>
           );
         })}
-        {labelIndices.map((i, labelIndex) => (
-          chartCandles[i] && (
-            <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#4b5563"
-              textAnchor={labelIndex === 0 ? "start" : labelIndex === labelIndices.length - 1 ? "end" : "middle"}>
-              {chartCandles[i].date ?? (typeof chartCandles[i].time === "number"
-                ? new Date(getCandleTimestamp(chartCandles[i])).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
-                : chartCandles[i].time.slice(5))}
-            </text>
-          )
+        {[0, 7, 14].map((day) => (
+          <text key={day} x={PAD.l + (day / 14) * chartW} y={H - 4} fontSize="7" fill="#4b5563"
+            textAnchor={day === 0 ? "start" : day === 14 ? "end" : "middle"}>
+            {dateLabel(day)}
+          </text>
         ))}
       </svg>
     );
@@ -253,6 +258,9 @@ export default function TradingPanel({ token }: Props) {
           {tab === "chart" && (
             <div className="p-4">
               <CandleChart />
+              {candles.length >= 2 && (
+                <p className="text-[10px] text-gray-500 mt-1">Past 14 days · daily price observations; gaps mean no snapshot was available</p>
+              )}
               <div className="mt-3 space-y-1">
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Recent trades</p>
                 {trades.length === 0 ? (

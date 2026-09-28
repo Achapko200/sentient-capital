@@ -33,7 +33,13 @@ export default function CardPurchasePanel({ player }: Props) {
 
   const price    = cardData?.avgPrice ?? 0;
   const signal   = cardData?.cardSignal?.signal ?? "HOLD";
+  const chartEnd = Date.now();
+  const chartStart = chartEnd - 14 * 86_400_000;
   const candles  = [...(orderbookData?.candles ?? [])]
+    .filter((candle: any) => {
+      const timestamp = getCandleTimestamp(candle);
+      return timestamp >= chartStart && timestamp <= chartEnd;
+    })
     .sort((a: any, b: any) => getCandleTimestamp(a) - getCandleTimestamp(b));
 
   // Candlestick chart
@@ -97,12 +103,12 @@ export default function CardPurchasePanel({ player }: Props) {
     const range  = max - min || 1;
     const chartW = W - PAD.l - PAD.r;
     const chartH = H - PAD.t - PAD.b;
-    const toX    = (i: number) => candles.length === 1
-      ? PAD.l + chartW / 2
-      : PAD.l + (i / (candles.length - 1)) * chartW;
+    const toX = (candle: any) => PAD.l +
+      ((getCandleTimestamp(candle) - chartStart) / (chartEnd - chartStart)) * chartW;
     const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
-    const barW   = Math.max(2, (chartW / candles.length) * 0.6);
-    const labelIndices = [...new Set([0, Math.floor(candles.length / 2), candles.length - 1])];
+    const barW   = Math.max(2, (chartW / 14) * 0.6);
+    const dateLabel = (dayOffset: number) => new Date(chartStart + dayOffset * 86_400_000)
+      .toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
     return (
       <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
@@ -124,20 +130,16 @@ export default function CardPurchasePanel({ player }: Props) {
           const bodyH = Math.max(1, Math.abs(toY(c.open) - toY(c.close)));
           return (
             <g key={i}>
-              <line x1={toX(i)} x2={toX(i)} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth="1" />
-              <rect x={toX(i) - barW / 2} y={bodyY} width={barW} height={bodyH} fill={color} rx="0.5" />
+              <line x1={toX(c)} x2={toX(c)} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth="1" />
+              <rect x={toX(c) - barW / 2} y={bodyY} width={barW} height={bodyH} fill={color} rx="0.5" />
             </g>
           );
         })}
-        {labelIndices.map((i: number, labelIndex: number) => (
-          candles[i] && (
-            <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#4b5563"
-              textAnchor={labelIndex === 0 ? "start" : labelIndex === labelIndices.length - 1 ? "end" : "middle"}>
-              {candles[i].date ?? (typeof candles[i].time === "number"
-                ? new Date(candles[i].time * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
-                : String(candles[i].time).slice(5))}
-            </text>
-          )
+        {[0, 7, 14].map((day) => (
+          <text key={day} x={PAD.l + (day / 14) * chartW} y={H - 4} fontSize="7" fill="#4b5563"
+            textAnchor={day === 0 ? "start" : day === 14 ? "end" : "middle"}>
+            {dateLabel(day)}
+          </text>
         ))}
       </svg>
     );
@@ -252,10 +254,10 @@ export default function CardPurchasePanel({ player }: Props) {
           <p className="text-gray-500 text-xs font-semibold uppercase mb-3">Price History</p>
           <CandleChart />
           {orderbookData?.candleSource === "new_listings" && (
-            <p className="text-[10px] text-gray-500 mt-1">Last 14 days · daily range of asking prices on new eBay PSA 10 listings (not sold prices)</p>
+            <p className="text-[10px] text-gray-500 mt-1">Past 14 days · daily range of asking prices on newly listed eBay PSA 10 copies; gaps mean no new listings (not sold prices)</p>
           )}
           {orderbookData?.candleSource === "daily_prices" && (
-            <p className="text-[10px] text-gray-500 mt-1">Daily eBay market price for PSA 10 copies</p>
+            <p className="text-[10px] text-gray-500 mt-1">Past 14 days · daily eBay price snapshots; gaps mean no snapshot was available</p>
           )}
 
           {/* Stats */}

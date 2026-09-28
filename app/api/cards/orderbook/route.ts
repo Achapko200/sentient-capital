@@ -9,7 +9,9 @@ import { checkRateLimit }                 from "@/lib/ratelimit";
 import { getCandles, recordPriceSnapshot } from "@/lib/price-history";
 import { getMarketPrices }                from "@/lib/market-prices";
 
-const MIN_CANDLES = 1;
+// A single daily point is a snapshot, not a useful historical chart. Require
+// at least two dates, then try the eBay listing series as the fallback source.
+const MIN_CANDLES = 2;
 
 function tokenFor(player: any, pricePerShare: number, extra: Partial<CardToken> = {}): CardToken {
   return {
@@ -88,7 +90,7 @@ export async function GET(req: Request) {
 
       // buildToken records today's live eBay price; query history afterward so
       // the chart includes that snapshot instead of racing it.
-      const savedCandles = await getCandles(cardId);
+      const savedCandles = await getCandles(cardId, 14);
       let candles: any[]              = savedCandles.length >= MIN_CANDLES ? savedCandles : [];
       let candleSource: string | null = candles.length ? "daily_prices" : null;
       if (!candles.length) {
