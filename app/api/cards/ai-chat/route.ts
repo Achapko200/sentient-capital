@@ -2,6 +2,7 @@ import { checkRateLimit }     from "@/lib/ratelimit";
 import { supabaseAdmin }      from "@/lib/supabase-server";
 import { getVerifiedUser }    from "@/lib/verify-user";
 import { buildMarketContext, type Candidate } from "@/lib/scout-context";
+import { readJsonBody } from "@/lib/request-body";
 
 // ── Config ────────────────────────────────────────────────────────────────
 const DEFAULT_MODEL    = "openai/gpt-oss-20b";
@@ -18,6 +19,7 @@ const FREE_DAILY_LIMIT = 5;
 const PAID_DAILY_LIMIT = 200;   // cost safety cap for Pro/Elite
 const MAX_HISTORY      = 30;
 const MAX_MSG_LEN      = 4000;
+const MAX_REQUEST_BYTES = 180_000;
 const MAX_PLAYERS      = 200;
 const PLAYER_NAME_RE   = /^[\p{L}\p{M} .'\-]{2,40}$/u;
 const PLAYER_ID_RE     = /^\d{1,12}$/;
@@ -113,24 +115,38 @@ export async function POST(req: Request) {
   const user = await getVerifiedUser(req);
   if (!user) return Response.json({ error: "Please sign in to use the assistant." }, { status: 401 });
 
-  let body: any;
-  try { body = await req.json(); }
-  catch { return Response.json({ error: "Invalid request." }, { status: 400 }); }
+  const parsedBody = await readJsonBody(req, MAX_REQUEST_BYTES);
+  if (!parsedBody.ok) {
+    return Response.json(
+      { error: parsedBody.reason === "too_large" ? "Request is too large." : "Invalid request." },
+      { status: parsedBody.reason === "too_large" ? 413 : 400 },
+    );
+  }
+  const body: any = parsedBody.value;
 
   const messages = parseMessages(body?.messages);
   if (!messages) return Response.json({ error: "Invalid message." }, { status: 400 });
   const players  = parsePlayers(body?.players);
   const question = messages[messages.length - 1].content;
-  const recentConversation = messages.slice(-8).map(message => `${message.role}: ${message.content}`).join("\n");
 
   // Sensitive-data check on the new message
   const { scanForSensitiveData, sanitizeAIResponse } = await import("@/lib/dlp");
-  const { found, types } = scanForSensitiveData(question);
+  const { found, types, redacted } = scanForSensitiveData(question);
   if (found) {
     return Response.json({
       reply: `Your message may contain sensitive information (${types.join(", ")}). Please don't share private data in chat.`,
+      blocked: true,
+      sanitizedMessage: redacted,
     });
   }
+
+  // Prior turns come from the browser and may contain secrets entered earlier.
+  // Sanitize every turn before including it in any third-party model request.
+  const safeMessages = messages.map(message => ({
+    ...message,
+    content: scanForSensitiveData(message.content).redacted,
+  }));
+  const recentConversation = safeMessages.slice(-8).map(message => `${message.role}: ${message.content}`).join("\n");
 
   if (!process.env.GROQ_API_KEY) {
     console.error("[ai-chat] GROQ_API_KEY is not set");
@@ -164,6 +180,15 @@ export async function POST(req: Request) {
     console.error("[ai-chat] market data failed:", err);
     return { cards: [], context: "" };
   });
+  const sources = liveMarket.cards.map(card => ({
+    name: card.name,
+    cardName: card.cardName,
+    listingStatus: card.listingStatus,
+    listingCount: card.listingCount,
+    averageAskingPrice: card.averageAskingPrice,
+    checkedAt: card.checkedAt,
+    statsSeason: card.stats?.season ?? null,
+  }));
 
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -177,8 +202,9 @@ export async function POST(req: Request) {
         max_tokens:  1200,
         temperature: 0.55,
         user:        user.id,
-        messages:    [{ role: "system", content: buildSystemPrompt(players, liveMarket.context) }, ...messages],
+        messages:    [{ role: "system", content: buildSystemPrompt(players, liveMarket.context) }, ...safeMessages],
       }),
+      signal: AbortSignal.timeout(40_000),
     });
 
     if (!res.ok) {
@@ -193,7 +219,7 @@ export async function POST(req: Request) {
     }
 
     await supabaseAdmin.from("ai_usage").insert({ user_id: user.id, kind: "chat" });
-    return Response.json({ reply: sanitizeAIResponse(raw) });
+    return Response.json({ reply: sanitizeAIResponse(raw), sources });
   } catch (err) {
     console.error("[ai-chat] error:", err);
     return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });

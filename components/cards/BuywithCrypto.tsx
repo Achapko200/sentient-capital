@@ -4,7 +4,7 @@
 // Real crypto buy flow using Coinbase Wallet + Base network
 
 import { useState, useEffect }          from "react";
-import { useAccount, useConnect, useDisconnect, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useConnection, useConnect, useDisconnect, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseUnits, formatUnits }      from "viem";
 import { coinbaseWallet }               from "wagmi/connectors";
 import { USDC_ADDRESS, USDC_ABI }       from "@/lib/wagmi-config";
@@ -23,16 +23,13 @@ export default function BuyWithCrypto({ listing, onClose, onSuccess }: Props) {
   const [ethPrice, setEthPrice] = useState<number>(3500);
   const [error,    setError]    = useState<string>("");
 
-  const { address, isConnected } = useAccount();
-  const { connect }              = useConnect();
-  const { disconnect }           = useDisconnect();
-
-  const {
-    writeContract,
-    data: txHash,
-    isPending: isSending,
-    error: writeError,
-  } = useWriteContract();
+  const { address, isConnected } = useConnection();
+  const connect = useConnect();
+  const disconnect = useDisconnect();
+  const writeContract = useWriteContract();
+  const txHash = writeContract.data;
+  const isSending = writeContract.isPending;
+  const writeError = writeContract.error;
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -81,7 +78,7 @@ export default function BuyWithCrypto({ listing, onClose, onSuccess }: Props) {
 
   const handleBuyUSDC = () => {
     setStep("pending");
-    writeContract({
+    writeContract.mutate({
       address:      USDC_ADDRESS,
       abi:          USDC_ABI,
       functionName: "transfer",
@@ -126,14 +123,14 @@ export default function BuyWithCrypto({ listing, onClose, onSuccess }: Props) {
             <div className="space-y-3">
               <p className="text-gray-600 text-sm text-center">Connect your Coinbase Wallet to continue</p>
               <button
-                onClick={() => connect({ connector: coinbaseWallet({ appName: "Card Tracker" }) })}
+                onClick={() => connect.mutate({ connector: coinbaseWallet({ appName: "Card Tracker" }) })}
                 className="w-full py-3 rounded-xl bg-blue-600 text-white font-black text-sm hover:bg-blue-700 transition flex items-center justify-center gap-2"
               >
                 <span className="text-lg">🔵</span>
                 Connect Coinbase Wallet
               </button>
               <p className="text-gray-400 text-xs text-center">
-                Make sure you're on the Base network
+                Make sure you&apos;re on the Base network
               </p>
             </div>
           )}
@@ -171,7 +168,7 @@ export default function BuyWithCrypto({ listing, onClose, onSuccess }: Props) {
               </button>
 
               <button
-                onClick={() => { disconnect(); setStep("connect"); }}
+                onClick={() => { disconnect.mutate(); setStep("connect"); }}
                 className="w-full py-2 text-gray-400 text-xs hover:text-gray-600 transition"
               >
                 Disconnect wallet

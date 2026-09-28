@@ -43,9 +43,14 @@ export const rateLimiters = {
 };
 
 export function getIdentifier(req: Request): string {
-  // Use IP address as the identifier
+  // Prefer the platform-provided client IP headers. For forwarded chains, use
+  // the final hop rather than the caller-controlled first entry.
+  const edgeIp = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-real-ip");
+  if (edgeIp?.trim()) return edgeIp.trim();
+
   const forwarded = req.headers.get("x-forwarded-for");
-  const ip        = forwarded ? forwarded.split(",")[0].trim() : "anonymous";
+  const chain     = forwarded?.split(",").map(part => part.trim()).filter(Boolean) ?? [];
+  const ip        = chain[chain.length - 1] ?? "anonymous";
   return ip;
 }
 

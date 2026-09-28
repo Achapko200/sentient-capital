@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { supabase }                     from "@/lib/supabase";
-import ChatMessage                      from "@/components/cards/ChatMessage";
+import ChatMessage, { type ChatSource } from "@/components/cards/ChatMessage";
+import { scanForSensitiveData }         from "@/lib/dlp";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; sources?: ChatSource[] };
 
 export default function ScoutChat({ players }: { players: { name: string; id: string }[] }) {
   const [open,     setOpen]     = useState(false);
@@ -35,7 +36,13 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
     try {
       const saved = localStorage.getItem(`scout-chat:${userId}`);
       const parsed = saved ? JSON.parse(saved) : [];
-      setMessages(Array.isArray(parsed) ? parsed.slice(-30) : []);
+      const safeHistory: Message[] = Array.isArray(parsed)
+        ? parsed
+            .filter((message: any) => message && (message.role === "user" || message.role === "assistant") && typeof message.content === "string")
+            .slice(-30)
+            .map((message: Message) => ({ ...message, content: scanForSensitiveData(message.content).redacted }))
+        : [];
+      setMessages(safeHistory);
     } catch {
       setMessages([]);
     } finally {
@@ -58,8 +65,12 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
     const content = (text ?? input).trim();
     if (!content || loading) return;
 
+    const safeHistory = messages.map(message => ({
+      ...message,
+      content: scanForSensitiveData(message.content).redacted,
+    }));
     const userMsg: Message = { role: "user", content };
-    const newMessages = [...messages, userMsg];
+    const newMessages = [...safeHistory, userMsg];
     setMessages(newMessages);
     setInput("");
     setLoading(true);
@@ -68,10 +79,19 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
       const res  = await fetch("/api/cards/ai-chat", {
         method:  "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${(await (await import("@/lib/supabase")).supabase.auth.getSession()).data.session?.access_token ?? ""}` },
-        body:    JSON.stringify({ messages: newMessages, players }),
+        body:    JSON.stringify({ messages: newMessages.slice(-30), players }),
       });
       const data = await res.json();
-      setMessages(prev => [...prev, { role: "assistant", content: data.reply ?? data.error ?? "Sorry, try again." }]);
+      if (data.blocked) {
+        const safeMessages = [
+          ...newMessages.slice(0, -1),
+          { ...userMsg, content: data.sanitizedMessage ?? "[Sensitive message removed]" },
+          { role: "assistant" as const, content: data.reply ?? "Sensitive information was blocked." },
+        ];
+        setMessages(safeMessages);
+        return;
+      }
+      setMessages(prev => [...prev, { role: "assistant", content: data.reply ?? data.error ?? "Sorry, try again.", sources: data.sources ?? [] }]);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
     } finally {
@@ -94,10 +114,10 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
           "Content-Type": "application/json",
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ messages: promptMessages, players }),
+        body: JSON.stringify({ messages: promptMessages.slice(-30), players }),
       });
       const data = await res.json();
-      setMessages([...promptMessages, { role: "assistant", content: data.reply ?? data.error ?? "Please try again." }]);
+      setMessages([...promptMessages, { role: "assistant", content: data.reply ?? data.error ?? "Please try again.", sources: data.sources ?? [] }]);
     } catch {
       setMessages([...promptMessages, { role: "assistant", content: "Could not regenerate. Please try again." }]);
     } finally {
@@ -226,7 +246,7 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
 
             {messages.map((msg, i) => (
               <div key={i} className="space-y-1">
-                <ChatMessage role={msg.role} content={msg.content} variant="floating" />
+                <ChatMessage role={msg.role} content={msg.content} variant="floating" sources={msg.sources} />
                 {msg.role === "assistant" && i === messages.length - 1 && (
                   <div className="pl-9">
                     <button onClick={regenerateLast} disabled={loading}

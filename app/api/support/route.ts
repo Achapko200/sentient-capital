@@ -1,4 +1,6 @@
 import { checkRateLimit } from "@/lib/ratelimit";
+import { scanForSensitiveData } from "@/lib/dlp";
+import { readJsonBody } from "@/lib/request-body";
 
 export const dynamic = "force-dynamic";
 
@@ -19,17 +21,35 @@ function escapeHtml(value: string) {
 }
 
 export async function POST(req: Request) {
+  const origin = req.headers.get("origin");
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite === "cross-site") {
+    return Response.json({ error: "Cross-site support requests are not allowed." }, { status: 403 });
+  }
+  if (origin) {
+    try {
+      if (new URL(origin).origin !== new URL(req.url).origin) {
+        return Response.json({ error: "Cross-origin support requests are not allowed." }, { status: 403 });
+      }
+    } catch {
+      return Response.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+  }
+
   const limited = await checkRateLimit(req, "write");
   if (limited) return limited;
 
-  let body: Record<string, unknown>;
-  try {
-    const raw = await req.text();
-    if (raw.length > 8_000) return Response.json({ error: "Request is too large." }, { status: 413 });
-    body = JSON.parse(raw);
-  } catch {
+  const parsedBody = await readJsonBody(req, 8_000);
+  if (!parsedBody.ok) {
+    return Response.json(
+      { error: parsedBody.reason === "too_large" ? "Request is too large." : "Please submit a valid support request." },
+      { status: parsedBody.reason === "too_large" ? 413 : 400 },
+    );
+  }
+  if (!parsedBody.value || typeof parsedBody.value !== "object" || Array.isArray(parsedBody.value)) {
     return Response.json({ error: "Please submit a valid support request." }, { status: 400 });
   }
+  const body = parsedBody.value as Record<string, unknown>;
 
   // Quietly discard automated form submissions.
   if (typeof body.website === "string" && body.website.trim()) {
@@ -49,13 +69,19 @@ export async function POST(req: Request) {
   if (message.length < 10 || message.length > MAX_MESSAGE) {
     return Response.json({ error: "Message must be between 10 and 5,000 characters." }, { status: 400 });
   }
-  if (/-----BEGIN .*PRIVATE KEY-----|\bseed phrase\b|\bpassword\s*:/i.test(message)) {
-    return Response.json({ error: "For your security, remove passwords, recovery phrases, and private keys before sending." }, { status: 400 });
+  const supportText = `${name}\n${message}`;
+  if (scanForSensitiveData(`${supportText}\n${email}`).found || /\bseed phrase\b|\brecovery phrase\b|\bpassword\s*:/i.test(`${supportText}\n${email}`)) {
+    return Response.json({ error: "For your security, remove passwords, recovery phrases, private keys, payment-card numbers, and access tokens before sending." }, { status: 400 });
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "anna.chapko.2004@gmail.com";
+  const to = process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ??
+    (process.env.NODE_ENV === "production" ? "" : "anna.chapko.2004@gmail.com");
   const from = process.env.SUPPORT_FROM_EMAIL ?? "Card Tracker Support <onboarding@resend.dev>";
+  if (!to || !EMAIL_RE.test(to)) {
+    console.error("[support] SUPPORT_EMAIL is not configured with a valid destination");
+    return Response.json({ error: "Support email is not configured. Please use the direct email contact shown on this page." }, { status: 503 });
+  }
   if (!apiKey) {
     console.error("[support] RESEND_API_KEY is not configured");
     return Response.json({ error: "Support email is temporarily unavailable. Please try again later." }, { status: 503 });

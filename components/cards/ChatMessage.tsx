@@ -8,11 +8,41 @@ type Props = {
   role: "user" | "assistant";
   content: string;
   variant?: "panel" | "floating";
+  sources?: ChatSource[];
 };
 
-export default function ChatMessage({ role, content, variant = "panel" }: Props) {
+export type ChatSource = {
+  name: string;
+  cardName: string | null;
+  listingStatus: "available" | "no_listings" | "unavailable";
+  listingCount: number;
+  averageAskingPrice: number | null;
+  checkedAt: string;
+  statsSeason: number | null;
+};
+
+function safeMarkdownUrl(url: string) {
+  if (url.startsWith("#") || (url.startsWith("/") && !url.startsWith("//"))) return url;
+  try {
+    const protocol = new URL(url).protocol;
+    return protocol === "https:" || protocol === "http:" || protocol === "mailto:" ? url : "";
+  } catch {
+    return "";
+  }
+}
+
+export default function ChatMessage({ role, content, variant = "panel", sources = [] }: Props) {
   const isUser = role === "user";
   const floating = variant === "floating";
+  const safeSources = Array.isArray(sources)
+    ? sources.filter(source => source &&
+        typeof source.name === "string" && source.name.length <= 80 &&
+        (source.listingStatus === "available" || source.listingStatus === "no_listings" || source.listingStatus === "unavailable") &&
+        Number.isFinite(source.listingCount) &&
+        (source.averageAskingPrice === null || (Number.isFinite(source.averageAskingPrice) && source.averageAskingPrice > 0)) &&
+        typeof source.checkedAt === "string" && Date.parse(source.checkedAt) > 0
+      ).slice(0, 8)
+    : [];
   const [copied, setCopied] = useState(false);
 
   const copyMessage = async () => {
@@ -42,6 +72,7 @@ export default function ChatMessage({ role, content, variant = "panel" }: Props)
         <div className={`chat-markdown ${isUser ? "chat-markdown-user" : ""}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            urlTransform={safeMarkdownUrl}
             components={{
               p: ({ children }) => <p className="my-1.5 first:mt-0 last:mb-0">{children}</p>,
               h1: ({ children }) => <h1 className="mb-2 mt-3 text-lg font-bold first:mt-0">{children}</h1>,
@@ -56,6 +87,7 @@ export default function ChatMessage({ role, content, variant = "panel" }: Props)
               th: ({ children }) => <th className="border-b border-gray-300 px-2 py-1.5 font-bold">{children}</th>,
               td: ({ children }) => <td className="border-b border-gray-200 px-2 py-1.5 align-top">{children}</td>,
               a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2 decoration-blue-400">{children}</a>,
+              img: () => null,
               code: ({ children, className }) => className
                 ? <code className="block overflow-x-auto rounded-lg bg-gray-900 p-3 font-mono text-xs text-gray-100">{children}</code>
                 : <code className="rounded bg-black/10 px-1 py-0.5 font-mono text-[0.9em]">{children}</code>,
@@ -65,6 +97,32 @@ export default function ChatMessage({ role, content, variant = "panel" }: Props)
             {content}
           </ReactMarkdown>
         </div>
+        {!isUser && safeSources.length > 0 && (
+          <details className="mt-2 border-t border-gray-200/80 pt-2 text-xs">
+            <summary className="cursor-pointer select-none text-gray-500 transition hover:text-gray-800">
+              Live data checked · {safeSources.length} {safeSources.length === 1 ? "card" : "cards"}
+            </summary>
+            <ul className="mt-2 space-y-2">
+              {safeSources.map((source, index) => (
+                <li key={`${source.name}-${index}`} className="rounded-lg bg-black/[0.03] px-2.5 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <span className="font-semibold text-gray-700">{source.name}</span>
+                    <span className={source.listingStatus === "available" ? "text-emerald-700" : source.listingStatus === "no_listings" ? "text-amber-700" : "text-gray-500"}>
+                      {source.listingStatus === "available"
+                        ? `${source.listingCount} active listing${source.listingCount === 1 ? "" : "s"}`
+                        : source.listingStatus === "no_listings" ? "No matching active listings" : "Lookup unavailable"}
+                    </span>
+                  </div>
+                  {source.listingStatus === "available" && source.averageAskingPrice !== null && (
+                    <p className="mt-1 text-gray-500">Average asking price: ${source.averageAskingPrice.toFixed(2)} · not sold-price data</p>
+                  )}
+                  {source.statsSeason !== null && <p className="mt-1 text-gray-500">Player stats season: {source.statsSeason}</p>}
+                  {source.checkedAt && <p className="mt-1 text-gray-400">Checked {new Date(source.checkedAt).toLocaleString()}</p>}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
           {!isUser && content && (
             <div className="mt-2 flex justify-end">
               <button onClick={copyMessage} type="button" aria-label="Copy assistant response"

@@ -91,11 +91,16 @@ export async function GET(req: Request) {
       // buildToken records today's live eBay price; query history afterward so
       // the chart includes that snapshot instead of racing it.
       const savedCandles = await getCandles(cardId, 14);
-      let candles: any[]              = savedCandles.length >= MIN_CANDLES ? savedCandles : [];
-      let candleSource: string | null = candles.length ? "daily_prices" : null;
-      if (!candles.length) {
-        const listingCandles = await fetchNewListingCandles((player as any).cardName ?? player.name);
-        if (listingCandles.length >= MIN_CANDLES) { candles = listingCandles; candleSource = "new_listings"; }
+      // Use whichever real source covers more days: saved daily prices, or the last 14 days of new eBay listings
+      const listingCandles = savedCandles.length >= 14
+        ? []
+        : await fetchNewListingCandles((player as any).cardName ?? player.name);
+      let candles: any[]              = [];
+      let candleSource: string | null = null;
+      if (savedCandles.length >= MIN_CANDLES && savedCandles.length >= listingCandles.length) {
+        candles = savedCandles; candleSource = "daily_prices";
+      } else if (listingCandles.length >= MIN_CANDLES) {
+        candles = listingCandles; candleSource = "new_listings";
       }
       return Response.json({ token, book, trades, candles, candleSource, hasHistory: candles.length > 0 });
     }

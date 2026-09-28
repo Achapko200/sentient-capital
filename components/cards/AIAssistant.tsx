@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase }                    from "@/lib/supabase";
-import ChatMessage                     from "@/components/cards/ChatMessage";
+import ChatMessage, { type ChatSource } from "@/components/cards/ChatMessage";
+import { scanForSensitiveData }         from "@/lib/dlp";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; sources?: ChatSource[] };
 type Chat    = { id: string; title: string; updated_at: string };
 
 const MAX_INPUT   = 4000;
@@ -23,6 +24,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
   const [chatId,       setChatId]       = useState<string | null>(null);
   const [messages,     setMessages]     = useState<Message[]>([]);
   const [input,        setInput]        = useState("");
+  const [chatSearch,   setChatSearch]   = useState("");
   const [loading,      setLoading]      = useState(false);
   const [userId,       setUserId]       = useState<string | null>(null);
   const [showSidebar,  setShowSidebar]  = useState(true);
@@ -55,7 +57,10 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
     const res = await fetch(`/api/cards/chats?id=${encodeURIComponent(id)}`, { headers: await authHeaders() });
     if (!res.ok) return;
     const data = await res.json();
-    setMessages(data.chat?.messages ?? []);
+    const loaded = Array.isArray(data.chat?.messages) ? data.chat.messages : [];
+    setMessages(loaded
+      .filter((message: any) => message && (message.role === "user" || message.role === "assistant") && typeof message.content === "string")
+      .map((message: Message) => ({ ...message, content: scanForSensitiveData(message.content).redacted })));
     setChatId(id);
   };
 
@@ -104,8 +109,12 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
     const content = (text ?? input).trim().slice(0, MAX_INPUT);
     if (!content || loading || !userId) return;
 
+    const safeHistory = messages.map(message => ({
+      ...message,
+      content: scanForSensitiveData(message.content).redacted,
+    }));
     const userMsg: Message = { role: "user", content };
-    const newMessages      = [...messages, userMsg];
+    const newMessages      = [...safeHistory, userMsg];
     setMessages(newMessages);
     setInput("");
     setLoading(true);
@@ -114,7 +123,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
       const res  = await fetch("/api/cards/ai-chat", {
         method:  "POST",
         headers: await authHeaders(),
-        body:    JSON.stringify({ messages: newMessages, players }),
+        body:    JSON.stringify({ messages: newMessages.slice(-30), players }),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -124,7 +133,18 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
         return;
       }
 
-      const finalMessages: Message[] = [...newMessages, { role: "assistant", content: data.reply ?? "Sorry, try again." }];
+      if (data.blocked) {
+        const safeMessages: Message[] = [
+          ...newMessages.slice(0, -1),
+          { ...userMsg, content: data.sanitizedMessage ?? "[Sensitive message removed]" },
+          { role: "assistant", content: data.reply ?? "Sensitive information was blocked." },
+        ];
+        setMessages(safeMessages);
+        await saveChat(safeMessages, safeMessages[safeMessages.length - 2].content);
+        return;
+      }
+
+      const finalMessages: Message[] = [...newMessages, { role: "assistant", content: data.reply ?? "Sorry, try again.", sources: data.sources ?? [] }];
       setMessages(finalMessages);
       await saveChat(finalMessages, userMsg.content);
     } catch {
@@ -147,14 +167,14 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
       const res = await fetch("/api/cards/ai-chat", {
         method: "POST",
         headers: await authHeaders(),
-        body: JSON.stringify({ messages: promptMessages, players }),
+        body: JSON.stringify({ messages: promptMessages.slice(-30), players }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setMessages([...promptMessages, { role: "assistant", content: data.error ?? "Could not regenerate. Please try again." }]);
         return;
       }
-      const finalMessages: Message[] = [...promptMessages, { role: "assistant", content: data.reply ?? "Sorry, I couldn't generate a response." }];
+      const finalMessages: Message[] = [...promptMessages, { role: "assistant", content: data.reply ?? "Sorry, I couldn't generate a response.", sources: data.sources ?? [] }];
       setMessages(finalMessages);
       await saveChat(finalMessages, prompt);
     } catch {
@@ -174,7 +194,9 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
       { label: "Last 7 days", chats: [] },
       { label: "Older",       chats: [] },
     ];
-    chats.forEach(chat => {
+    chats
+      .filter(chat => !chatSearch.trim() || chat.title.toLowerCase().includes(chatSearch.trim().toLowerCase()))
+      .forEach(chat => {
       const d = new Date(chat.updated_at);
       if (d.toDateString() === today.toDateString())          groups[0].chats.push(chat);
       else if (d.toDateString() === yesterday.toDateString()) groups[1].chats.push(chat);
@@ -198,6 +220,14 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
               </svg>
               New chat
             </button>
+            <input
+              type="search"
+              value={chatSearch}
+              onChange={event => setChatSearch(event.target.value)}
+              placeholder="Search conversations"
+              aria-label="Search conversations"
+              className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 outline-none focus:border-blue-400"
+            />
           </div>
           <div className="flex-1 overflow-y-auto py-2">
             {loadingChats ? (
@@ -206,6 +236,8 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
               </div>
             ) : chats.length === 0 ? (
               <p className="text-xs text-gray-400 text-center mt-4 px-3">No chats yet</p>
+            ) : chatSearch.trim() && groupChats().length === 0 ? (
+              <p className="text-xs text-gray-400 text-center mt-4 px-3">No conversations match that search.</p>
             ) : (
               groupChats().map(group => (
                 <div key={group.label} className="mb-2">
@@ -275,7 +307,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
 
           {messages.map((msg, i) => (
             <div key={i} className="space-y-1">
-              <ChatMessage role={msg.role} content={msg.content} />
+              <ChatMessage role={msg.role} content={msg.content} sources={msg.sources} />
               {msg.role === "assistant" && i === messages.length - 1 && (
                 <div className="pl-10">
                   <button onClick={regenerateLast} disabled={loading}

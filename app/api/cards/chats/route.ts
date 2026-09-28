@@ -1,6 +1,8 @@
 import { supabaseAdmin }   from "@/lib/supabase-server";
 import { checkRateLimit }  from "@/lib/ratelimit";
 import { getVerifiedUser } from "@/lib/verify-user";
+import { readJsonBody } from "@/lib/request-body";
+import { scanForSensitiveData } from "@/lib/dlp";
 
 const MAX_TITLE_LEN   = 120;
 const MAX_MESSAGES    = 200;
@@ -11,7 +13,7 @@ const ID_RE           = /^[A-Za-z0-9-]{1,64}$/;
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 function cleanTitle(raw: unknown): string {
-  const t = typeof raw === "string" ? raw.replace(/[\u0000-\u001F\u007F]/g, "").trim() : "";
+  const t = typeof raw === "string" ? scanForSensitiveData(raw.replace(/[\u0000-\u001F\u007F]/g, "").trim()).redacted : "";
   return (t || "New chat").slice(0, MAX_TITLE_LEN);
 }
 
@@ -23,7 +25,10 @@ function cleanMessages(raw: unknown): ChatMessage[] | null {
     const { role, content } = m as Record<string, unknown>;
     if (role !== "user" && role !== "assistant") return null;
     if (typeof content !== "string" || content.length > MAX_MESSAGE_LEN) return null;
-    out.push({ role, content });
+    if (/\bseed phrase\b|\brecovery phrase\b|\bpassword\s*:/i.test(content)) return null;
+    // Strip sensitive values before persisting transcripts. Live-source citations
+    // are transient response metadata and are deliberately not accepted from clients.
+    out.push({ role, content: scanForSensitiveData(content).redacted });
   }
   return out;
 }
@@ -52,7 +57,7 @@ export async function GET(req: Request) {
       .maybeSingle();
     if (error) return serverError("get", error);
     if (!data)  return Response.json({ error: "Chat not found" }, { status: 404 });
-    return Response.json({ chat: data });
+    return Response.json({ chat: { ...data, messages: cleanMessages(data.messages) ?? [] } });
   }
 
   const { data, error } = await supabaseAdmin
@@ -73,14 +78,14 @@ export async function POST(req: Request) {
   const user = await getVerifiedUser(req);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: any;
-  try {
-    const text = await req.text();
-    if (text.length > MAX_BODY_BYTES) return Response.json({ error: "Payload too large" }, { status: 413 });
-    body = JSON.parse(text);
-  } catch {
-    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsedBody = await readJsonBody(req, MAX_BODY_BYTES);
+  if (!parsedBody.ok) {
+    return Response.json(
+      { error: parsedBody.reason === "too_large" ? "Payload too large" : "Invalid JSON" },
+      { status: parsedBody.reason === "too_large" ? 413 : 400 },
+    );
   }
+  const body: any = parsedBody.value;
 
   const title    = cleanTitle(body?.title);
   const messages = cleanMessages(body?.messages);

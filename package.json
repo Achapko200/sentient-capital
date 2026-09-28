@@ -9,9 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@dynamic-labs/ethereum": "^4.90.0",
-    "@dynamic-labs/sdk-react-core": "^4.90.0",
-    "@dynamic-labs/wagmi-connector": "^4.90.0",
+    "@dynamic-labs/embedded-wallet-evm": "^5.9.2",
+    "@dynamic-labs/ethereum": "^5.9.2",
+    "@dynamic-labs/legacy-embedded-wallet-migration": "^5.9.2",
+    "@dynamic-labs/sdk-react-core": "^5.9.2",
     "@stripe/stripe-js": "^9.10.0",
     "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.101.0",
@@ -26,9 +27,16 @@
     "remark-gfm": "^4.0.1",
     "stripe": "^22.3.1",
     "viem": "^2.53.1",
-    "wagmi": "^2.12.7",
+    "wagmi": "^3.7.7",
     "web-push": "^3.6.7",
     "zod": "^3.25.76"
+  },
+  "overrides": {
+    "postcss": "^8.5.28",
+    "axios": "^1.18.0",
+    "ws": "^8.22.0",
+    "@solana/spl-token": "0.4.15",
+    "@solana/buffer-layout-utils": "0.3.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^7.0.0",
@@ -42,6 +50,6 @@
     "hardhat": "^3.9.0",
     "sharp": "^0.35.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }

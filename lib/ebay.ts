@@ -10,6 +10,43 @@ const EXCLUDE_RE   = /\b(lot|lots|bundle|reprint|custom|rp|digital|pick|you pick
 
 let ebayToken: string | null = null;
 let tokenExpiry: number      = 0;
+const MIN_REQUEST_GAP_MS = 800;
+let lastEbayRequestAt = 0;
+
+async function throttleEbayRequest() {
+  const now = Date.now();
+  const elapsed = now - lastEbayRequestAt;
+  if (elapsed < MIN_REQUEST_GAP_MS) {
+    await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_GAP_MS - elapsed));
+  }
+  lastEbayRequestAt = Date.now();
+}
+
+async function fetchWithRetry(url: string, init: RequestInit, retries = 3): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await throttleEbayRequest();
+      const res = await fetch(url, init);
+      if (res.status === 429 && attempt < retries) {
+        const waitMs = 1000 * (attempt + 1) * 2;
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        const waitMs = 1000 * (attempt + 1) * 2;
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        continue;
+      }
+    }
+  }
+
+  throw lastError ?? new Error(`eBay request failed for ${url}`);
+}
 
 async function getEbayToken(): Promise<string | null> {
   if (ebayToken && Date.now() < tokenExpiry) return ebayToken;
@@ -20,7 +57,7 @@ async function getEbayToken(): Promise<string | null> {
 
   try {
     const credentials = Buffer.from(`${appId}:${certId}`).toString("base64");
-    const res = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
+    const res = await fetchWithRetry("https://api.ebay.com/identity/v1/oauth2/token", {
       method:  "POST",
       headers: {
         "Authorization": `Basic ${credentials}`,
@@ -50,6 +87,10 @@ const NOISE_RE    = /^(psa|10|rookie|rc|card|graded|gem|mint)$/i;
 // Parallels, numbered, autos and relics are different cards with very different prices
 const PARALLEL_RE = /\b(refractor|x-?fractor|prizm|wave|mojo|shimmer|speckle|lava|sparkle|parallel|variation|image variation|ssp|auto|autograph|autographed|patch|relic|jersey|gold|green|purple|orange|red|blue|pink|black|aqua|sepia|negative|sapphire|superfractor)\b|\/\s?\d{1,4}\b/i;
 
+function normalizeText(value: string) {
+  return String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 // "Aaron Judge 2016 Topps Chrome Rookie PSA 10" -> name "Aaron Judge", set ["topps","chrome"], rookie true
 function parseCardName(cardName: string) {
   const words    = String(cardName ?? "").split(/\s+/).filter(Boolean);
@@ -57,7 +98,7 @@ function parseCardName(cardName: string) {
   const lastName = (words[1] ?? words[0] ?? "").toLowerCase();
   const setWords = words.slice(2)
     .filter(w => !/^\d{4}$/.test(w) && !NOISE_RE.test(w) && !SUFFIX_RE.test(w))
-    .map(w => w.toLowerCase());
+    .map(w => normalizeText(w));
   const rookie   = /\b(rookie|rc)\b/i.test(cardName ?? "");
   return { name, lastName, setWords, rookie };
 }
@@ -73,39 +114,57 @@ async function searchPSA10(
   const { name, lastName, setWords, rookie } = parseCardName(cardName);
   if (!name) return [];
 
-  const query  = encodeURIComponent([name, ...setWords, "PSA 10"].join(" "));
+  const queries = [
+    [name, ...setWords, "PSA 10"],
+    [name, "PSA 10"],
+    [name, ...setWords.slice(0, Math.min(2, setWords.length)), "PSA 10"],
+  ].map(parts => encodeURIComponent(parts.filter(Boolean).join(" ")));
+
   const filter = encodeURIComponent("buyingOptions:{FIXED_PRICE},priceCurrency:USD");
   const sort   = opts.sort ? `&sort=${opts.sort}` : "";
   const out: Found[] = [];
 
-  for (let page = 0; page < (opts.maxPages ?? 1); page++) {
-    try {
-      const res = await fetch(
-        `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&filter=${filter}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}${sort}`,
-        { headers: { "Authorization": `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US", "Content-Type": "application/json" } }
-      );
-      if (!res.ok) { console.error("[ebay] search failed:", res.status); return page === 0 ? null : out; }
-      const data  = await res.json();
-      const items: any[] = data.itemSummaries ?? [];
+  for (const query of queries) {
+    for (let page = 0; page < (opts.maxPages ?? 1); page++) {
+      try {
+        const res = await fetchWithRetry(
+          `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&filter=${filter}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}${sort}`,
+          { headers: { "Authorization": `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US", "Content-Type": "application/json" } }
+        );
+        if (!res.ok) { console.error("[ebay] search failed:", res.status); return page === 0 ? null : out; }
+        const data  = await res.json();
+        const items: any[] = data.itemSummaries ?? [];
 
-      for (const it of items) {
-        const t = String(it.title ?? "").toLowerCase();
-        if (!t.includes("psa 10") || (lastName && !t.includes(lastName)) || EXCLUDE_RE.test(t)) continue;
-        if (setWords.length && !t.includes(setWords.join(" "))) continue;   // same set, exact phrase
-        if (PARALLEL_RE.test(t)) continue;                                    // base card only
-        if (rookie && !/\b(rc|rookie)\b/.test(t)) continue;               // rookie card only
-        const price = parseFloat(it.price?.value ?? "0");
-        if (!Number.isFinite(price) || price <= 0) continue;
-        out.push({ id: String(it.itemId), title: String(it.title), price, created: it.itemCreationDate ? new Date(it.itemCreationDate) : null });
+        for (const it of items) {
+          const rawTitle = String(it.title ?? "");
+          const t = normalizeText(rawTitle);
+          const hasPsa10 = t.includes("psa 10") || t.includes("psa10");
+          const hasLastName = !lastName || t.includes(lastName) || normalizeText(name).includes(lastName);
+          if (!hasPsa10 || !hasLastName || EXCLUDE_RE.test(rawTitle)) continue;
+
+          const setHasWords = setWords.length === 0 || setWords.some(word => t.includes(word));
+          const rookieMatch = !rookie || /\b(rc|rookie)\b/.test(t) || /(rc|rookie)\b/.test(normalizeText(cardName));
+          if (!setHasWords || !rookieMatch) {
+            const fallbackNameMatch = normalizeText(name).split(" ").every(token => t.includes(token) || token.length <= 2);
+            if (!fallbackNameMatch) continue;
+          }
+          if (PARALLEL_RE.test(rawTitle)) continue; // base card only
+
+          const price = parseFloat(it.price?.value ?? "0");
+          if (!Number.isFinite(price) || price <= 0) continue;
+          const title = String(it.title);
+          out.push({ id: String(it.itemId), title, price, created: it.itemCreationDate ? new Date(it.itemCreationDate) : null });
+        }
+
+        const oldest = items.length ? new Date(items[items.length - 1]?.itemCreationDate ?? 0).getTime() : 0;
+        if (items.length < PAGE_SIZE) break;
+        if (opts.until && oldest && oldest < opts.until) break;
+      } catch (err) {
+        console.error("[ebay] error:", err);
+        return page === 0 ? null : out;
       }
-
-      const oldest = items.length ? new Date(items[items.length - 1]?.itemCreationDate ?? 0).getTime() : 0;
-      if (items.length < PAGE_SIZE) break;                                // no more results
-      if (opts.until && oldest && oldest < opts.until) break;             // covered the time window
-    } catch (err) {
-      console.error("[ebay] error:", err);
-      return page === 0 ? null : out;
     }
+    if (out.length > 0) break;
   }
   return out;
 }
@@ -141,10 +200,39 @@ export async function fetchEbayMarketSnapshot(cardName: string): Promise<EbayMar
 
 // Returns current PSA 10 listings for the card, newest first.
 export async function fetchEbaySales(
-  _playerId: string,
+  playerId: string,
   cardName: string,
 ): Promise<EbaySale[]> {
-  return (await fetchEbayMarketSnapshot(cardName)).listings;
+  const live = (await fetchEbayMarketSnapshot(cardName)).listings;
+  if (live.length > 0) return live;
+
+  try {
+    const { supabaseAdmin } = await import("@/lib/supabase-server");
+    const { data, error } = await supabaseAdmin
+      .from("price_snapshots")
+      .select("player_id, close, day")
+      .eq("player_id", String(playerId))
+      .gt("close", 0)
+      .order("day", { ascending: false })
+      .limit(1);
+
+    if (!error && data && data.length > 0) {
+      const latest = Number(data[0].close);
+      if (Number.isFinite(latest) && latest > 0) {
+        return [{
+          id: `cached-${playerId}-${data[0].day}`,
+          date: String(data[0].day),
+          price: latest,
+          condition: "PSA 10",
+          title: `Cached live eBay asking price for ${cardName}`,
+        }];
+      }
+    }
+  } catch {
+    // ignore cache fallback failures; real eBay data should still surface when available
+  }
+
+  return [];
 }
 
 export type ListingCandle = {

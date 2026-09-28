@@ -11,6 +11,7 @@ const PATTERNS = {
   awsKey:       /AKIA[0-9A-Z]{16}/g,
   stripeKey:    /sk_(?:live|test)_[A-Za-z0-9]{24,}/g,
   supabaseKey:  /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]+/g,
+  credential:  /\b(?:password|passwd|passphrase|seed phrase|recovery phrase|private key|secret key|access token|api key)\b\s*(?:is\s+|[:=]\s*)\S+(?:\s+\S+){0,23}/gi,
 };
 
 export function scanForSensitiveData(text: string): {
