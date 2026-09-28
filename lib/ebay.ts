@@ -3,6 +3,7 @@
 // (asking prices), not completed sales. Nothing here is simulated: if eBay has no
 // data, callers get an empty list and should show "no data".
 import type { EbaySale } from "@/lib/cardTypes";
+import { takeEbayCall, markEbayExhausted } from "@/lib/ebay-budget";
 
 const SEARCH_LIMIT = 50;
 const MAX_RESULTS  = 20;
@@ -23,6 +24,16 @@ async function throttleEbayRequest() {
 }
 
 async function fetchWithRetry(url: string, init: RequestInit, retries = 1): Promise<Response> {
+  if (!(await takeEbayCall())) {
+    console.warn("[ebay] daily budget used up - skipping call");
+    return new Response(null, { status: 429 });
+  }
+  const res = await fetchWithRetryRaw(url, init, retries);
+  if (res.status === 429) await markEbayExhausted();
+  return res;
+}
+
+async function fetchWithRetryRaw(url: string, init: RequestInit, retries = 1): Promise<Response> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -318,9 +329,9 @@ export type EbayMarket = {
 };
 
 // ONE live eBay search -> current price, newest listings, and 14-day candles
-export async function fetchEbayMarket(cardName: string, days = 14): Promise<EbayMarket> {
+export async function fetchEbayMarket(cardName: string, days = 14, maxPages = 3): Promise<EbayMarket> {
   const checkedAt = new Date().toISOString();
-  const found = await searchPSA10(cardName, { sort: "newlyListed", maxPages: 3, until: Date.now() - days * 86_400_000 });
+  const found = await searchPSA10(cardName, { sort: "newlyListed", maxPages, until: Date.now() - days * 86_400_000 });
   if (!found) return { status: "unavailable", price: 0, listings: [], candles: [], checkedAt };
   const listings = [...found]
     .sort((a, b) => (b.created?.getTime() ?? 0) - (a.created?.getTime() ?? 0))

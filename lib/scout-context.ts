@@ -1,7 +1,8 @@
 // Builds live market context for Scout from the same data the card pages use.
 import { getPlayer }      from "@/lib/players";
 import { fetchMLBStats }  from "@/lib/mlb";
-import { fetchEbayMarketSnapshot, calcAvgPrice } from "@/lib/ebay";
+import { calcAvgPrice } from "@/lib/ebay";
+import { getMarketData } from "@/lib/market-cache";
 import { getPriceHistory } from "@/lib/price-history";
 import { calcSentiment }  from "@/lib/sentiment";
 import { generateSignal } from "@/lib/cardSignal";
@@ -83,7 +84,7 @@ async function loadLiveCard(candidate: Candidate): Promise<LiveMarketCard> {
 
   const [statsResult, marketResult] = await Promise.all([
     withTimeout(fetchMLBStats(player.id)),
-    withTimeout(fetchEbayMarketSnapshot(player.cardName)),
+    withTimeout(getMarketData(String(player.id), player.cardName).then(m => ({ listings: m.listings, status: m.status, checkedAt: m.updatedAt ?? new Date().toISOString() }))),
   ]);
   const stats = statsResult ?? null;
   const market = marketResult;

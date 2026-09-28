@@ -53,13 +53,13 @@ async function lastSavedPrice(playerId: string): Promise<MarketData> {
 }
 
 // Live eBay lookup -> save to cache (+ daily snapshot). Returns null if eBay was unavailable (cache untouched).
-export function refreshMarketData(playerId: string, cardName: string): Promise<MarketData | null> {
+export function refreshMarketData(playerId: string, cardName: string, maxPages = 3): Promise<MarketData | null> {
   const key = String(playerId);
   const running = inflight.get(key);
   if (running) return running;
 
   const job = (async () => {
-    const m = await fetchEbayMarket(cardName);
+    const m = await fetchEbayMarket(cardName, 14, maxPages);
     if (m.status === "unavailable") {
       console.warn(`[market-cache] eBay unavailable for ${key}`);
       return null;

@@ -9,8 +9,28 @@
       "schedule": "0 8 * * 1"
     },
     {
-      "path": "/api/cron/snapshot-prices",
+      "path": "/api/cron/snapshot-prices?part=0",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-prices?part=1",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-prices?part=2",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-prices?part=3",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-prices?part=4",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-prices?part=5",
+      "schedule": "0 18 * * *"
     }
   ]
 }
