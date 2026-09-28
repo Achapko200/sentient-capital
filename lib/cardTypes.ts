@@ -15,6 +15,7 @@ export type Player = {
 };
 
 export type MLBStats = {
+  season?: number;
   avg:     number;
   hr:      number;
   rbi:     number;

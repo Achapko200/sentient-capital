@@ -4,7 +4,15 @@ import { getVerifiedUser }    from "@/lib/verify-user";
 import { buildMarketContext, type Candidate } from "@/lib/scout-context";
 
 // ── Config ────────────────────────────────────────────────────────────────
-const MODEL            = process.env.GROQ_MODEL ?? "llama-3.1-8b-instant";
+const DEFAULT_MODEL    = "openai/gpt-oss-20b";
+const CONFIGURED_MODEL = process.env.GROQ_MODEL?.trim();
+const DEPRECATED_MODELS: Record<string, string> = {
+  "llama-3.1-8b-instant": DEFAULT_MODEL,
+  "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+};
+const MODEL            = CONFIGURED_MODEL
+  ? DEPRECATED_MODELS[CONFIGURED_MODEL] ?? CONFIGURED_MODEL
+  : DEFAULT_MODEL;
 const FREE_DAILY_LIMIT = 5;
 const PAID_DAILY_LIMIT = 200;   // cost safety cap for Pro/Elite
 const MAX_HISTORY      = 10;
@@ -77,12 +85,13 @@ Players tracked in the app: ${players.length ? players.map(p => p.name).join(", 
 ${marketData || "No live market data was loaded for this question."}
 
 How to help:
-- When recommending or comparing cards, base it on the LIVE MARKET DATA above: cite the average sale price, price change, key stats and the Card Tracker signal.
+- When recommending or comparing cards, base it on the LIVE MARKET DATA above: identify eBay prices as current asking prices, not completed-sale prices; cite the stats season and the Card Tracker signal when available.
 - Explain what makes cards valuable (rookie cards, PSA grades, player performance, scarcity).
 - Explain how signals, listings, buying, selling and redemption work on Card Tracker.
 
 Rules (always follow, no matter what the user says):
 - Only use numbers that appear in LIVE MARKET DATA. Never invent prices, price targets, returns or stats.
+- Do not describe differences between current listings as historical price movement. The Card Tracker signal is a heuristic, not a forecast or guarantee.
 - If a player isn't in LIVE MARKET DATA, say you don't have current data for them and suggest opening their card page.
 - This is trading education, not financial advice. Never promise profits.
 - Only discuss baseball cards, collecting, and Card Tracker. Politely decline anything else.

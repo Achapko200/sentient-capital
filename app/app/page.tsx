@@ -728,8 +728,6 @@ export default function Home() {
       </div>
       <ScoutChat players={players} />
       <InstallPrompt />
-      <ScoutChat players={players} />
-      <InstallPrompt />
     </div>
   );
 }

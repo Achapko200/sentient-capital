@@ -1,15 +1,14 @@
 // Builds live market context for Scout from the same data the card pages use.
 import { getPlayer }      from "@/lib/players";
 import { fetchMLBStats }  from "@/lib/mlb";
-import { fetchEbaySales, calcAvgPrice, calcPriceChange, calcLiquidity } from "@/lib/ebay";
-import { calcSentiment }  from "@/lib/sentiment";
+import { fetchEbaySales, calcAvgPrice } from "@/lib/ebay";
 import { generateSignal } from "@/lib/cardSignal";
 
 export type Candidate = { id: string; name: string };
 
 const MAX_MENTIONED   = 3;     // players named in the question
-const DEFAULT_PLAYERS = 5;     // for general "what should I buy" questions
-const TIMEOUT_MS      = 5000;
+const DEFAULT_PLAYERS = 3;     // keep broad recommendations quick and current
+const TIMEOUT_MS      = 8000;
 
 function withTimeout<T>(p: Promise<T>, ms = TIMEOUT_MS): Promise<T | null> {
   return Promise.race([p, new Promise<null>(r => setTimeout(() => r(null), ms))]).catch(() => null);
@@ -54,19 +53,19 @@ async function playerBlock(c: Candidate): Promise<string | null> {
   ]);
   const sales: any    = Array.isArray(rawSales) ? rawSales : [];
   const avgPrice      = calcAvgPrice(sales);
-  const priceChange   = calcPriceChange(sales);
-  const liquidity     = calcLiquidity(sales);
-  const sentiment     = calcSentiment(stats, priceChange);
-  const signal        = generateSignal(stats, sales, sentiment);
+  const signal = generateSignal(stats, sales, {
+    score: 50,
+    label: "NEUTRAL",
+    reasons: [],
+  });
+  const observedAt = new Date().toISOString();
 
   return [
     `Player: ${player.name}${player.cardName ? ` (card: ${player.cardName})` : ""}`,
-    `Average asking price: ${money(avgPrice)} across ${sales.length} current eBay PSA 10 listings (asking prices, not completed sales)`,
-    `Asking-price change, newest vs oldest listings: ${sales.length >= 6 ? compact(priceChange, 60) + "%" : "not enough listings"}`,
-    `Liquidity: ${compact(liquidity, 80)}`,
-    `Season stats: ${stats ? compact(stats, 400) : "not available"}`,
-    `Card Tracker signal: ${compact(signal, 400)}`,
-    `Sentiment: ${compact(sentiment, 200)}`,
+    `eBay data checked at: ${observedAt} (UTC)`,
+    `Average current eBay asking price: ${money(avgPrice)} across ${sales.length} active PSA 10 listings; these are asking prices, not completed sales`,
+    `Season stats: ${stats ? `${stats.season ?? "most recent available"} ${compact(stats, 400)}` : "not available"}`,
+    `Card Tracker signal: ${signal.signal} (rule-based heuristic; not a forecast)`,
   ].join("\n");
 }
 

@@ -33,10 +33,11 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
-  const send = async () => {
-    if (!input.trim() || loading) return;
+  const send = async (text?: string) => {
+    const content = (text ?? input).trim();
+    if (!content || loading) return;
 
-    const userMsg: Message = { role: "user", content: input.trim() };
+    const userMsg: Message = { role: "user", content };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
@@ -133,8 +134,8 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
               <p className="text-blue-200 text-xs">AI Card Trading Assistant</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-              <span className="text-green-300 text-xs">Online</span>
+              <span className="w-2 h-2 bg-blue-300 rounded-full" />
+              <span className="text-blue-200 text-xs">On-demand</span>
             </div>
           </div>
 
@@ -157,7 +158,7 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
                     "Best value right now?",
                     "How do signals work?",
                   ].map(s => (
-                    <button key={s} onClick={() => { setInput(s); setTimeout(send, 50); }}
+                    <button key={s} onClick={() => send(s)}
                       className="text-xs px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition shadow-sm">
                       {s}
                     </button>
@@ -214,7 +215,7 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
                 placeholder="Ask Scout anything..."
                 className="flex-1 bg-gray-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
               />
-              <button onClick={send} disabled={loading || !input.trim()}
+              <button onClick={() => send()} disabled={loading || !input.trim()}
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition disabled:opacity-40 shrink-0"
                 style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
                 <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

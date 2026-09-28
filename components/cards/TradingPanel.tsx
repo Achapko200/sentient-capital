@@ -144,7 +144,7 @@ export default function TradingPanel({ token }: Props) {
   // Candlestick chart
   const CandleChart = () => {
     if (chartCandles.length < 2) return null;
-    const W = 500, H = 160, PAD = { l: 44, r: 8, t: 8, b: 24 };
+    const W = 500, H = 160, PAD = { l: 44, r: 40, t: 8, b: 24 };
     const prices = chartCandles.flatMap(c => [c.high, c.low]);
     const min    = Math.min(...prices) * 0.995;
     const max    = Math.max(...prices) * 1.005;

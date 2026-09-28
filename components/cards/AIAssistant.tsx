@@ -210,7 +210,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
           </button>
           <div className="flex-1">
             <h3 className="text-gray-900 font-bold text-sm">Card Tracker Assistant</h3>
-            <p className="text-gray-400 text-xs">Powered by Llama 3.1</p>
+            <p className="text-gray-400 text-xs">Powered by Groq</p>
           </div>
           <button onClick={newChat} className="text-gray-400 hover:text-gray-600 transition" title="New chat">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

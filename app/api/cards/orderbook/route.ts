@@ -9,7 +9,7 @@ import { checkRateLimit }                 from "@/lib/ratelimit";
 import { getCandles, recordPriceSnapshot } from "@/lib/price-history";
 import { getMarketPrices }                from "@/lib/market-prices";
 
-const MIN_CANDLES = 2;
+const MIN_CANDLES = 1;
 
 function tokenFor(player: any, pricePerShare: number, extra: Partial<CardToken> = {}): CardToken {
   return {

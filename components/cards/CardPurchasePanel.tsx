@@ -38,38 +38,68 @@ export default function CardPurchasePanel({ player }: Props) {
 
   // Candlestick chart
   const CandleChart = () => {
-    if (candles.length < 2) {
+    if (candles.length === 0) {
       if (!orderbookData) return <div className="h-40 bg-gray-900 rounded-xl animate-pulse" />;
       const listings = (cardData?.sales ?? []).slice(0, 6);
+      const prices = listings
+        .map((listing: any) => Number(listing.price))
+        .filter((listingPrice: number) => Number.isFinite(listingPrice) && listingPrice > 0);
+      const low = Math.min(...prices);
+      const high = Math.max(...prices);
+      const padding = Math.max((high - low) * 0.15, high * 0.02, 1);
+      const min = low - padding;
+      const max = high + padding;
+      const xForPrice = (listingPrice: number) => 24 + ((listingPrice - min) / (max - min)) * 452;
       return (
         <div className="space-y-3">
           <p className="text-xs text-gray-500">
-            Not enough recent eBay listings to chart this card yet.
+            No dated price history yet. Showing the current asking-price range, not historical prices.
           </p>
           {listings.length > 0 ? (
-            <div className="rounded-xl bg-gray-900 divide-y divide-gray-800">
-              <p className="px-3 pt-3 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Current eBay PSA 10 listings</p>
-              {listings.map((l: any) => (
-                <div key={l.id} className="px-3 py-2 flex justify-between gap-3 text-xs">
-                  <span className="text-gray-400 truncate">{l.title}</span>
-                  <span className="text-white font-bold shrink-0">${Number(l.price).toFixed(2)}</span>
+            <>
+              {prices.length > 0 && (
+                <div className="rounded-xl bg-gray-900 px-3 py-3">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Current eBay asking prices · snapshot</p>
+                  <svg width="100%" viewBox="0 0 500 58" role="img" aria-label="Current eBay asking-price range, not historical prices">
+                    <line x1="24" x2="476" y1="28" y2="28" stroke="#374151" strokeWidth="4" strokeLinecap="round" />
+                    <line x1={xForPrice(low)} x2={xForPrice(high)} y1="28" y2="28" stroke="#60a5fa" strokeWidth="4" strokeLinecap="round" />
+                    {prices.map((listingPrice: number, index: number) => (
+                      <circle key={`${listingPrice}-${index}`} cx={xForPrice(listingPrice)} cy={index % 2 === 0 ? 22 : 34}
+                        r="4" fill="#bfdbfe" stroke="#111827" strokeWidth="1.5">
+                        <title>${listingPrice.toFixed(2)} current asking price</title>
+                      </circle>
+                    ))}
+                    <text x="24" y="54" fontSize="10" fill="#9ca3af" textAnchor="start">${low.toFixed(2)}</text>
+                    <text x="476" y="54" fontSize="10" fill="#9ca3af" textAnchor="end">${high.toFixed(2)}</text>
+                  </svg>
                 </div>
-              ))}
-            </div>
+              )}
+              <div className="rounded-xl bg-gray-900 divide-y divide-gray-800">
+                <p className="px-3 pt-3 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Current eBay PSA 10 listings</p>
+                {listings.map((l: any) => (
+                  <div key={l.id} className="px-3 py-2 flex justify-between gap-3 text-xs">
+                    <span className="text-gray-400 truncate">{l.title}</span>
+                    <span className="text-white font-bold shrink-0">${Number(l.price).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <p className="text-xs text-gray-500">No PSA 10 listings on eBay right now.</p>
           )}
         </div>
       );
     }
-    const W = 500, H = 160, PAD = { l: 44, r: 8, t: 8, b: 24 };
+    const W = 500, H = 160, PAD = { l: 44, r: 40, t: 8, b: 24 };
     const prices = candles.flatMap((c: any) => [c.high, c.low]);
     const min    = Math.min(...prices) * 0.995;
     const max    = Math.max(...prices) * 1.005;
     const range  = max - min || 1;
     const chartW = W - PAD.l - PAD.r;
     const chartH = H - PAD.t - PAD.b;
-    const toX    = (i: number) => PAD.l + (i / Math.max(candles.length - 1, 1)) * chartW;
+    const toX    = (i: number) => candles.length === 1
+      ? PAD.l + chartW / 2
+      : PAD.l + (i / (candles.length - 1)) * chartW;
     const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
     const barW   = Math.max(2, (chartW / candles.length) * 0.6);
     const labelIndices = [...new Set([0, Math.floor(candles.length / 2), candles.length - 1])];
