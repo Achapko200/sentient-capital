@@ -282,6 +282,61 @@ export async function fetchNewListingCandles(cardName: string, days = 14): Promi
   return candles;
 }
 
+function buildListingCandles(found: Found[], days: number): ListingCandle[] {
+  const cutoff = Date.now() - days * 86_400_000;
+  const recent = found
+    .filter(f => f.created && f.created.getTime() >= cutoff)
+    .sort((a, b) => a.created!.getTime() - b.created!.getTime());
+  if (!recent.length) return [];
+  const sorted = recent.map(f => f.price).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const clean  = recent.filter(f => f.price <= median * 3 && f.price >= median / 3);
+  const byDay  = new Map<string, Found[]>();
+  for (const f of clean) {
+    const d = f.created!.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+    if (!byDay.has(d)) byDay.set(d, []);
+    byDay.get(d)!.push(f);
+  }
+  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, list]) => {
+    const prices = list.map(l => l.price);
+    const t      = new Date(`${day}T12:00:00Z`).getTime();
+    return {
+      time: Math.floor(t / 1000), timestamp: t,
+      date: new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+      open: prices[0], close: prices[prices.length - 1],
+      high: Math.max(...prices), low: Math.min(...prices), volume: list.length,
+    };
+  });
+}
+
+export type EbayMarket = {
+  status:    "available" | "no_listings" | "unavailable";
+  price:     number;
+  listings:  EbaySale[];
+  candles:   ListingCandle[];
+  checkedAt: string;
+};
+
+// ONE live eBay search -> current price, newest listings, and 14-day candles
+export async function fetchEbayMarket(cardName: string, days = 14): Promise<EbayMarket> {
+  const checkedAt = new Date().toISOString();
+  const found = await searchPSA10(cardName, { sort: "newlyListed", maxPages: 3, until: Date.now() - days * 86_400_000 });
+  if (!found) return { status: "unavailable", price: 0, listings: [], candles: [], checkedAt };
+  const listings = [...found]
+    .sort((a, b) => (b.created?.getTime() ?? 0) - (a.created?.getTime() ?? 0))
+    .slice(0, MAX_RESULTS)
+    .map(f => ({
+      id: f.id,
+      date: f.created ? f.created.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Active",
+      price: f.price, condition: "PSA 10", title: f.title,
+    }));
+  return {
+    status: listings.length ? "available" : "no_listings",
+    price: calcAvgPrice(listings),
+    listings, candles: buildListingCandles(found, days), checkedAt,
+  };
+}
+
 // Outlier-resistant average: drops the top and bottom 10% when there are 5+ prices. 0 = no data.
 export function calcAvgPrice(sales: EbaySale[]): number {
   if (!sales.length) return 0;
