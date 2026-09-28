@@ -85,7 +85,7 @@ const PAGE_SIZE   = 200;
 const SUFFIX_RE   = /^(jr\.?|sr\.?|ii|iii|iv)$/i;
 const NOISE_RE    = /^(psa|10|rookie|rc|card|graded|gem|mint)$/i;
 // Parallels, numbered, autos and relics are different cards with very different prices
-const PARALLEL_RE = /\b(refractor|x-?fractor|prizm|wave|mojo|shimmer|speckle|lava|sparkle|parallel|variation|image variation|ssp|auto|autograph|autographed|patch|relic|jersey|gold|green|purple|orange|red|blue|pink|black|aqua|sepia|negative|sapphire|superfractor)\b|\/\s?\d{1,4}\b/i;
+const PARALLEL_RE = /(auto|autograph|autographed|patch|relic|jersey)/i;
 
 function normalizeText(value: string) {
   return String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -365,7 +365,7 @@ export async function debugListingSearch(cardName: string, days = 14) {
       if (!t.includes("psa 10")) { note("psa10", t); continue; } counts.psa10++;
       if (lastName && !t.includes(lastName)) { note("lastName", t); continue; } counts.lastName++;
       if (EXCLUDE_RE.test(t)) { note("excludeLots", t); continue; } counts.excludeLots++;
-      if (setWords.length && !t.includes(setWords.join(" "))) { note("setPhrase", t); continue; } counts.setPhrase++;
+      if (!setWords.every(w => t.includes(w))) { note("setPhrase", t); continue; } counts.setPhrase++;
       if (PARALLEL_RE.test(t)) { note("baseOnly", t); continue; } counts.baseOnly++;
       if (rookie && !/\b(rc|rookie)\b/.test(t)) { note("rookie", t); continue; } counts.rookie++;
       const created = it.itemCreationDate ? new Date(it.itemCreationDate).getTime() : 0;
