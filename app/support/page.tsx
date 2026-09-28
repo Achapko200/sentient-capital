@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import SupportRequestForm from "@/components/SupportRequestForm";
 
 export const metadata: Metadata = {
   title: "Help & Support | Card Tracker",
@@ -77,17 +78,15 @@ export default function SupportPage() {
           <h2 className="mb-4 text-xl font-black">Choose a topic</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {TOPICS.map(topic => (
-              <a
-                key={topic.title}
-                href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Support: ${topic.title}`)}`}
-                className="rounded-2xl border border-gray-800 bg-gray-900 p-5 transition hover:border-gray-600 hover:bg-gray-900/80"
-              >
+              <div key={topic.title} className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
                 <h3 className="font-bold">{topic.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-gray-400">{topic.description}</p>
-              </a>
+              </div>
             ))}
           </div>
         </section>
+
+        <SupportRequestForm />
 
         <section className="mt-10">
           <h2 className="mb-4 text-xl font-black">Common questions</h2>
