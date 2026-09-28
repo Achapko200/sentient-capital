@@ -5,6 +5,7 @@ import { useAuth }             from "@/lib/auth-context";
 import { supabase }            from "@/lib/supabase";
 import type { Player }         from "@/lib/cardTypes";
 import { getCandleTimestamp }  from "@/lib/cardToken";
+import CandlestickChart        from "@/components/cards/CandlestickChart";
 
 type Props = { player: Player };
 
@@ -96,53 +97,7 @@ export default function CardPurchasePanel({ player }: Props) {
         </div>
       );
     }
-    const W = 500, H = 160, PAD = { l: 44, r: 40, t: 8, b: 24 };
-    const prices = candles.flatMap((c: any) => [c.high, c.low]);
-    const min    = Math.min(...prices) * 0.995;
-    const max    = Math.max(...prices) * 1.005;
-    const range  = max - min || 1;
-    const chartW = W - PAD.l - PAD.r;
-    const chartH = H - PAD.t - PAD.b;
-    const toX = (candle: any) => PAD.l +
-      ((getCandleTimestamp(candle) - chartStart) / (chartEnd - chartStart)) * chartW;
-    const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
-    const barW   = Math.max(2, (chartW / 14) * 0.6);
-    const dateLabel = (dayOffset: number) => new Date(chartStart + dayOffset * 86_400_000)
-      .toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-    return (
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
-        {[0.25, 0.5, 0.75, 1].map(f => (
-          <line key={f} x1={PAD.l} x2={W - PAD.r}
-            y1={PAD.t + chartH * (1 - f)} y2={PAD.t + chartH * (1 - f)}
-            stroke="#1f2937" strokeWidth="1" />
-        ))}
-        {[0, 0.5, 1].map(f => (
-          <text key={f} x={PAD.l - 4} y={PAD.t + chartH * (1 - f) + 4}
-            fontSize="8" fill="#4b5563" textAnchor="end">
-            ${(min + range * f).toFixed(0)}
-          </text>
-        ))}
-        {candles.map((c: any, i: number) => {
-          const up    = c.close >= c.open;
-          const color = up ? "#22c55e" : "#ef4444";
-          const bodyY = toY(Math.max(c.open, c.close));
-          const bodyH = Math.max(1, Math.abs(toY(c.open) - toY(c.close)));
-          return (
-            <g key={i}>
-              <line x1={toX(c)} x2={toX(c)} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth="1" />
-              <rect x={toX(c) - barW / 2} y={bodyY} width={barW} height={bodyH} fill={color} rx="0.5" />
-            </g>
-          );
-        })}
-        {[0, 7, 14].map((day) => (
-          <text key={day} x={PAD.l + (day / 14) * chartW} y={H - 4} fontSize="7" fill="#4b5563"
-            textAnchor={day === 0 ? "start" : day === 14 ? "end" : "middle"}>
-            {dateLabel(day)}
-          </text>
-        ))}
-      </svg>
-    );
+    return <CandlestickChart candles={candles} />;
   };
 
   const handleUsdcPay = async () => {

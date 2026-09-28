@@ -110,14 +110,19 @@ async function searchPSA10(
   return out;
 }
 
-// Returns current PSA 10 listings for the card, newest first. Empty array if unavailable.
-export async function fetchEbaySales(
-  playerId: string,
-  cardName: string,
-): Promise<EbaySale[]> {
+export type EbayMarketSnapshot = {
+  listings: EbaySale[];
+  status: "available" | "no_listings" | "unavailable";
+  checkedAt: string;
+};
+
+// Returns current PSA 10 listings with an explicit status, so callers can tell
+// a verified empty market from an API outage.
+export async function fetchEbayMarketSnapshot(cardName: string): Promise<EbayMarketSnapshot> {
   const found = await searchPSA10(cardName, { sort: "newlyListed" });
-  if (!found) return [];
-  return found
+  const checkedAt = new Date().toISOString();
+  if (!found) return { listings: [], status: "unavailable", checkedAt };
+  const listings = found
     .sort((a, b) => (b.created?.getTime() ?? 0) - (a.created?.getTime() ?? 0))
     .slice(0, MAX_RESULTS)
     .map(f => ({
@@ -127,6 +132,19 @@ export async function fetchEbaySales(
       condition: "PSA 10",
       title:     f.title,
     }));
+  return {
+    listings,
+    status: listings.length > 0 ? "available" : "no_listings",
+    checkedAt,
+  };
+}
+
+// Returns current PSA 10 listings for the card, newest first.
+export async function fetchEbaySales(
+  _playerId: string,
+  cardName: string,
+): Promise<EbaySale[]> {
+  return (await fetchEbayMarketSnapshot(cardName)).listings;
 }
 
 export type ListingCandle = {

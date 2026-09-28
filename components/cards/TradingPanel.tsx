@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDynamicContext }                 from "@dynamic-labs/sdk-react-core";
 import { useAuth }                           from "@/lib/auth-context";
-import { getCandleTimestamp, type CardToken, type Candle } from "@/lib/cardToken";
+import type { CardToken, Candle } from "@/lib/cardToken";
+import CandlestickChart from "@/components/cards/CandlestickChart";
 import type { OrderBookSnapshot, Order, Trade } from "@/lib/orderbook";
 
 type Props = { token: CardToken };
@@ -31,9 +32,6 @@ export default function TradingPanel({ token }: Props) {
   const [tab,        setTab]        = useState<"chart" | "book">("chart");
 
   const currentPrice = book?.lastPrice || token.pricePerShare;
-  const chartCandles = [...candles].sort((a, b) => getCandleTimestamp(a) - getCandleTimestamp(b));
-  const chartEnd = Date.now();
-  const chartStart = chartEnd - 14 * 86_400_000;
   const total = Math.round(parseFloat(price || "0") * parseInt(shares || "0") * 100) / 100;
 
   const load = useCallback(async () => {
@@ -143,65 +141,6 @@ export default function TradingPanel({ token }: Props) {
     }
   };
 
-  // Candlestick chart
-  const CandleChart = () => {
-    if (chartCandles.length < 2) return null;
-    const visibleCandles = chartCandles.filter(c => {
-      const timestamp = getCandleTimestamp(c);
-      return timestamp >= chartStart && timestamp <= chartEnd;
-    });
-    if (visibleCandles.length < 2) return null;
-    const W = 500, H = 160, PAD = { l: 44, r: 40, t: 8, b: 24 };
-    const prices = visibleCandles.flatMap(c => [c.high, c.low]);
-    const min    = Math.min(...prices) * 0.995;
-    const max    = Math.max(...prices) * 1.005;
-    const range  = max - min || 1;
-    const chartW = W - PAD.l - PAD.r;
-    const chartH = H - PAD.t - PAD.b;
-    const toX = (candle: Candle) => PAD.l +
-      ((getCandleTimestamp(candle) - chartStart) / (chartEnd - chartStart)) * chartW;
-    const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
-    const barW   = Math.max(2, (chartW / 14) * 0.6);
-    const lastCandle = visibleCandles[visibleCandles.length - 1];
-    const isUp = lastCandle.close >= visibleCandles[0].open;
-    const dateLabel = (dayOffset: number) => new Date(chartStart + dayOffset * 86_400_000)
-      .toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-    return (
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
-        {[0.25, 0.5, 0.75, 1].map(f => (
-          <line key={f} x1={PAD.l} x2={W - PAD.r}
-            y1={PAD.t + chartH * (1 - f)} y2={PAD.t + chartH * (1 - f)}
-            stroke="#1f2937" strokeWidth="1" />
-        ))}
-        {[0, 0.5, 1].map(f => (
-          <text key={f} x={PAD.l - 4} y={PAD.t + chartH * (1 - f) + 4}
-            fontSize="8" fill="#4b5563" textAnchor="end">
-            ${(min + range * f).toFixed(0)}
-          </text>
-        ))}
-        {visibleCandles.map((c, i) => {
-          const up    = c.close >= c.open;
-          const color = up ? "#22c55e" : "#ef4444";
-          const bodyY = toY(Math.max(c.open, c.close));
-          const bodyH = Math.max(1, Math.abs(toY(c.open) - toY(c.close)));
-          return (
-            <g key={i}>
-              <line x1={toX(c)} x2={toX(c)} y1={toY(c.high)} y2={toY(c.low)} stroke={color} strokeWidth="1" />
-              <rect x={toX(c) - barW / 2} y={bodyY} width={barW} height={bodyH} fill={color} rx="0.5" />
-            </g>
-          );
-        })}
-        {[0, 7, 14].map((day) => (
-          <text key={day} x={PAD.l + (day / 14) * chartW} y={H - 4} fontSize="7" fill="#4b5563"
-            textAnchor={day === 0 ? "start" : day === 14 ? "end" : "middle"}>
-            {dateLabel(day)}
-          </text>
-        ))}
-      </svg>
-    );
-  };
-
   return (
     <div className="bg-gray-950 rounded-2xl overflow-hidden border border-gray-800 text-white">
 
@@ -257,7 +196,7 @@ export default function TradingPanel({ token }: Props) {
 
           {tab === "chart" && (
             <div className="p-4">
-              <CandleChart />
+              <CandlestickChart candles={candles} />
               {candles.length >= 2 && (
                 <p className="text-[10px] text-gray-500 mt-1">Past 14 days · daily price observations; gaps mean no snapshot was available</p>
               )}

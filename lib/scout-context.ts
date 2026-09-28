@@ -1,28 +1,49 @@
 // Builds live market context for Scout from the same data the card pages use.
 import { getPlayer }      from "@/lib/players";
 import { fetchMLBStats }  from "@/lib/mlb";
-import { fetchEbaySales, calcAvgPrice } from "@/lib/ebay";
+import { fetchEbayMarketSnapshot, calcAvgPrice } from "@/lib/ebay";
+import { getPriceHistory } from "@/lib/price-history";
+import { calcSentiment }  from "@/lib/sentiment";
 import { generateSignal } from "@/lib/cardSignal";
+import type { CardSignal, MLBStats } from "@/lib/cardTypes";
 
 export type Candidate = { id: string; name: string };
 
+export type LiveMarketCard = {
+  id: string;
+  name: string;
+  cardName: string | null;
+  listingStatus: "available" | "no_listings" | "unavailable";
+  listingCount: number;
+  averageAskingPrice: number | null;
+  checkedAt: string;
+  stats: MLBStats | null;
+  priceChange7d: number | null;
+  signal: CardSignal | null;
+};
+
+export type LiveMarketContext = {
+  cards: LiveMarketCard[];
+  context: string;
+};
+
 const MAX_MENTIONED   = 3;     // players named in the question
-const DEFAULT_PLAYERS = 3;     // keep broad recommendations quick and current
-const TIMEOUT_MS      = 8000;
+const DEFAULT_PLAYERS = 8;     // inspect enough of the market to find actual listings
+const TIMEOUT_MS      = 10_000;
 
 function withTimeout<T>(p: Promise<T>, ms = TIMEOUT_MS): Promise<T | null> {
-  return Promise.race([p, new Promise<null>(r => setTimeout(() => r(null), ms))]).catch(() => null);
+  return new Promise(resolve => {
+    const timer = setTimeout(() => resolve(null), ms);
+    p.then(value => {
+      clearTimeout(timer);
+      resolve(value);
+    }).catch(() => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+  });
 }
 
-const compact = (v: unknown, max: number) => {
-  try {
-    const s = JSON.stringify(v);
-    if (!s) return "not available";
-    return s.length > max ? s.slice(0, max) + "…" : s;
-  } catch { return "not available"; }
-};
-const money = (n: unknown) =>
-  typeof n === "number" && Number.isFinite(n) && n > 0 ? `$${n.toFixed(2)}` : "not available";
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Which tracked players does the question mention? (full name, or a unique last name)
@@ -43,40 +64,75 @@ export function pickPlayers(question: string, candidates: Candidate[]): Candidat
     .slice(0, MAX_MENTIONED);
 }
 
-async function playerBlock(c: Candidate): Promise<string | null> {
-  const player: any = await withTimeout(getPlayer(c.id));   // server-side lookup: client ids are never trusted
-  if (!player) return null;
+async function loadLiveCard(candidate: Candidate): Promise<LiveMarketCard> {
+  const player: any = await withTimeout(getPlayer(candidate.id));
+  if (!player) {
+    return {
+      id: candidate.id,
+      name: candidate.name,
+      cardName: null,
+      listingStatus: "unavailable",
+      listingCount: 0,
+      averageAskingPrice: null,
+      checkedAt: new Date().toISOString(),
+      stats: null,
+      priceChange7d: null,
+      signal: null,
+    };
+  }
 
-  const [stats, rawSales]: any[] = await Promise.all([
+  const [statsResult, marketResult] = await Promise.all([
     withTimeout(fetchMLBStats(player.id)),
-    withTimeout(fetchEbaySales(player.id, player.cardName)),
+    withTimeout(fetchEbayMarketSnapshot(player.cardName)),
   ]);
-  const sales: any    = Array.isArray(rawSales) ? rawSales : [];
-  const avgPrice      = calcAvgPrice(sales);
-  const signal = generateSignal(stats, sales, {
-    score: 50,
-    label: "NEUTRAL",
-    reasons: [],
-  });
-  const observedAt = new Date().toISOString();
+  const stats = statsResult ?? null;
+  const market = marketResult;
+  const listings = market?.listings ?? [];
+  const averageAskingPrice = listings.length > 0 ? calcAvgPrice(listings) : null;
+  const priceHistory = averageAskingPrice === null
+    ? null
+    : await withTimeout(getPriceHistory(player.id, averageAskingPrice));
+  const priceChange7d = priceHistory?.week.available ? priceHistory.week.changePct : null;
+  const sentiment = calcSentiment(stats, priceChange7d ?? 0);
+  const signal = generateSignal(stats, listings, sentiment);
 
-  return [
-    `Player: ${player.name}${player.cardName ? ` (card: ${player.cardName})` : ""}`,
-    `eBay data checked at: ${observedAt} (UTC)`,
-    `Average current eBay asking price: ${money(avgPrice)} across ${sales.length} active PSA 10 listings; these are asking prices, not completed sales`,
-    `Season stats: ${stats ? `${stats.season ?? "most recent available"} ${compact(stats, 400)}` : "not available"}`,
-    `Card Tracker signal: ${signal.signal} (rule-based heuristic; not a forecast)`,
-  ].join("\n");
+  return {
+    id: String(player.id),
+    name: player.name,
+    cardName: player.cardName ?? null,
+    listingStatus: market?.status ?? "unavailable",
+    listingCount: listings.length,
+    averageAskingPrice,
+    checkedAt: market?.checkedAt ?? new Date().toISOString(),
+    stats,
+    priceChange7d,
+    signal,
+  };
 }
 
-export async function buildMarketContext(question: string, candidates: Candidate[]): Promise<string> {
+export async function buildMarketContext(question: string, candidates: Candidate[]): Promise<LiveMarketContext> {
   let picked = pickPlayers(question, candidates);
   if (picked.length === 0 && /\b(buy|sell|invest|best|hot|trending|pick|recommend|undervalued)\b/i.test(question)) {
     picked = candidates.slice(0, DEFAULT_PLAYERS);
   }
-  if (picked.length === 0) return "";
+  if (picked.length === 0) return { cards: [], context: "" };
 
-  const blocks = (await Promise.all(picked.map(c => playerBlock(c).catch(() => null)))).filter(Boolean);
-  if (blocks.length === 0) return "";
-  return `LIVE MARKET DATA from Card Tracker (${new Date().toISOString().slice(0, 10)}):\n\n${blocks.join("\n\n")}`;
+  const cards = await Promise.all(picked.map(candidate =>
+    loadLiveCard(candidate).catch(() => ({
+      id: candidate.id,
+      name: candidate.name,
+      cardName: null,
+      listingStatus: "unavailable" as const,
+      listingCount: 0,
+      averageAskingPrice: null,
+      checkedAt: new Date().toISOString(),
+      stats: null,
+      priceChange7d: null,
+      signal: null,
+    }))
+  ));
+  const context = cards.length
+    ? `VERIFIED LIVE LOOKUPS (checked ${new Date().toISOString()}). Use these records only; unavailable means the source did not return data, not zero listings.\n${JSON.stringify(cards)}`
+    : "";
+  return { cards, context };
 }
