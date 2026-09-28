@@ -429,6 +429,10 @@ export default function Home() {
             <h1 className="text-lg font-black tracking-tight" style={{ color: "var(--text-primary)" }}>Card Tracker</h1>
           </div>
           <div className="flex items-center gap-2">
+            <a href="/support"
+              className="text-gray-400 hover:text-white text-xs px-2 py-1.5 rounded-lg transition">
+              Help
+            </a>
             {isAuthenticated && (
               <ProfileDropdown email={email} wallet={wallet} signOut={signOut} />
             )}

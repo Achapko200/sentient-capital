@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { supabase }                     from "@/lib/supabase";
+import ChatMessage                      from "@/components/cards/ChatMessage";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -10,8 +11,8 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
   const [messages, setMessages] = useState<Message[]>([]);
   const [input,    setInput]    = useState("");
   const [loading,  setLoading]  = useState(false);
-  const [msgCount, setMsgCount] = useState(0);
   const [userId,   setUserId]   = useState<string | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatRef   = useRef<HTMLDivElement>(null);
 
@@ -30,6 +31,26 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
   }, []);
 
   useEffect(() => {
+    if (!userId) return;
+    try {
+      const saved = localStorage.getItem(`scout-chat:${userId}`);
+      const parsed = saved ? JSON.parse(saved) : [];
+      setMessages(Array.isArray(parsed) ? parsed.slice(-30) : []);
+    } catch {
+      setMessages([]);
+    } finally {
+      setHistoryLoaded(true);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !historyLoaded) return;
+    try {
+      localStorage.setItem(`scout-chat:${userId}`, JSON.stringify(messages.slice(-30)));
+    } catch {}
+  }, [historyLoaded, messages, userId]);
+
+  useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
@@ -42,7 +63,6 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-    setMsgCount(c => c + 1);
 
     try {
       const res  = await fetch("/api/cards/ai-chat", {
@@ -57,6 +77,37 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
     } finally {
       setLoading(false);
     }
+  };
+
+  const regenerateLast = async () => {
+    if (loading || !userId) return;
+    const lastUserIndex = messages.map(message => message.role).lastIndexOf("user");
+    if (lastUserIndex < 0) return;
+    const promptMessages = messages.slice(0, lastUserIndex + 1);
+    setMessages(promptMessages);
+    setLoading(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const res = await fetch("/api/cards/ai-chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ messages: promptMessages, players }),
+      });
+      const data = await res.json();
+      setMessages([...promptMessages, { role: "assistant", content: data.reply ?? data.error ?? "Please try again." }]);
+    } catch {
+      setMessages([...promptMessages, { role: "assistant", content: "Could not regenerate. Please try again." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startNewConversation = () => {
+    setMessages([]);
+    if (userId) localStorage.removeItem(`scout-chat:${userId}`);
   };
   const [showTeaser, setShowTeaser] = useState(false);
 
@@ -133,6 +184,12 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
               <p className="text-white font-black text-sm">Scout</p>
               <p className="text-blue-200 text-xs">AI Card Trading Assistant</p>
             </div>
+            {messages.length > 0 && (
+              <button onClick={startNewConversation} title="New conversation" aria-label="Start a new conversation"
+                className="rounded-lg px-2 py-1 text-blue-100 transition hover:bg-white/10 hover:text-white">
+                ＋
+              </button>
+            )}
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 bg-blue-300 rounded-full" />
               <span className="text-blue-200 text-xs">On-demand</span>
@@ -158,8 +215,8 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
                     "Best value right now?",
                     "How do signals work?",
                   ].map(s => (
-                    <button key={s} onClick={() => send(s)}
-                      className="text-xs px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition shadow-sm">
+                    <button key={s} onClick={() => send(s)} disabled={!userId || loading}
+                      className="text-xs px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 transition shadow-sm disabled:opacity-50">
                       {s}
                     </button>
                   ))}
@@ -168,21 +225,16 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
             )}
 
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                {msg.role === "assistant" && (
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5"
-                    style={{ background: "linear-gradient(135deg, #1a1a2e, #2563eb)" }}>
-                    ⚾
+              <div key={i} className="space-y-1">
+                <ChatMessage role={msg.role} content={msg.content} variant="floating" />
+                {msg.role === "assistant" && i === messages.length - 1 && (
+                  <div className="pl-9">
+                    <button onClick={regenerateLast} disabled={loading}
+                      className="text-[10px] text-gray-400 transition hover:text-blue-600 disabled:opacity-50">
+                      Regenerate
+                    </button>
                   </div>
                 )}
-                <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "text-white rounded-br-sm"
-                    : "bg-white text-gray-800 rounded-tl-sm shadow-sm border border-gray-100"
-                }`}
-                  style={msg.role === "user" ? { background: "linear-gradient(135deg, #2563eb, #7c3aed)" } : {}}>
-                  {msg.content}
-                </div>
               </div>
             ))}
 
@@ -207,16 +259,24 @@ export default function ScoutChat({ players }: { players: { name: string; id: st
           {/* Input */}
           <div className="p-3 border-t border-gray-100 bg-white">
             <div className="flex gap-2 items-center">
-              <input
-                type="text"
+              <textarea
+                rows={2}
+                maxLength={4000}
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
-                placeholder="Ask Scout anything..."
-                className="flex-1 bg-gray-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                placeholder={userId ? "Message Scout…" : "Sign in to chat with Scout"}
+                disabled={!userId}
+                className="flex-1 resize-none bg-gray-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition disabled:opacity-60"
               />
-              <button onClick={() => send()} disabled={loading || !input.trim()}
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition disabled:opacity-40 shrink-0"
+              <button onClick={() => send()} disabled={loading || !input.trim() || !userId}
+                aria-label="Send message"
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition disabled:opacity-40 shrink-0 self-end"
                 style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
                 <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

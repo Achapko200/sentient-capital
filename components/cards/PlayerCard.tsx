@@ -102,9 +102,8 @@ export default function PlayerCard({ player, onTrade }: Props) {
   const { stats, sales, sentiment, cardSignal, avgPrice, priceChange, priceHistory } = data;
   const displayPrice = lastTradePrice ?? avgPrice;
 
-  // No real market for this card (no eBay listings, no trades) → don't show it
-  if (!(displayPrice > 0)) return null;
-  const isUp         = priceChange >= 0;
+  const hasPrice      = Number.isFinite(Number(displayPrice)) && Number(displayPrice) > 0;
+  const isUp          = priceChange >= 0;
   const signal       = cardSignal?.signal ?? "HOLD";
 
   // Polymarket-style signal colors — saturated, not muted
@@ -123,7 +122,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
       }}>
 
       {/* Colored top stripe */}
-      <div className="h-0.5" style={{ backgroundColor: pal.border }} />
+      <div className="h-0.5" style={{ backgroundColor: hasPrice ? pal.border : "#6b7280" }} />
 
       <div className="p-4">
 
@@ -135,7 +134,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
                 className="w-11 h-11 rounded-full object-cover"
                 style={{ backgroundColor: "#222" }} />
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-                style={{ backgroundColor: pal.dot, borderColor: "var(--bg-card)" }} />
+                style={{ backgroundColor: hasPrice ? pal.dot : "#6b7280", borderColor: "var(--bg-card)" }} />
             </div>
             <div>
               <p className="font-black text-sm" style={{ color: "var(--text-primary)" }}>{player.name}</p>
@@ -146,12 +145,15 @@ export default function PlayerCard({ player, onTrade }: Props) {
             <p className={`text-2xl font-black leading-none transition-colors ${
               priceFlash === "up" ? "text-green-400" : priceFlash === "down" ? "text-red-400" : ""
             }`} style={ !priceFlash ? { color: "var(--text-primary)" } : {}}>
-              ${displayPrice}
+              {hasPrice ? `$${Number(displayPrice).toLocaleString("en-US", { maximumFractionDigits: 2 })}` : "—"}
             </p>
-            <p className="text-sm font-black mt-0.5"
-              style={{ color: isUp ? "#00c278" : "#ff3b30" }}>
-              {isUp ? "▲" : "▼"} {Math.abs(priceChange)}%
-            </p>
+            {hasPrice ? (
+              <p className="text-sm font-black mt-0.5" style={{ color: isUp ? "#00c278" : "#ff3b30" }}>
+                {isUp ? "▲" : "▼"} {Math.abs(priceChange)}%
+              </p>
+            ) : (
+              <p className="text-xs mt-1" style={{ color: "#8a8a8a" }}>No current price</p>
+            )}
           </div>
         </div>
 
@@ -159,8 +161,12 @@ export default function PlayerCard({ player, onTrade }: Props) {
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           {/* Signal — Polymarket-style filled pill */}
           <span className="text-xs font-black px-3 py-1 rounded-full"
-            style={{ backgroundColor: pal.bg, color: pal.text, border: `1px solid ${pal.border}` }}>
-            {signal} · {cardSignal?.confidence ?? 0}%
+            style={{
+              backgroundColor: hasPrice ? pal.bg : "var(--bg-primary)",
+              color: hasPrice ? pal.text : "#8a8a8a",
+              border: `1px solid ${hasPrice ? pal.border : "var(--border)"}`,
+            }}>
+            {hasPrice ? `${signal} · ${cardSignal?.confidence ?? 0}%` : "NO PRICE DATA"}
           </span>
 
           {/* Sentiment */}
@@ -182,7 +188,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
             <PriceChart sales={sales} />
           </div>
         )}
-        {!canSeeEbay && (
+        {!canSeeEbay && hasPrice && (
           <div className="mb-3 rounded-xl px-3 py-2 flex items-center justify-between"
             style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border)" }}>
             <p className="text-xs" style={{ color: "#8a8a8a" }}>🔒 eBay price chart — Pro feature</p>
@@ -295,7 +301,7 @@ export default function PlayerCard({ player, onTrade }: Props) {
             )}
 
           {/* Signal reasoning — colored left border */}
-            {cardSignal?.reasons && (
+            {cardSignal?.reasons?.length > 0 && (
               <div className="rounded-xl p-3"
                 style={{
                   backgroundColor: "var(--bg-primary)",

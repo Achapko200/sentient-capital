@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase }                    from "@/lib/supabase";
+import ChatMessage                     from "@/components/cards/ChatMessage";
 
 type Message = { role: "user" | "assistant"; content: string };
 type Chat    = { id: string; title: string; updated_at: string };
 
-const MAX_INPUT   = 2000;
+const MAX_INPUT   = 4000;
 const SUGGESTIONS = ["Which cards should I buy right now?", "Explain the order book", "How do I redeem a card?", "What affects card prices?"];
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -133,6 +134,36 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
     }
   };
 
+  const regenerateLast = async () => {
+    if (loading) return;
+    const lastUserIndex = messages.map(message => message.role).lastIndexOf("user");
+    if (lastUserIndex < 0) return;
+
+    const promptMessages = messages.slice(0, lastUserIndex + 1);
+    const prompt = promptMessages[lastUserIndex].content;
+    setMessages(promptMessages);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/cards/ai-chat", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: JSON.stringify({ messages: promptMessages, players }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessages([...promptMessages, { role: "assistant", content: data.error ?? "Could not regenerate. Please try again." }]);
+        return;
+      }
+      const finalMessages: Message[] = [...promptMessages, { role: "assistant", content: data.reply ?? "Sorry, I couldn't generate a response." }];
+      setMessages(finalMessages);
+      await saveChat(finalMessages, prompt);
+    } catch {
+      setMessages([...promptMessages, { role: "assistant", content: "Could not regenerate. Please try again." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const groupChats = () => {
     const today     = new Date();
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
@@ -229,7 +260,7 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
               </div>
               <div className="text-center">
                 <p className="text-gray-900 font-bold text-sm">Card Tracker Assistant</p>
-                <p className="text-gray-400 text-xs mt-1">Ask me anything about baseball card trading</p>
+                <p className="text-gray-400 text-xs mt-1">Ask a question, explore an idea, or get live card-market context</p>
               </div>
               <div className="flex flex-wrap gap-2 justify-center max-w-xs">
                 {SUGGESTIONS.map(s => (
@@ -243,20 +274,16 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
           )}
 
           {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5"
-                  style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
-                  🤖
+            <div key={i} className="space-y-1">
+              <ChatMessage role={msg.role} content={msg.content} />
+              {msg.role === "assistant" && i === messages.length - 1 && (
+                <div className="pl-10">
+                  <button onClick={regenerateLast} disabled={loading}
+                    className="text-xs text-gray-400 transition hover:text-blue-600 disabled:opacity-50">
+                    Regenerate response
+                  </button>
                 </div>
               )}
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-br-sm"
-                  : "bg-gray-100 text-gray-800 rounded-bl-sm"
-              }`}>
-                {msg.content}
-              </div>
             </div>
           ))}
 
@@ -280,12 +307,17 @@ export default function AIAssistant({ players }: { players: { name: string; id: 
 
         <div className="p-4 border-t border-gray-100">
           <div className="flex gap-2">
-            <input type="text" value={input} maxLength={MAX_INPUT}
+            <textarea rows={2} value={input} maxLength={MAX_INPUT}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder={userId ? "Ask about card trading..." : "Sign in to chat with the assistant"}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={userId ? "Message Scout…" : "Sign in to chat with the assistant"}
               disabled={!userId}
-              className="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition disabled:opacity-60"
+              className="flex-1 resize-none bg-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition disabled:opacity-60"
             />
             <button onClick={() => send()} disabled={loading || !input.trim() || !userId} aria-label="Send"
               className="w-10 h-10 rounded-xl flex items-center justify-center transition disabled:opacity-40"

@@ -214,6 +214,7 @@ export default function Landing() {
         </div>
         <div className="flex gap-6">
           <a href="/pricing" className="hover:text-gray-300 transition">Pricing</a>
+          <a href="/support" className="hover:text-gray-300 transition">Support</a>
           <a href="/login"   className="hover:text-gray-300 transition">Sign in</a>
           <span>Base · USDC · MLB API · PSA</span>
         </div>

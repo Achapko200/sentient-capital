@@ -1,4 +1,4 @@
-// Players that have a real PSA 10 market, most valuable first.
+// Return the full tracked player market, with currently priced cards first.
 import { getWatchlist }    from "@/lib/players";
 import { checkRateLimit }  from "@/lib/ratelimit";
 import { getMarketPrices } from "@/lib/market-prices";
@@ -10,10 +10,16 @@ export async function GET(req: Request) {
   if (limited) return limited;
 
   const [players, prices] = await Promise.all([getWatchlist(), getMarketPrices()]);
-  const withMarket = players
-    .filter((p: any) => prices.has(String(p.id)))
-    .map((p: any) => ({ ...p, marketPrice: prices.get(String(p.id)) }))
-    .sort((a: any, b: any) => b.marketPrice - a.marketPrice);
+  const marketPlayers = players
+    .map((p: any) => {
+      const marketPrice = prices.get(String(p.id)) ?? null;
+      return { ...p, marketPrice, avgPrice: marketPrice ?? 0 };
+    })
+    .sort((a: any, b: any) => (b.marketPrice ?? 0) - (a.marketPrice ?? 0));
 
-  return Response.json({ players: withMarket, total: players.length, withMarket: withMarket.length });
+  return Response.json({
+    players: marketPlayers,
+    total: marketPlayers.length,
+    withMarket: marketPlayers.filter((p: any) => p.marketPrice !== null).length,
+  });
 }
