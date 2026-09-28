@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { checkRateLimit }  from "@/lib/ratelimit";
 import { getVerifiedUser } from "@/lib/verify-user";
 import { getPlayer }       from "@/lib/players";
-import { fetchEbaySales, calcAvgPrice } from "@/lib/ebay";
+import { getMarketData } from "@/lib/market-cache";
 
 // ── Config ────────────────────────────────────────────────────────────────
 const BUYER_FEE       = 0.10;   // 10% fee, shown on the card page
@@ -45,8 +45,8 @@ export async function POST(req: Request) {
   const player: any = await getPlayer(cardId);
   if (!player) return Response.json({ error: "Card not found." }, { status: 404 });
 
-  const sales = await fetchEbaySales(player.id, player.cardName ?? player.name);
-  const price = calcAvgPrice(sales);
+  const market = await getMarketData(String(player.id), player.cardName ?? player.name);
+  const price  = market.price;
   if (!(price >= MIN_PRICE_USD)) {
     return Response.json({ error: "This card has no current market price, so it can't be bought right now." }, { status: 409 });
   }

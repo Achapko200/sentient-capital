@@ -2,15 +2,13 @@
 import { getOrderBook, getRecentTrades }  from "@/lib/orderbook";
 import { getWatchlist, getPlayer }        from "@/lib/players";
 import { fetchMLBStats }                  from "@/lib/mlb";
-import { fetchEbaySales, calcAvgPrice, fetchNewListingCandles } from "@/lib/ebay";
 import { priceFromStats }                 from "@/lib/cardToken";
 import type { CardToken }                 from "@/lib/cardToken";
 import { checkRateLimit }                 from "@/lib/ratelimit";
-import { getCandles, recordPriceSnapshot } from "@/lib/price-history";
+import { getCandles }                     from "@/lib/price-history";
 import { getMarketPrices }                from "@/lib/market-prices";
+import { getMarketData }                  from "@/lib/market-cache";
 
-// A single daily point is a snapshot, not a useful historical chart. Require
-// at least two dates, then try the eBay listing series as the fallback source.
 const MIN_CANDLES = 2;
 
 function tokenFor(player: any, pricePerShare: number, extra: Partial<CardToken> = {}): CardToken {
@@ -34,38 +32,6 @@ function tokenFor(player: any, pricePerShare: number, extra: Partial<CardToken> 
   } as CardToken;
 }
 
-// Full live token for one card (used when a single card is opened)
-async function buildToken(player: any): Promise<CardToken | null> {
-  try {
-    const [stats, sales, book, recentTrades] = await Promise.all([
-      fetchMLBStats(player.id),
-      fetchEbaySales(player.id, player.cardName),
-      getOrderBook(player.id),
-      getRecentTrades(player.id, 50),
-    ]);
-
-    const avgCardPrice  = calcAvgPrice(sales);      // real eBay price only, 0 if none
-    await recordPriceSnapshot(player.id, avgCardPrice, sales.length);
-    const pricePerShare = avgCardPrice > 0 ? priceFromStats(stats, avgCardPrice) : 0;
-
-    const prices       = recentTrades.map((t: any) => t.price);
-    const firstPrice   = prices[prices.length - 1];
-    const lastPrice    = prices[0];
-    const changePct24h = firstPrice > 0 && lastPrice > 0
-      ? Math.round(((lastPrice - firstPrice) / firstPrice) * 1000) / 10
-      : 0;
-
-    return tokenFor(player, pricePerShare, {
-      askPrice:  book.asks[0]?.price ?? null,
-      bidPrice:  book.bids[0]?.price ?? null,
-      volume24h: recentTrades.reduce((s: number, t: any) => s + t.shares, 0),
-      changePct24h,
-    });
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(req: Request) {
   const limited = await checkRateLimit(req, "read");
   if (limited) return limited;
@@ -76,33 +42,39 @@ export async function GET(req: Request) {
   }
 
   try {
-    // One card: live data + chart
+    // One card: cached market data + chart (instant)
     if (cardId) {
-      const player = await getPlayer(cardId);
+      const player: any = await getPlayer(cardId);
       if (!player) return Response.json({ error: "Card not found" }, { status: 404 });
 
-      const [token, book, trades] = await Promise.all([
-        buildToken(player),
+      const [stats, market, book, trades, savedCandles] = await Promise.all([
+        fetchMLBStats(player.id),
+        getMarketData(String(player.id), player.cardName ?? player.name),
         getOrderBook(cardId),
         getRecentTrades(cardId),
+        getCandles(cardId, 14),
       ]);
-      if (!token) return Response.json({ error: "Card not found" }, { status: 404 });
 
-      // buildToken records today's live eBay price; query history afterward so
-      // the chart includes that snapshot instead of racing it.
-      const savedCandles = await getCandles(cardId, 14);
-      // Use whichever real source covers more days: saved daily prices, or the last 14 days of new eBay listings
-      const listingCandles = savedCandles.length >= 14
-        ? []
-        : await fetchNewListingCandles((player as any).cardName ?? player.name);
+      const recentTrades  = trades.slice(0, 50);
+      const prices        = recentTrades.map((t: any) => t.price);
+      const firstPrice    = prices[prices.length - 1];
+      const lastPrice     = prices[0];
+      const token = tokenFor(player, market.price > 0 ? priceFromStats(stats, market.price) : 0, {
+        askPrice:     book.asks[0]?.price ?? null,
+        bidPrice:     book.bids[0]?.price ?? null,
+        volume24h:    recentTrades.reduce((s: number, t: any) => s + t.shares, 0),
+        changePct24h: firstPrice > 0 && lastPrice > 0 ? Math.round(((lastPrice - firstPrice) / firstPrice) * 1000) / 10 : 0,
+      });
+
+      // Whichever real source covers more days: saved daily prices, or the last 14 days of new eBay listings
       let candles: any[]              = [];
       let candleSource: string | null = null;
-      if (savedCandles.length >= MIN_CANDLES && savedCandles.length >= listingCandles.length) {
+      if (savedCandles.length >= MIN_CANDLES && savedCandles.length >= market.candles.length) {
         candles = savedCandles; candleSource = "daily_prices";
-      } else if (listingCandles.length >= MIN_CANDLES) {
-        candles = listingCandles; candleSource = "new_listings";
+      } else if (market.candles.length >= MIN_CANDLES) {
+        candles = market.candles; candleSource = "new_listings";
       }
-      return Response.json({ token, book, trades, candles, candleSource, hasHistory: candles.length > 0 });
+      return Response.json({ token, book, trades, candles, candleSource, hasHistory: candles.length > 0, marketUpdatedAt: market.updatedAt });
     }
 
     // All cards: from saved daily prices only (fast, no live eBay calls)

@@ -10,7 +10,7 @@ const EXCLUDE_RE   = /\b(lot|lots|bundle|reprint|custom|rp|digital|pick|you pick
 
 let ebayToken: string | null = null;
 let tokenExpiry: number      = 0;
-const MIN_REQUEST_GAP_MS = 800;
+const MIN_REQUEST_GAP_MS = 250;
 let lastEbayRequestAt = 0;
 
 async function throttleEbayRequest() {
@@ -22,18 +22,13 @@ async function throttleEbayRequest() {
   lastEbayRequestAt = Date.now();
 }
 
-async function fetchWithRetry(url: string, init: RequestInit, retries = 3): Promise<Response> {
+async function fetchWithRetry(url: string, init: RequestInit, retries = 1): Promise<Response> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       await throttleEbayRequest();
       const res = await fetch(url, init);
-      if (res.status === 429 && attempt < retries) {
-        const waitMs = 1000 * (attempt + 1) * 2;
-        await new Promise(resolve => setTimeout(resolve, waitMs));
-        continue;
-      }
       return res;
     } catch (err) {
       lastError = err;
