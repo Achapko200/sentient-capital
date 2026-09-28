@@ -79,14 +79,16 @@ export async function GET(req: Request) {
       const player = await getPlayer(cardId);
       if (!player) return Response.json({ error: "Card not found" }, { status: 404 });
 
-      const [token, book, trades, savedCandles] = await Promise.all([
+      const [token, book, trades] = await Promise.all([
         buildToken(player),
         getOrderBook(cardId),
         getRecentTrades(cardId),
-        getCandles(cardId),
       ]);
       if (!token) return Response.json({ error: "Card not found" }, { status: 404 });
 
+      // buildToken records today's live eBay price; query history afterward so
+      // the chart includes that snapshot instead of racing it.
+      const savedCandles = await getCandles(cardId);
       let candles: any[]              = savedCandles.length >= MIN_CANDLES ? savedCandles : [];
       let candleSource: string | null = candles.length ? "daily_prices" : null;
       if (!candles.length) {

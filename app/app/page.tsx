@@ -485,6 +485,15 @@ export default function Home() {
         {tab === "cards" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
+              <div className="mb-5">
+                <p className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+                  Looking for a retired player?
+                </p>
+                <SearchPlayers onSelect={(p) => { setTradePlayer(p); setTab("buy"); }} />
+                <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+                  Search current and retired MLB players to find their cards.
+                </p>
+              </div>
               {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => (

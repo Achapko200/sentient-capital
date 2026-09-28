@@ -82,7 +82,7 @@ async function fetchMLBPlayer(playerId: string): Promise<Player | null> {
     return {
       id:        String(p.id),
       name:      p.fullName,
-      team:      p.currentTeam?.name ?? "Unknown",
+      team:      p.currentTeam?.name ?? (p.active === false ? "Retired" : "Unknown"),
       position:  p.primaryPosition?.abbreviation ?? "—",
       cardName:  buildCardName(p),
       image:     "⚾",

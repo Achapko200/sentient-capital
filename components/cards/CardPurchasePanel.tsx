@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth }             from "@/lib/auth-context";
 import { supabase }            from "@/lib/supabase";
 import type { Player }         from "@/lib/cardTypes";
+import { getCandleTimestamp }  from "@/lib/cardToken";
 
 type Props = { player: Player };
 
@@ -32,7 +33,8 @@ export default function CardPurchasePanel({ player }: Props) {
 
   const price    = cardData?.avgPrice ?? 0;
   const signal   = cardData?.cardSignal?.signal ?? "HOLD";
-  const candles  = orderbookData?.candles ?? [];
+  const candles  = [...(orderbookData?.candles ?? [])]
+    .sort((a: any, b: any) => getCandleTimestamp(a) - getCandleTimestamp(b));
 
   // Candlestick chart
   const CandleChart = () => {
@@ -70,6 +72,7 @@ export default function CardPurchasePanel({ player }: Props) {
     const toX    = (i: number) => PAD.l + (i / Math.max(candles.length - 1, 1)) * chartW;
     const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
     const barW   = Math.max(2, (chartW / candles.length) * 0.6);
+    const labelIndices = [...new Set([0, Math.floor(candles.length / 2), candles.length - 1])];
 
     return (
       <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
@@ -96,10 +99,13 @@ export default function CardPurchasePanel({ player }: Props) {
             </g>
           );
         })}
-        {[0, Math.floor(candles.length / 2), candles.length - 1].map((i: number) => (
+        {labelIndices.map((i: number, labelIndex: number) => (
           candles[i] && (
-            <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#4b5563" textAnchor="middle">
-              {candles[i].time.slice(5)}
+            <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#4b5563"
+              textAnchor={labelIndex === 0 ? "start" : labelIndex === labelIndices.length - 1 ? "end" : "middle"}>
+              {candles[i].date ?? (typeof candles[i].time === "number"
+                ? new Date(candles[i].time * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+                : String(candles[i].time).slice(5))}
             </text>
           )
         ))}

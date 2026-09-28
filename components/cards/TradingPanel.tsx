@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDynamicContext }                 from "@dynamic-labs/sdk-react-core";
 import { useAuth }                           from "@/lib/auth-context";
-import type { CardToken, Candle }            from "@/lib/cardToken";
+import { getCandleTimestamp, type CardToken, type Candle } from "@/lib/cardToken";
 import type { OrderBookSnapshot, Order, Trade } from "@/lib/orderbook";
 
 type Props = { token: CardToken };
@@ -31,6 +31,7 @@ export default function TradingPanel({ token }: Props) {
   const [tab,        setTab]        = useState<"chart" | "book">("chart");
 
   const currentPrice = book?.lastPrice || token.pricePerShare;
+  const chartCandles = [...candles].sort((a, b) => getCandleTimestamp(a) - getCandleTimestamp(b));
   const total = Math.round(parseFloat(price || "0") * parseInt(shares || "0") * 100) / 100;
 
   const load = useCallback(async () => {
@@ -142,19 +143,20 @@ export default function TradingPanel({ token }: Props) {
 
   // Candlestick chart
   const CandleChart = () => {
-    if (candles.length < 2) return null;
+    if (chartCandles.length < 2) return null;
     const W = 500, H = 160, PAD = { l: 44, r: 8, t: 8, b: 24 };
-    const prices = candles.flatMap(c => [c.high, c.low]);
+    const prices = chartCandles.flatMap(c => [c.high, c.low]);
     const min    = Math.min(...prices) * 0.995;
     const max    = Math.max(...prices) * 1.005;
     const range  = max - min || 1;
     const chartW = W - PAD.l - PAD.r;
     const chartH = H - PAD.t - PAD.b;
-    const toX    = (i: number) => PAD.l + (i / Math.max(candles.length - 1, 1)) * chartW;
+    const toX    = (i: number) => PAD.l + (i / Math.max(chartCandles.length - 1, 1)) * chartW;
     const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
-    const barW   = Math.max(2, (chartW / candles.length) * 0.6);
-    const lastCandle = candles[candles.length - 1];
-    const isUp = lastCandle ? lastCandle.close >= candles[0].open : true;
+    const barW   = Math.max(2, (chartW / chartCandles.length) * 0.6);
+    const lastCandle = chartCandles[chartCandles.length - 1];
+    const isUp = lastCandle ? lastCandle.close >= chartCandles[0].open : true;
+    const labelIndices = [...new Set([0, Math.floor(chartCandles.length / 2), chartCandles.length - 1])];
 
     return (
       <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
@@ -169,7 +171,7 @@ export default function TradingPanel({ token }: Props) {
             ${(min + range * f).toFixed(0)}
           </text>
         ))}
-        {candles.map((c, i) => {
+        {chartCandles.map((c, i) => {
           const up    = c.close >= c.open;
           const color = up ? "#22c55e" : "#ef4444";
           const bodyY = toY(Math.max(c.open, c.close));
@@ -181,10 +183,13 @@ export default function TradingPanel({ token }: Props) {
             </g>
           );
         })}
-        {[0, Math.floor(candles.length / 2), candles.length - 1].map(i => (
-          candles[i] && (
-            <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#4b5563" textAnchor="middle">
-              {candles[i].time.slice(5)}
+        {labelIndices.map((i, labelIndex) => (
+          chartCandles[i] && (
+            <text key={i} x={toX(i)} y={H - 4} fontSize="7" fill="#4b5563"
+              textAnchor={labelIndex === 0 ? "start" : labelIndex === labelIndices.length - 1 ? "end" : "middle"}>
+              {chartCandles[i].date ?? (typeof chartCandles[i].time === "number"
+                ? new Date(getCandleTimestamp(chartCandles[i])).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+                : chartCandles[i].time.slice(5))}
             </text>
           )
         ))}

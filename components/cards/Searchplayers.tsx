@@ -41,7 +41,7 @@ export default function SearchPlayers({ onSelect }: Props) {
       <div className="relative">
         <input
           type="text"
-          placeholder="Search any MLB player..."
+          placeholder="Search active or retired MLB players..."
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           className="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-400 shadow-sm"

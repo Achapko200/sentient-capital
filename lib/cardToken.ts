@@ -21,13 +21,23 @@ export type CardToken = {
 };
 
 export type Candle = {
-  time:   string;
+  time:   string | number;
+  date?:  string;
+  timestamp?: number;
   open:   number;
   high:   number;
   low:    number;
   close:  number;
   volume: number;
 };
+
+export function getCandleTimestamp(candle: Pick<Candle, "time" | "timestamp">): number {
+  if (typeof candle.timestamp === "number") return candle.timestamp;
+  const timestamp = typeof candle.time === "number"
+    ? (candle.time < 10_000_000_000 ? candle.time * 1000 : candle.time)
+    : Date.parse(candle.time);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
 
 // ─── Price a card token from MLB stats ───────────────────────────────────────
 // Base price per share = card market value / 100 shares
