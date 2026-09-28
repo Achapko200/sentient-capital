@@ -1,4 +1,3 @@
-import { checkRateLimit } from "@/lib/ratelimit";
 import { NextResponse }       from "next/server";
 import { fetchMLBStats }      from "@/lib/mlb";
 import { fetchEbaySales, calcAvgPrice, calcLiquidity } from "@/lib/ebay";
@@ -11,12 +10,9 @@ import { recordPriceSnapshot, getPriceHistory } from "@/lib/price-history";
 export const revalidate = 1800;
 
 export async function GET(
-  req: Request,
+  _req: Request,
   context: { params: Promise<{ playerId: string }> },
 ) {
-  const limited = await checkRateLimit(req, "read");
-  if (limited) return limited;
-
   const { playerId } = await context.params;
   if (!playerId || !/^\d+$/.test(playerId)) {
     return NextResponse.json({ error: "Invalid player ID" }, { status: 400 });

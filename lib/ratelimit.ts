@@ -12,7 +12,7 @@ export const rateLimiters = {
   // Read routes — generous
   read: new Ratelimit({
     redis,
-    limiter:   Ratelimit.slidingWindow(60, "1 m"),
+    limiter:   Ratelimit.slidingWindow(300, "1 m"),
     prefix:    "rl:read",
     analytics: true,
   }),
