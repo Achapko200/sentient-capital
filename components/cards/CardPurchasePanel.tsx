@@ -36,7 +36,30 @@ export default function CardPurchasePanel({ player }: Props) {
 
   // Candlestick chart
   const CandleChart = () => {
-    if (candles.length === 0) return <div className="h-40 bg-gray-900 rounded-xl animate-pulse" />;
+    if (candles.length < 2) {
+      if (!orderbookData) return <div className="h-40 bg-gray-900 rounded-xl animate-pulse" />;
+      const listings = (cardData?.sales ?? []).slice(0, 6);
+      return (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">
+            Not enough recent eBay listings to chart this card yet.
+          </p>
+          {listings.length > 0 ? (
+            <div className="rounded-xl bg-gray-900 divide-y divide-gray-800">
+              <p className="px-3 pt-3 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Current eBay PSA 10 listings</p>
+              {listings.map((l: any) => (
+                <div key={l.id} className="px-3 py-2 flex justify-between gap-3 text-xs">
+                  <span className="text-gray-400 truncate">{l.title}</span>
+                  <span className="text-white font-bold shrink-0">${Number(l.price).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">No PSA 10 listings on eBay right now.</p>
+          )}
+        </div>
+      );
+    }
     const W = 500, H = 160, PAD = { l: 44, r: 8, t: 8, b: 24 };
     const prices = candles.flatMap((c: any) => [c.high, c.low]);
     const min    = Math.min(...prices) * 0.995;
@@ -192,13 +215,19 @@ export default function CardPurchasePanel({ player }: Props) {
         <div className="col-span-3 border-r border-gray-800 p-4">
           <p className="text-gray-500 text-xs font-semibold uppercase mb-3">Price History</p>
           <CandleChart />
+          {orderbookData?.candleSource === "new_listings" && (
+            <p className="text-[10px] text-gray-500 mt-1">Last 14 days · daily range of asking prices on new eBay PSA 10 listings (not sold prices)</p>
+          )}
+          {orderbookData?.candleSource === "daily_prices" && (
+            <p className="text-[10px] text-gray-500 mt-1">Daily eBay market price for PSA 10 copies</p>
+          )}
 
           {/* Stats */}
           {cardData && (
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[
-                { label: "1 Week",    value: cardData.priceHistory?.available === false ? "—" : `${cardData.priceHistory?.week?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.week?.changePct ?? 0}%` },
-                { label: "3 Months",  value: cardData.priceHistory?.available === false ? "—" : `${cardData.priceHistory?.threeMonth?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.threeMonth?.changePct ?? 0}%` },
+                { label: "1 Week",    value: cardData.priceHistory?.week?.available !== true ? "—" : `${cardData.priceHistory?.week?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.week?.changePct ?? 0}%` },
+                { label: "3 Months",  value: cardData.priceHistory?.threeMonth?.available !== true ? "—" : `${cardData.priceHistory?.threeMonth?.changePct > 0 ? "+" : ""}${cardData.priceHistory?.threeMonth?.changePct ?? 0}%` },
                 { label: "eBay Avg",  value: cardData.avgPrice ? `$${cardData.avgPrice}` : "No recent listings" },
               ].map(s => (
                 <div key={s.label} className="bg-gray-900 rounded-xl p-2 text-center">

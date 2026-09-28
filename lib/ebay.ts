@@ -42,67 +42,143 @@ async function getEbayToken(): Promise<string | null> {
   }
 }
 
-// Returns current PSA 10 listings for the player, newest first. Empty array if unavailable.
-export async function fetchEbaySales(
-  playerId:   string,
-  playerName: string,
-): Promise<EbaySale[]> {
-  try {
-    const token = await getEbayToken();
-    if (!token) {
-      console.warn("[ebay] no API token - returning no data");
-      return [];
-    }
+type Found = { id: string; title: string; price: number; created: Date | null };
 
-    const nameParts = String(playerName ?? "").split(/\s+/).filter(Boolean);
-    const justName  = nameParts.slice(0, 2).join(" ");
-    const lastName  = (nameParts[1] ?? nameParts[0] ?? "").toLowerCase();
-    if (!justName) return [];
+const PAGE_SIZE   = 200;
+const SUFFIX_RE   = /^(jr\.?|sr\.?|ii|iii|iv)$/i;
+const NOISE_RE    = /^(psa|10|rookie|rc|card|graded|gem|mint)$/i;
+// Parallels, numbered, autos and relics are different cards with very different prices
+const PARALLEL_RE = /\b(refractor|x-?fractor|prizm|wave|mojo|shimmer|speckle|lava|sparkle|parallel|variation|image variation|ssp|auto|autograph|autographed|patch|relic|jersey|gold|green|purple|orange|red|blue|pink|black|aqua|sepia|negative|sapphire|superfractor)\b|\/\s?\d{1,4}\b/i;
 
-    const query  = encodeURIComponent(`${justName} PSA 10`);
-    const filter = encodeURIComponent("buyingOptions:{FIXED_PRICE},priceCurrency:USD");
-    const res    = await fetch(
-      `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&filter=${filter}&limit=${SEARCH_LIMIT}`,
-      {
-        headers: {
-          "Authorization":           `Bearer ${token}`,
-          "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-          "Content-Type":            "application/json",
-        },
-      }
-    );
-    if (!res.ok) {
-      console.error("[ebay] search failed:", res.status, "player", playerId);
-      return [];
-    }
+// "Aaron Judge 2016 Topps Chrome Rookie PSA 10" -> name "Aaron Judge", set ["topps","chrome"], rookie true
+function parseCardName(cardName: string) {
+  const words    = String(cardName ?? "").split(/\s+/).filter(Boolean);
+  const name     = words.slice(0, 2).join(" ");
+  const lastName = (words[1] ?? words[0] ?? "").toLowerCase();
+  const setWords = words.slice(2)
+    .filter(w => !/^\d{4}$/.test(w) && !NOISE_RE.test(w) && !SUFFIX_RE.test(w))
+    .map(w => w.toLowerCase());
+  const rookie   = /\b(rookie|rc)\b/i.test(cardName ?? "");
+  return { name, lastName, setWords, rookie };
+}
 
-    const data  = await res.json();
-    const items: any[] = data.itemSummaries ?? [];
+// Real PSA 10 listings of this specific card. null = eBay unavailable.
+async function searchPSA10(
+  cardName: string,
+  opts: { sort?: string; maxPages?: number; until?: number } = {},
+): Promise<Found[] | null> {
+  const token = await getEbayToken();
+  if (!token) { console.warn("[ebay] no API token - returning no data"); return null; }
 
-    return items
-      .filter(it => {
+  const { name, lastName, setWords, rookie } = parseCardName(cardName);
+  if (!name) return [];
+
+  const query  = encodeURIComponent([name, ...setWords, "PSA 10"].join(" "));
+  const filter = encodeURIComponent("buyingOptions:{FIXED_PRICE},priceCurrency:USD");
+  const sort   = opts.sort ? `&sort=${opts.sort}` : "";
+  const out: Found[] = [];
+
+  for (let page = 0; page < (opts.maxPages ?? 1); page++) {
+    try {
+      const res = await fetch(
+        `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&filter=${filter}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}${sort}`,
+        { headers: { "Authorization": `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US", "Content-Type": "application/json" } }
+      );
+      if (!res.ok) { console.error("[ebay] search failed:", res.status); return page === 0 ? null : out; }
+      const data  = await res.json();
+      const items: any[] = data.itemSummaries ?? [];
+
+      for (const it of items) {
         const t = String(it.title ?? "").toLowerCase();
-        return t.includes("psa 10") && (!lastName || t.includes(lastName)) && !EXCLUDE_RE.test(t);
-      })
-      .map(it => ({
-        it,
-        price:   parseFloat(it.price?.value ?? "0"),
-        created: it.itemCreationDate ? new Date(it.itemCreationDate) : null,
-      }))
-      .filter(x => Number.isFinite(x.price) && x.price > 0)
-      .sort((a, b) => (b.created?.getTime() ?? 0) - (a.created?.getTime() ?? 0))
-      .slice(0, MAX_RESULTS)
-      .map(({ it, price, created }) => ({
-        id:        String(it.itemId),
-        date:      created ? created.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Active",
-        price,
-        condition: "PSA 10",
-        title:     String(it.title),
-      }));
-  } catch (err) {
-    console.error("[ebay] error:", err);
-    return [];
+        if (!t.includes("psa 10") || (lastName && !t.includes(lastName)) || EXCLUDE_RE.test(t)) continue;
+        if (setWords.length && !t.includes(setWords.join(" "))) continue;   // same set, exact phrase
+        if (PARALLEL_RE.test(t)) continue;                                    // base card only
+        if (rookie && !/\b(rc|rookie)\b/.test(t)) continue;               // rookie card only
+        const price = parseFloat(it.price?.value ?? "0");
+        if (!Number.isFinite(price) || price <= 0) continue;
+        out.push({ id: String(it.itemId), title: String(it.title), price, created: it.itemCreationDate ? new Date(it.itemCreationDate) : null });
+      }
+
+      const oldest = items.length ? new Date(items[items.length - 1]?.itemCreationDate ?? 0).getTime() : 0;
+      if (items.length < PAGE_SIZE) break;                                // no more results
+      if (opts.until && oldest && oldest < opts.until) break;             // covered the time window
+    } catch (err) {
+      console.error("[ebay] error:", err);
+      return page === 0 ? null : out;
+    }
   }
+  return out;
+}
+
+// Returns current PSA 10 listings for the card, newest first. Empty array if unavailable.
+export async function fetchEbaySales(
+  playerId: string,
+  cardName: string,
+): Promise<EbaySale[]> {
+  const found = await searchPSA10(cardName, { sort: "newlyListed" });
+  if (!found) return [];
+  return found
+    .sort((a, b) => (b.created?.getTime() ?? 0) - (a.created?.getTime() ?? 0))
+    .slice(0, MAX_RESULTS)
+    .map(f => ({
+      id:        f.id,
+      date:      f.created ? f.created.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Active",
+      price:     f.price,
+      condition: "PSA 10",
+      title:     f.title,
+    }));
+}
+
+export type ListingCandle = {
+  time: number; timestamp: number; date: string;
+  open: number; high: number; low: number; close: number; volume: number;
+};
+
+const candleCache = new Map<string, { at: number; data: ListingCandle[] }>();
+const CANDLE_TTL  = 30 * 60 * 1000;
+
+// Real 14-day chart: each candle = asking prices of this card's PSA 10 listings posted that day.
+export async function fetchNewListingCandles(cardName: string, days = 14): Promise<ListingCandle[]> {
+  const key    = `${cardName}|${days}`;
+  const cached = candleCache.get(key);
+  if (cached && Date.now() - cached.at < CANDLE_TTL) return cached.data;
+
+  const cutoff = Date.now() - days * 86_400_000;
+  const found  = await searchPSA10(cardName, { sort: "newlyListed", maxPages: 5, until: cutoff });
+  if (!found) return [];
+
+  const recent = found
+    .filter(f => f.created && f.created.getTime() >= cutoff)
+    .sort((a, b) => a.created!.getTime() - b.created!.getTime());
+
+  let candles: ListingCandle[] = [];
+  if (recent.length) {
+    const sorted = recent.map(f => f.price).sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const clean  = recent.filter(f => f.price <= median * 3 && f.price >= median / 3);
+
+    const byDay = new Map<string, Found[]>();
+    for (const f of clean) {
+      const d = f.created!.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+      if (!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d)!.push(f);
+    }
+    candles = [...byDay.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, list]) => {
+        const prices = list.map(l => l.price);
+        const t      = new Date(`${day}T12:00:00Z`).getTime();
+        return {
+          time: Math.floor(t / 1000), timestamp: t,
+          date: new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+          open: prices[0], close: prices[prices.length - 1],
+          high: Math.max(...prices), low: Math.min(...prices),
+          volume: list.length,
+        };
+      });
+  }
+  candleCache.set(key, { at: Date.now(), data: candles });
+  return candles;
 }
 
 // Outlier-resistant average: drops the top and bottom 10% when there are 5+ prices. 0 = no data.
@@ -115,9 +191,9 @@ export function calcAvgPrice(sales: EbaySale[]): number {
 }
 
 export type PriceHistory = {
-  week:       { current: number; previous: number; changePct: number };
-  threeMonth: { current: number; previous: number; changePct: number };
-  year:       { current: number; previous: number; changePct: number };
+  week:       { current: number; previous: number; changePct: number; available?: boolean };
+  threeMonth: { current: number; previous: number; changePct: number; available?: boolean };
+  year:       { current: number; previous: number; changePct: number; available?: boolean };
   available:  boolean;   // false = no historical data; UI should show "—" instead of 0%
 };
 

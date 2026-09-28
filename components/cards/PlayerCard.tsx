@@ -101,6 +101,9 @@ export default function PlayerCard({ player, onTrade }: Props) {
 
   const { stats, sales, sentiment, cardSignal, avgPrice, priceChange, priceHistory } = data;
   const displayPrice = lastTradePrice ?? avgPrice;
+
+  // No real market for this card (no eBay listings, no trades) → don't show it
+  if (!(displayPrice > 0)) return null;
   const isUp         = priceChange >= 0;
   const signal       = cardSignal?.signal ?? "HOLD";
 
@@ -200,8 +203,8 @@ export default function PlayerCard({ player, onTrade }: Props) {
                 style={{ backgroundColor: "var(--bg-primary)" }}>
                 <p className="text-xs mb-0.5" style={{ color: "#8a8a8a" }}>{label}</p>
                 <p className="text-xs font-black"
-                  style={{ color: (priceHistory as any)?.available === false ? "#8a8a8a" : pct >= 0 ? "#00c278" : "#ff3b30" }}>
-                  {(priceHistory as any)?.available === false ? "—" : `${pct >= 0 ? "+" : ""}${pct}%`}
+                  style={{ color: ((d as any)?.available !== true) ? "#8a8a8a" : pct >= 0 ? "#00c278" : "#ff3b30" }}>
+                  {((d as any)?.available !== true) ? "—" : `${pct >= 0 ? "+" : ""}${pct}%`}
                 </p>
               </div>
             );

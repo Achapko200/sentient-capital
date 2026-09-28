@@ -398,7 +398,7 @@ export default function Home() {
   const { isAuthenticated, wallet, email, signOut } = useAuth();
 
   useEffect(() => {
-    fetch("/api/cards/players")
+    fetch("/api/cards/market-players")
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : (data.players ?? []);

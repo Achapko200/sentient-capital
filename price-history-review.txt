@@ -1,0 +1,162 @@
+===== orderbook route =====
+// ─── app/api/cards/orderbook/route.ts ────────────────────────────────────────
+import { getOrderBook, getRecentTrades }       from "@/lib/orderbook";
+import { getWatchlist }                        from "@/lib/players";
+import { fetchMLBStats }                       from "@/lib/mlb";
+import { fetchEbaySales, calcAvgPrice }        from "@/lib/ebay";
+import { priceFromStats, generateCandles }     from "@/lib/cardToken";
+import type { CardToken }                      from "@/lib/cardToken";
+import { checkRateLimit }                      from "@/lib/ratelimit";
+
+export async function GET(req: Request) {
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
+
+  const { searchParams } = new URL(req.url);
+  const cardId = searchParams.get("cardId");
+
+  if (cardId && !/^\d+$/.test(cardId)) {
+    return Response.json({ error: "Invalid cardId" }, { status: 400 });
+  }
+
+  try {
+    const players = await getWatchlist();
+
+    const tokens: CardToken[] = (await Promise.all(
+      players.map(async (player) => {
+        try {
+          const stats = await fetchMLBStats(player.id);
+          const estimatedPrice = stats
+            ? Math.round(50 + (stats.hr ?? 0) * 8 + (stats.ops ?? 0) * 200)
+            : 150;
+
+          const [sales, book] = await Promise.all([
+            fetchEbaySales(player.id, player.cardName),
+            getOrderBook(player.id),
+          ]);
+
+          const avgCardPrice  = calcAvgPrice(sales) || estimatedPrice;
+          const pricePerShare = priceFromStats(stats, avgCardPrice);
+          const recentTrades  = await getRecentTrades(player.id, 50);
+          const volume24h     = recentTrades.reduce((s, t) => s + t.shares, 0);
+          const prices        = recentTrades.map(t => t.price);
+          const firstPrice    = prices[prices.length - 1] ?? pricePerShare;
+          const lastPrice     = prices[0] ?? pricePerShare;
+          const changePct24h  = firstPrice > 0
+            ? Math.round(((lastPrice - firstPrice) / firstPrice) * 1000) / 10
+            : 0;
+
+          return {
+            id:           player.id,
+            playerId:     player.id,
+            playerName:   player.name,
+            cardName:     player.cardName,
+            totalShares:  100,
+            pricePerShare,
+            askPrice:     book.asks[0]?.price ?? null,
+            bidPrice:     book.bids[0]?.price ?? null,
+            volume24h,
+            changePct24h,
+            psaCert:      `PSA-${player.id}-2025`,
+            vaultStatus:  "VERIFIED" as const,
+            cardImage:    player.cardImage,
+            teamColor:    player.teamColor,
+            cardColor:    player.cardColor,
+          };
+        } catch {
+          return null;
+        }
+      })
+    )).filter(Boolean) as CardToken[];
+
+    if (cardId) {
+      const token = tokens.find(t => t.id === cardId);
+      if (!token) return Response.json({ error: "Card not found" }, { status: 404 });
+
+      const [book, trades] = await Promise.all([
+        getOrderBook(cardId),
+        getRecentTrades(cardId),
+      ]);
+
+      const candles = generateCandles(token.pricePerShare ? token.pricePerShare * 100 : 150);
+      return Response.json({ token, book, trades, candles });
+    }
+
+    return Response.json({ tokens });
+  } catch {
+    return Response.json({ tokens: [] }, { status: 500 });
+  }
+}
+===== chart components =====
+components/cards/PlayerCard.tsx
+components/cards/CardPurchasePanel.tsx
+components/cards/TradingPanel.tsx
+
+===== CardPurchasePanel 20-60 =====
+  const [orderbookData, setOrderbookData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch(`/api/cards/${player.id}`)
+      .then(r => r.json())
+      .then(setCardData)
+      .catch(() => {});
+    fetch(`/api/cards/orderbook?cardId=${player.id}`)
+      .then(r => r.json())
+      .then(setOrderbookData)
+      .catch(() => {});
+  }, [player.id]);
+
+  const price    = cardData?.avgPrice ?? 0;
+  const signal   = cardData?.cardSignal?.signal ?? "HOLD";
+  const candles  = orderbookData?.candles ?? [];
+
+  // Candlestick chart
+  const CandleChart = () => {
+    if (candles.length === 0) return <div className="h-40 bg-gray-900 rounded-xl animate-pulse" />;
+    const W = 500, H = 160, PAD = { l: 44, r: 8, t: 8, b: 24 };
+    const prices = candles.flatMap((c: any) => [c.high, c.low]);
+    const min    = Math.min(...prices) * 0.995;
+    const max    = Math.max(...prices) * 1.005;
+    const range  = max - min || 1;
+    const chartW = W - PAD.l - PAD.r;
+    const chartH = H - PAD.t - PAD.b;
+    const toX    = (i: number) => PAD.l + (i / Math.max(candles.length - 1, 1)) * chartW;
+    const toY    = (v: number) => PAD.t + chartH - ((v - min) / range) * chartH;
+    const barW   = Math.max(2, (chartW / candles.length) * 0.6);
+
+    return (
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
+        {[0.25, 0.5, 0.75, 1].map(f => (
+          <line key={f} x1={PAD.l} x2={W - PAD.r}
+            y1={PAD.t + chartH * (1 - f)} y2={PAD.t + chartH * (1 - f)}
+            stroke="#1f2937" strokeWidth="1" />
+        ))}
+        {[0, 0.5, 1].map(f => (
+          <text key={f} x={PAD.l - 4} y={PAD.t + chartH * (1 - f) + 4}
+            fontSize="8" fill="#4b5563" textAnchor="end">
+
+===== lib/players exports =====
+231:export async function getWatchlist(): Promise<Player[]> {
+235:export async function getPlayer(id: string): Promise<Player | null> {
+239:export async function searchPlayers(query: string): Promise<Player[]> {
+
+===== trades table columns used =====
+from("trades")
+from("trades").select("id"),
+from("trades").insert(trade)
+from("trades")
+from("trades")
+
+===== vercel.json =====
+{
+  "crons": [
+    {
+      "path": "/api/cron/check-alerts",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/security-report",
+      "schedule": "0 8 * * 1"
+    }
+  ]
+}

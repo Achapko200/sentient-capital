@@ -142,7 +142,7 @@ export default function TradingPanel({ token }: Props) {
 
   // Candlestick chart
   const CandleChart = () => {
-    if (candles.length === 0) return <div className="h-48 bg-gray-900 rounded-xl animate-pulse" />;
+    if (candles.length < 2) return null;
     const W = 500, H = 160, PAD = { l: 44, r: 8, t: 8, b: 24 };
     const prices = candles.flatMap(c => [c.high, c.low]);
     const min    = Math.min(...prices) * 0.995;
