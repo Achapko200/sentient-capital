@@ -50,6 +50,12 @@ export default function SearchPlayers({ onSelect }: Props) {
         {loading && <span className="absolute right-3.5 top-3 text-gray-400 text-xs animate-spin">⏳</span>}
       </div>
 
+      {open && !loading && query.length >= 2 && results.length === 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-white rounded-2xl border border-gray-200 shadow-xl px-4 py-3 text-sm text-gray-400">
+          No players found for "{query}"
+        </div>
+      )}
+
       {open && results.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
           {results.map(player => (
