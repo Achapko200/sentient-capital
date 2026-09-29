@@ -31,6 +31,8 @@ export async function GET(req: Request) {
   const [players, known] = await Promise.all([getWatchlist(), getMarketPrices()]);
   const todo = players
     .filter((p: any) => part === null || Number(p.id) % PARTS === part)
+    // known markets daily; everyone else once every 14 days
+    .filter((p: any) => known.has(String(p.id)) || Number(p.id) % 14 === Math.floor(Date.now() / 86_400_000) % 14)
     .sort((a: any, b: any) => Number(known.has(String(b.id))) - Number(known.has(String(a.id))));
 
   let saved = 0, noData = 0, unavailable = 0, done = 0, fails = 0;
