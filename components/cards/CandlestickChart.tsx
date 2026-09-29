@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getCandleTimestamp } from "@/lib/cardToken";
 
-type Candle = { time?: number; timestamp?: number; open: number; high: number; low: number; close: number; volume?: number };
+type Candle = { time?: number | string; timestamp?: number; open: number; high: number; low: number; close: number; volume?: number };
 type Props  = { candles: Candle[] };
 
 const UP = "#00C805", DOWN = "#FF5000", MUTED = "#8A8F98", LINE = "rgba(255,255,255,0.08)";
