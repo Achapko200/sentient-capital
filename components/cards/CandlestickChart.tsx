@@ -1,209 +1,203 @@
 "use client";
+// Robinhood / moomoo-style price chart: big live price, hover scrubbing, candles or line, volume bars.
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getCandleTimestamp } from "@/lib/cardToken";
 
-import { useEffect, useMemo, useState } from "react";
-import { getCandleTimestamp, type Candle } from "@/lib/cardToken";
+type Candle = { time?: number; timestamp?: number; open: number; high: number; low: number; close: number; volume?: number };
+type Props  = { candles: Candle[] };
 
-type Props = { candles: Candle[] };
-type RangeKey = "1W" | "3M";
+const UP = "#00C805", DOWN = "#FF5000", MUTED = "#8A8F98", LINE = "rgba(255,255,255,0.08)";
+const RANGES = [{ key: "1W", days: 7 }, { key: "2W", days: 14 }] as const;
+type RangeKey = typeof RANGES[number]["key"];
 
-const DAY_MS = 86_400_000;
-const WIDTH = 500;
-const HEIGHT = 232;
-const PAD = { left: 58, right: 20, top: 12, bottom: 30 };
-const GREEN = "#26d07c";
-const RED = "#ff5c5c";
-const RANGE_OPTIONS: Array<{ key: RangeKey; label: string; days: number }> = [
-  { key: "1W", label: "1 Week", days: 7 },
-  { key: "3M", label: "3 Months", days: 90 },
-];
-
-function formatPrice(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: value < 10 ? 2 : 0,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatDate(timestamp: number) {
-  return new Date(timestamp).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
+const money = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const day   = (t: number, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) =>
+  new Date(t).toLocaleDateString("en-US", { ...opts, timeZone: "UTC" });
 
 export default function CandlestickChart({ candles }: Props) {
-  const [selectedRange, setSelectedRange] = useState<RangeKey>("1W");
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const selectedRangeConfig = RANGE_OPTIONS.find(option => option.key === selectedRange) ?? RANGE_OPTIONS[0];
-  const now = Date.now();
-  const rangeStart = now - selectedRangeConfig.days * DAY_MS;
-
-  const visible = useMemo(() => candles
-    .filter(candle => {
-      const timestamp = getCandleTimestamp(candle);
-      return timestamp >= rangeStart && timestamp <= now && [candle.open, candle.high, candle.low, candle.close].every(Number.isFinite);
-    })
-    .sort((a, b) => getCandleTimestamp(a) - getCandleTimestamp(b)), [candles, now, rangeStart]);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(640);
+  const [range, setRange] = useState<RangeKey>("2W");
+  const [mode,  setMode]  = useState<"candle" | "line">("candle");
+  const [hover, setHover] = useState<number | null>(null);
 
   useEffect(() => {
-    if (visible.length === 0) {
-      setActiveIndex(null);
-      return;
-    }
-    setActiveIndex(prev => {
-      const bounded = prev == null ? visible.length - 1 : Math.min(prev, visible.length - 1);
-      return bounded >= 0 ? bounded : visible.length - 1;
-    });
-  }, [visible]);
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setWidth(Math.max(280, e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  if (visible.length === 0) return null;
+  useEffect(() => setHover(null), [range, mode]);
 
-  const chartWidth = WIDTH - PAD.left - PAD.right;
-  const chartHeight = HEIGHT - PAD.top - PAD.bottom;
-  const chartStart = Math.min(...visible.map(candle => getCandleTimestamp(candle)));
-  const chartEnd = Math.max(...visible.map(candle => getCandleTimestamp(candle)));
-  const chartRange = Math.max(chartEnd - chartStart, DAY_MS);
-  const rawMin = Math.min(...visible.map(candle => candle.low));
-  const rawMax = Math.max(...visible.map(candle => candle.high));
-  const rawRange = rawMax - rawMin;
-  const padding = rawRange > 0 ? rawRange * 0.12 : Math.max(rawMax * 0.02, 1);
-  const min = Math.max(0, rawMin - padding);
-  const max = rawMax + padding;
-  const range = max - min || 1;
-  const candleStep = visible.length > 1 ? chartWidth / (visible.length - 1) : chartWidth;
-  const bodyWidth = Math.max(10, Math.min(18, candleStep * 0.82));
-  const toX = (timestamp: number) => PAD.left + ((timestamp - chartStart) / chartRange) * chartWidth;
-  const toY = (value: number) => PAD.top + chartHeight - ((value - min) / range) * chartHeight;
-  const active = visible[Math.min(activeIndex ?? visible.length - 1, visible.length - 1)];
-  const activeUp = active.close >= active.open;
-  const activeColor = activeUp ? GREEN : RED;
-  const dateTicks = [0, 0.25, 0.5, 0.75, 1];
+  const data = useMemo(() => {
+    const days   = RANGES.find(r => r.key === range)!.days;
+    const cutoff = Date.now() - days * 86_400_000;
+    return candles
+      .map(c => ({ ...c, t: getCandleTimestamp(c as any) }))
+      .filter(c => c.t >= cutoff && Number(c.close) > 0)
+      .sort((a, b) => a.t - b.t);
+  }, [candles, range]);
+
+  // ── Layout ──
+  const H = 300, TOP = 16, BOTTOM = 26, VOL = 46, AXIS = 60;
+  const plotW  = Math.max(100, width - AXIS);
+  const priceH = H - TOP - BOTTOM - VOL - 8;
+
+  if (!data.length) {
+    return (
+      <div ref={wrapRef} className="w-full py-16 text-center text-sm" style={{ color: MUTED }}>
+        No eBay price data in this range yet.
+      </div>
+    );
+  }
+
+  const lows  = data.map(c => c.low), highs = data.map(c => c.high);
+  const lo = Math.min(...lows), hi = Math.max(...highs);
+  const pad  = Math.max((hi - lo) * 0.18, hi * 0.04);
+  const yMin = Math.max(0, lo - pad), yMax = hi + pad;
+  const y    = (v: number) => TOP + ((yMax - v) / (yMax - yMin)) * priceH;
+  const step = plotW / data.length;
+  const x    = (i: number) => step * i + step / 2;
+  const bodyW = Math.max(3, Math.min(16, step * 0.55));
+  const maxVol = Math.max(1, ...data.map(c => c.volume ?? 0));
+  const volTop = H - BOTTOM - VOL;
+
+  const first = data[0], last = data[data.length - 1];
+  const cur   = hover !== null ? data[hover] : last;
+  const base  = first.open;
+  const chg   = cur.close - base;
+  const pct   = base > 0 ? (chg / base) * 100 : 0;
+  const up    = chg >= 0;
+  const color = up ? UP : DOWN;
+
+  const decimals = yMax - yMin < 20 ? 2 : 0;
+  const ticks = Array.from({ length: 4 }, (_, i) => yMin + ((yMax - yMin) * (i + 0.5)) / 4);
+
+  const linePath = data.map((c, i) => `${i ? "L" : "M"}${x(i)},${y(c.close)}`).join(" ");
+  const areaPath = `${linePath} L${x(data.length - 1)},${TOP + priceH} L${x(0)},${TOP + priceH} Z`;
+
+  const pick = (clientX: number, rect: DOMRect) => {
+    const i = Math.floor((clientX - rect.left) / step);
+    setHover(Math.min(data.length - 1, Math.max(0, i)));
+  };
+
+  const xLabels = data.length <= 3
+    ? data.map((c, i) => ({ i, t: c.t }))
+    : [0, Math.floor((data.length - 1) / 2), data.length - 1].map(i => ({ i, t: data[i].t }));
 
   return (
-    <div className="rounded-xl border border-slate-800/80 bg-[#060b12] px-2 pt-3 pb-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.015)] sm:px-3">
-      <div className="flex items-start justify-between gap-3 px-2 pb-2">
+    <div ref={wrapRef} className="w-full select-none">
+      {/* Header — price + change, follows the cursor */}
+      <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-            {formatDate(getCandleTimestamp(active))}
-          </p>
-          <p className="mt-0.5 text-xl font-bold tracking-tight text-white tabular-nums">
-            {formatPrice(active.close)}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-0.5 text-[10px] tabular-nums sm:grid-cols-4">
-          {[
-            { label: "O", value: active.open },
-            { label: "H", value: active.high },
-            { label: "L", value: active.low },
-            { label: "C", value: active.close },
-          ].map(item => (
-            <span key={item.label} className="whitespace-nowrap text-slate-400">
-              <span className="mr-1 text-slate-600">{item.label}</span>{formatPrice(item.value)}
+          <p className="text-3xl font-semibold tracking-tight text-white tabular-nums">{money(cur.close)}</p>
+          <p className="text-sm font-medium mt-1 tabular-nums" style={{ color }}>
+            {up ? "+" : "−"}{money(Math.abs(chg))} ({up ? "+" : "−"}{Math.abs(pct).toFixed(2)}%)
+            <span className="ml-2 font-normal" style={{ color: MUTED }}>
+              {hover !== null ? day(cur.t, { weekday: "short", month: "short", day: "numeric" }) : range === "1W" ? "Past week" : "Past 2 weeks"}
             </span>
+          </p>
+          {mode === "candle" && hover !== null && (
+            <p className="text-xs mt-1 tabular-nums" style={{ color: MUTED }}>
+              O {money(cur.open)} · H {money(cur.high)} · L {money(cur.low)} · C {money(cur.close)}
+              {cur.volume ? ` · ${cur.volume} new listing${cur.volume === 1 ? "" : "s"}` : ""}
+            </p>
+          )}
+        </div>
+        <div className="flex rounded-full p-0.5" style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+          {(["candle", "line"] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)}
+              className="px-3 py-1 rounded-full text-xs font-semibold transition"
+              style={{ backgroundColor: mode === m ? "rgba(255,255,255,0.14)" : "transparent", color: mode === m ? "#fff" : MUTED }}>
+              {m === "candle" ? "Candles" : "Line"}
+            </button>
           ))}
         </div>
       </div>
 
-      <svg
-        className="block w-full overflow-visible"
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        role="img"
-        aria-label={`${selectedRangeConfig.label} candlestick chart with ${visible.length} dated price observations`}
-      >
+      {/* Chart */}
+      <svg width={width} height={H} className="block touch-none"
+        onMouseMove={e => pick(e.clientX, e.currentTarget.getBoundingClientRect())}
+        onMouseLeave={() => setHover(null)}
+        onTouchStart={e => pick(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())}
+        onTouchMove={e => pick(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())}
+        onTouchEnd={() => setHover(null)}>
         <defs>
-          <linearGradient id="candle-chart-wash" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#0c1520" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#060b12" stopOpacity="0" />
+          <linearGradient id="cc-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor={color} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
-        <rect x={PAD.left} y={PAD.top} width={chartWidth} height={chartHeight}
-          fill="url(#candle-chart-wash)" />
 
-        {[0, 1, 2, 3, 4].map(tick => {
-          const fraction = tick / 4;
-          const y = PAD.top + chartHeight * fraction;
-          const value = max - range * fraction;
+        {/* Price scale (right) */}
+        {ticks.map((v, i) => (
+          <g key={i}>
+            <line x1={0} x2={plotW} y1={y(v)} y2={y(v)} stroke={LINE} />
+            <text x={plotW + 8} y={y(v) + 4} fontSize="11" fill={MUTED} className="tabular-nums">
+              ${v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
+            </text>
+          </g>
+        ))}
+
+        {/* Starting-price reference (dotted) */}
+        <line x1={0} x2={plotW} y1={y(base)} y2={y(base)} stroke={MUTED} strokeOpacity="0.5" strokeDasharray="2 4" />
+
+        {/* Series */}
+        {mode === "line" ? (
+          <>
+            <path d={areaPath} fill="url(#cc-area)" />
+            <path d={linePath} fill="none" stroke={color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
+          </>
+        ) : data.map((c, i) => {
+          const green = c.close >= c.open;
+          const col   = green ? UP : DOWN;
+          const top   = y(Math.max(c.open, c.close));
+          const h     = Math.max(1.5, Math.abs(y(c.open) - y(c.close)));
           return (
-            <g key={tick}>
-              <line x1={PAD.left} x2={WIDTH - PAD.right} y1={y} y2={y}
-                stroke="#182334" strokeWidth="1" strokeDasharray={tick === 4 ? undefined : "2 5"} />
-              <text x={PAD.left - 9} y={y + 3} fill="#758194" fontSize="9"
-                textAnchor="end" className="tabular-nums">{formatPrice(value)}</text>
+            <g key={c.t} opacity={hover === null || hover === i ? 1 : 0.45}>
+              <line x1={x(i)} x2={x(i)} y1={y(c.high)} y2={y(c.low)} stroke={col} strokeWidth="1.3" />
+              <rect x={x(i) - bodyW / 2} y={top} width={bodyW} height={h} rx="1.5" fill={col} />
             </g>
           );
         })}
 
-        {active && (
-          <line x1={toX(getCandleTimestamp(active))} x2={toX(getCandleTimestamp(active))} y1={PAD.top} y2={PAD.top + chartHeight}
-            stroke={activeColor} strokeOpacity="0.22" strokeWidth="1" strokeDasharray="3 4" />
+        {/* Volume = new listings that day */}
+        {data.map((c, i) => {
+          const v = c.volume ?? 0;
+          if (!v) return null;
+          const h = (v / maxVol) * (VOL - 6);
+          return <rect key={`v${c.t}`} x={x(i) - bodyW / 2} y={volTop + VOL - h} width={bodyW} height={h} rx="1"
+            fill={c.close >= c.open ? UP : DOWN} opacity={hover === null || hover === i ? 0.35 : 0.15} />;
+        })}
+
+        {/* Crosshair */}
+        {hover !== null && (
+          <>
+            <line x1={x(hover)} x2={x(hover)} y1={TOP} y2={H - BOTTOM} stroke="rgba(255,255,255,0.35)" />
+            {mode === "line" && <circle cx={x(hover)} cy={y(cur.close)} r="4.5" fill={color} stroke="#000" strokeWidth="1.5" />}
+          </>
         )}
 
-        {visible.map((candle, index) => {
-          const timestamp = getCandleTimestamp(candle);
-          const up = candle.close >= candle.open;
-          const color = up ? GREEN : RED;
-          const x = PAD.left + index * candleStep;
-          const openY = toY(candle.open);
-          const closeY = toY(candle.close);
-          const wickTop = toY(candle.high);
-          const wickBottom = toY(candle.low);
-          const bodyY = Math.min(openY, closeY);
-          const bodyHeight = Math.max(2, Math.abs(openY - closeY));
-          const selected = index === (activeIndex ?? visible.length - 1);
-          return (
-            <g key={`${timestamp}-${index}`} role="button" tabIndex={0}
-              aria-label={`${formatDate(timestamp)}: open ${formatPrice(candle.open)}, high ${formatPrice(candle.high)}, low ${formatPrice(candle.low)}, close ${formatPrice(candle.close)}`}
-              onMouseEnter={() => setActiveIndex(index)}
-              onFocus={() => setActiveIndex(index)}
-              onClick={() => setActiveIndex(index)}
-              className="cursor-crosshair outline-none">
-              <title>{`${formatDate(timestamp)} · O ${formatPrice(candle.open)} · H ${formatPrice(candle.high)} · L ${formatPrice(candle.low)} · C ${formatPrice(candle.close)} · ${candle.volume} listings`}</title>
-              <line x1={x} x2={x} y1={wickTop} y2={wickBottom}
-                stroke={color} strokeWidth={selected ? "2.6" : "1.8"} strokeLinecap="round" />
-              <rect x={x - bodyWidth / 2} y={bodyY} width={bodyWidth} height={Math.max(6, bodyHeight)}
-                fill={color} stroke={color} strokeWidth="1.25" rx="1.75"
-                className="transition-[opacity] duration-150"
-                opacity={selected ? "1" : "0.94"} />
-            </g>
-          );
-        })}
-
-        {dateTicks.map((fraction, index) => {
-          const timestamp = chartStart + fraction * chartRange;
-          const x = PAD.left + fraction * chartWidth;
-          return (
-            <text key={`${fraction}-${index}`} x={x} y={HEIGHT - 7} fill="#7a8798" fontSize="9"
-              textAnchor={fraction === 0 ? "start" : fraction === 1 ? "end" : "middle"}>
-              {fraction === 0 || fraction === 1 ? formatDate(timestamp) : ""}
-            </text>
-          );
-        })}
+        {/* Dates */}
+        {xLabels.map(({ i, t }) => (
+          <text key={`x${i}`} x={x(i)} y={H - 8} fontSize="11" fill={MUTED} textAnchor={i === 0 ? "start" : i === data.length - 1 ? "end" : "middle"}>
+            {day(t)}
+          </text>
+        ))}
       </svg>
-      <div className="flex items-center justify-between px-2 pt-1 text-[9px] text-slate-600">
-        <span>Daily price observations</span>
-        <span>{visible.length} {visible.length === 1 ? "day" : "days"} with data</span>
-      </div>
-      <div className="mt-3 flex items-center gap-2 px-2">
-        {RANGE_OPTIONS.map(option => {
-          const isActive = option.key === selectedRange;
-          return (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => setSelectedRange(option.key)}
-              className={`flex-1 rounded-lg border px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] transition ${
-                isActive
-                  ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                  : "border-slate-700 bg-slate-900/70 text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {option.label}
-            </button>
-          );
-        })}
+
+      {/* Range tabs */}
+      <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: `1px solid ${LINE}` }}>
+        {RANGES.map(r => (
+          <button key={r.key} onClick={() => setRange(r.key)}
+            className="px-3 py-1.5 text-xs font-bold rounded-md transition"
+            style={{ color: range === r.key ? color : MUTED, backgroundColor: range === r.key ? `${color}1A` : "transparent" }}>
+            {r.key}
+          </button>
+        ))}
+        <span className="ml-auto text-[11px]" style={{ color: MUTED }}>eBay PSA 10 asking prices · not sold prices</span>
       </div>
     </div>
   );
