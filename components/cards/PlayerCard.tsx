@@ -106,6 +106,9 @@ export default function PlayerCard({ player, onTrade }: Props) {
   const isUp          = priceChange >= 0;
   const signal       = cardSignal?.signal ?? "HOLD";
 
+  // No real eBay price -> don't show the card
+  if (!hasPrice) return null;
+
   // Polymarket-style signal colors — saturated, not muted
   const signalPalette = {
     BUY:  { bg: "#0a2e1a", text: "#00c278", border: "#00c278", dot: "#00c278" },
