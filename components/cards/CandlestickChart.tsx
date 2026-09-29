@@ -31,6 +31,11 @@ export default function CandlestickChart({ candles }: Props) {
 
   useEffect(() => setHover(null), [range, mode]);
 
+  // Flat period (no price movement) reads better as a line, like Robinhood
+  const moved = useMemo(() => candles.some(c => c.high !== c.low || c.open !== c.close) &&
+    new Set(candles.map(c => c.close)).size > 1, [candles]);
+  useEffect(() => { setMode(moved ? "candle" : "line"); }, [moved]);
+
   const data = useMemo(() => {
     const days   = RANGES.find(r => r.key === range)!.days;
     const cutoff = Date.now() - days * 86_400_000;
