@@ -110,6 +110,11 @@ function parseCardName(cardName: string) {
 }
 
 // Real PSA 10 listings of this specific card. null = eBay unavailable.
+// Anything that makes it a different card than the plain base rookie
+const NOT_BASE_RE = /\b(auto|autos|autograph|autographed|signed|signature|signatures|patch|relic|jersey|memorabilia|refractor|refractors|prizm|xfractor|x fractor|mojo|wave|atomic|sepia|negative|superfractor|printing plate|variation|var|ssp|sp|parallel|insert|sapphire|heritage|bowman|update|national treasures|select|on demand|finest|stadium club|gold|orange|purple|green|pink|aqua|black|red refractor|blue refractor)\b/;
+const NUMBERED_RE = /(\b\d{1,4}\s*\/\s*\d{1,4}\b|#\s*\/\s*\d+|\b1\s*of\s*1\b)/;
+
+// Real PSA 10 listings of THIS specific base card. null = eBay unavailable.
 async function searchPSA10(
   cardName: string,
   opts: { sort?: string; maxPages?: number; until?: number } = {},
@@ -117,18 +122,23 @@ async function searchPSA10(
   const token = await getEbayToken();
   if (!token) { console.warn("[ebay] no API token - returning no data"); return null; }
 
-  const { name, lastName, setWords, rookie } = parseCardName(cardName);
+  const { name, setWords, rookie } = parseCardName(cardName);
   if (!name) return [];
+  const nameTokens = normalizeText(name).split(" ").filter(w => w.length > 1);
+  const yearMatch  = String(cardName).match(/\b(19|20)\d{2}\b/);
+  const year       = yearMatch ? Number(yearMatch[0]) : null;
+  const years      = year ? [year - 1, year, year + 1].map(String) : [];
+  const cardNorm   = normalizeText(cardName);
 
   const queries = [
     [name, ...setWords, "PSA 10"],
-    [name, "PSA 10"],
-    [name, ...setWords.slice(0, Math.min(2, setWords.length)), "PSA 10"],
+    [name, ...setWords, "RC PSA 10"],
   ].map(parts => encodeURIComponent(parts.filter(Boolean).join(" ")));
 
   const filter = encodeURIComponent("buyingOptions:{FIXED_PRICE},priceCurrency:USD");
   const sort   = opts.sort ? `&sort=${opts.sort}` : "";
   const out: Found[] = [];
+  const seen = new Set<string>();
 
   for (const query of queries) {
     for (let page = 0; page < (opts.maxPages ?? 1); page++) {
@@ -137,29 +147,28 @@ async function searchPSA10(
           `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${query}&category_ids=261328&filter=${filter}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}${sort}`,
           { headers: { "Authorization": `Bearer ${token}`, "X-EBAY-C-MARKETPLACE-ID": "EBAY_US", "Content-Type": "application/json" } }
         );
-        if (!res.ok) { console.error("[ebay] search failed:", res.status); return page === 0 ? null : out; }
+        if (!res.ok) { console.error("[ebay] search failed:", res.status); return page === 0 && out.length === 0 ? null : out; }
         const data  = await res.json();
         const items: any[] = data.itemSummaries ?? [];
 
         for (const it of items) {
           const rawTitle = String(it.title ?? "");
           const t = normalizeText(rawTitle);
-          const hasPsa10 = t.includes("psa 10") || t.includes("psa10");
-          const hasLastName = !lastName || t.includes(lastName) || normalizeText(name).includes(lastName);
-          if (!hasPsa10 || !hasLastName || EXCLUDE_RE.test(rawTitle)) continue;
+          if (!(t.includes("psa 10") || t.includes("psa10")))            continue;
+          if (EXCLUDE_RE.test(rawTitle))                                 continue; // lots, reprints, etc.
+          if (!nameTokens.every(w => t.includes(w)))                     continue; // full player name
+          if (!setWords.every(w => t.includes(w)))                       continue; // every set word
+          if (years.length && !years.some(y => t.includes(y)))           continue; // right year (+-1)
+          if (rookie && !/\b(rc|rookie)\b/.test(t))                      continue;
+          const notBase = t.match(NOT_BASE_RE);
+          if (notBase && !cardNorm.includes(notBase[0]))                 continue; // parallels, autos, other sets
+          if (NUMBERED_RE.test(rawTitle))                                continue; // numbered parallels
 
-          const setHasWords = setWords.length === 0 || setWords.some(word => t.includes(word));
-          const rookieMatch = !rookie || /\b(rc|rookie)\b/.test(t) || /(rc|rookie)\b/.test(normalizeText(cardName));
-          if (!setHasWords || !rookieMatch) {
-            const fallbackNameMatch = normalizeText(name).split(" ").every(token => t.includes(token) || token.length <= 2);
-            if (!fallbackNameMatch) continue;
-          }
-          if (PARALLEL_RE.test(rawTitle)) continue; // base card only
-
+          const id    = String(it.itemId);
           const price = parseFloat(it.price?.value ?? "0");
-          if (!Number.isFinite(price) || price <= 0) continue;
-          const title = String(it.title);
-          out.push({ id: String(it.itemId), title, price, created: it.itemCreationDate ? new Date(it.itemCreationDate) : null });
+          if (seen.has(id) || !Number.isFinite(price) || price <= 0)     continue;
+          seen.add(id);
+          out.push({ id, title: rawTitle, price, created: it.itemCreationDate ? new Date(it.itemCreationDate) : null });
         }
 
         const oldest = items.length ? new Date(items[items.length - 1]?.itemCreationDate ?? 0).getTime() : 0;
@@ -167,10 +176,10 @@ async function searchPSA10(
         if (opts.until && oldest && oldest < opts.until) break;
       } catch (err) {
         console.error("[ebay] error:", err);
-        return page === 0 ? null : out;
+        return page === 0 && out.length === 0 ? null : out;
       }
     }
-    if (out.length > 0) break;
+    if (out.length >= 3) break;
   }
   return out;
 }
@@ -293,6 +302,20 @@ export async function fetchNewListingCandles(cardName: string, days = 14): Promi
   return candles;
 }
 
+function removeOutliers(found: Found[]): Found[] {
+  if (found.length < 3) return found;
+  const sorted = found.map(f => f.price).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  return found.filter(f => f.price <= median * 2.5 && f.price >= median / 2.5);
+}
+
+function medianPrice(list: { price: number }[]): number {
+  if (!list.length) return 0;
+  const p = list.map(l => l.price).sort((a, b) => a - b);
+  const m = Math.floor(p.length / 2);
+  return Math.round(p.length % 2 ? p[m] : (p[m - 1] + p[m]) / 2);
+}
+
 function buildListingCandles(found: Found[], days: number): ListingCandle[] {
   const cutoff = Date.now() - days * 86_400_000;
   const recent = found
@@ -333,7 +356,7 @@ export async function fetchEbayMarket(cardName: string, days = 14, maxPages = 3)
   const checkedAt = new Date().toISOString();
   const found = await searchPSA10(cardName, { sort: "newlyListed", maxPages, until: Date.now() - days * 86_400_000 });
   if (!found) return { status: "unavailable", price: 0, listings: [], candles: [], checkedAt };
-  const listings = [...found]
+  const listings = [...removeOutliers(found)]
     .sort((a, b) => (b.created?.getTime() ?? 0) - (a.created?.getTime() ?? 0))
     .slice(0, MAX_RESULTS)
     .map(f => ({
@@ -343,7 +366,7 @@ export async function fetchEbayMarket(cardName: string, days = 14, maxPages = 3)
     }));
   return {
     status: listings.length ? "available" : "no_listings",
-    price: calcAvgPrice(listings),
+    price: medianPrice(listings),
     listings, candles: buildListingCandles(found, days), checkedAt,
   };
 }
