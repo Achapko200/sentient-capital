@@ -370,7 +370,7 @@ export async function fetchEbayMarket(cardName: string, days = 14, maxPages = 5)
     }));
   return {
     status: listings.length ? "available" : "no_listings",
-    price: medianPrice(listings),
+    price: medianPrice(removeOutliers(found)),   // same listings the chart uses
     listings, candles: buildListingCandles(found, days), checkedAt,
   };
 }

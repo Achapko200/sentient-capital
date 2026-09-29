@@ -208,12 +208,8 @@ export default function CardPurchasePanel({ player }: Props) {
         <div className="col-span-3 border-r border-gray-800 p-4">
           <p className="text-gray-500 text-xs font-semibold uppercase mb-3">Price History</p>
           <CandleChart />
-          {orderbookData?.candleSource === "new_listings" && (
-            <p className="text-[10px] text-gray-500 mt-1">Past 14 days · daily range of asking prices on newly listed eBay PSA 10 copies; gaps mean no new listings (not sold prices)</p>
-          )}
-          {orderbookData?.candleSource === "daily_prices" && (
-            <p className="text-[10px] text-gray-500 mt-1">Past 14 days · daily eBay price snapshots; gaps mean no snapshot was available</p>
-          )}
+          
+          
 
           {/* Stats */}
           {cardData && (

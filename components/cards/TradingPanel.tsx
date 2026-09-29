@@ -197,9 +197,7 @@ export default function TradingPanel({ token }: Props) {
           {tab === "chart" && (
             <div className="p-4">
               <CandlestickChart candles={candles} />
-              {candles.length >= 2 && (
-                <p className="text-[10px] text-gray-500 mt-1">Past 14 days · daily price observations; gaps mean no snapshot was available</p>
-              )}
+              
               <div className="mt-3 space-y-1">
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Recent trades</p>
                 {trades.length === 0 ? (
