@@ -339,8 +339,8 @@ function buildListingCandles(found: Found[], days: number): ListingCandle[] {
       time: Math.floor(t / 1000), timestamp: t,
       date: new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
       open, close,
-      high: Math.max(open, close, ...today),
-      low:  Math.min(open, close, ...today),
+      high: Math.max(open, close, ...upTo),   // wick = full asking range that day
+      low:  Math.min(open, close, ...upTo),
       volume: today.length,
     });
   }
