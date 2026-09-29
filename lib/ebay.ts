@@ -111,8 +111,8 @@ function parseCardName(cardName: string) {
 
 // Real PSA 10 listings of this specific card. null = eBay unavailable.
 // Anything that makes it a different card than the plain base rookie
-const NOT_BASE_RE = /\b(auto|autos|autograph|autographed|signed|signature|signatures|patch|relic|jersey|memorabilia|refractor|refractors|prizm|xfractor|x fractor|mojo|wave|atomic|sepia|negative|superfractor|printing plate|variation|var|ssp|sp|parallel|insert|sapphire|heritage|bowman|update|national treasures|select|on demand|finest|stadium club|gold|orange|purple|green|pink|aqua|black|red refractor|blue refractor)\b/;
-const NUMBERED_RE = /(\b\d{1,4}\s*\/\s*\d{1,4}\b|#\s*\/\s*\d+|\b1\s*of\s*1\b)/;
+const NOT_BASE_RE = /\b(auto|autos|autograph|autographed|signed|signature|signatures|patch|relic|jersey|memorabilia|refractor|refractors|prizm|xfractor|x fractor|mojo|wave|raywave|ray wave|atomic|sepia|negative|superfractor|printing plate|variation|var|ssp|sp|short print|parallel|insert|case hit|sapphire|heritage|bowman|national treasures|select|on demand|finest|stadium club|gold|orange|purple|green|pink|aqua|black|geometric|speckle|lava|shimmer|pulsar|helix|rainbow|foil|home field advantage|fortune 15|rookie debut|debut|celebration|celebracion|celebraci|radiating|power players|hidden gems|youthquake|future stars|all etch|ultra violet|lightboard|logofractor|kaiju|anime|fireworks|stars of mlb)\b/;
+const NUMBERED_RE = /(\/\s*\d{1,4}\b|\b1\s*of\s*1\b)/;
 
 // Real PSA 10 listings of THIS specific base card. null = eBay unavailable.
 async function searchPSA10(
@@ -316,31 +316,35 @@ function medianPrice(list: { price: number }[]): number {
   return Math.round(p.length % 2 ? p[m] : (p[m - 1] + p[m]) / 2);
 }
 
+// 14 daily candles (Robinhood-style) from this card's active listings:
+// each day's price = median asking price of listings up on that day;
+// wicks = new listings posted that day. Days before the first listing are skipped.
 function buildListingCandles(found: Found[], days: number): ListingCandle[] {
-  const cutoff = Date.now() - days * 86_400_000;
-  const recent = found
-    .filter(f => f.created && f.created.getTime() >= cutoff)
-    .sort((a, b) => a.created!.getTime() - b.created!.getTime());
-  if (!recent.length) return [];
-  const sorted = recent.map(f => f.price).sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)];
-  const clean  = recent.filter(f => f.price <= median * 3 && f.price >= median / 3);
-  const byDay  = new Map<string, Found[]>();
-  for (const f of clean) {
-    const d = f.created!.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-    if (!byDay.has(d)) byDay.set(d, []);
-    byDay.get(d)!.push(f);
-  }
-  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([day, list]) => {
-    const prices = list.map(l => l.price);
+  const nyDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const med   = (xs: number[]) => { const p = [...xs].sort((a, b) => a - b); const m = Math.floor(p.length / 2); return p.length % 2 ? p[m] : (p[m - 1] + p[m]) / 2; };
+  const list  = removeOutliers(found).filter(f => f.created).map(f => ({ price: f.price, day: nyDay(f.created!) }));
+  if (!list.length) return [];
+
+  const out: ListingCandle[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day    = nyDay(new Date(Date.now() - i * 86_400_000));
+    const upTo   = list.filter(l => l.day <= day).map(l => l.price);
+    if (!upTo.length) continue;
+    const before = list.filter(l => l.day <  day).map(l => l.price);
+    const today  = list.filter(l => l.day === day).map(l => l.price);
+    const open   = Math.round(before.length ? med(before) : med(upTo));
+    const close  = Math.round(med(upTo));
     const t      = new Date(`${day}T12:00:00Z`).getTime();
-    return {
+    out.push({
       time: Math.floor(t / 1000), timestamp: t,
       date: new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
-      open: prices[0], close: prices[prices.length - 1],
-      high: Math.max(...prices), low: Math.min(...prices), volume: list.length,
-    };
-  });
+      open, close,
+      high: Math.max(open, close, ...today),
+      low:  Math.min(open, close, ...today),
+      volume: today.length,
+    });
+  }
+  return out;
 }
 
 export type EbayMarket = {
