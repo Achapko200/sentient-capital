@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     await Promise.all(todo.slice(i, i + CONCURRENCY).map(async (p: any) => {
       const hasMarket = known.has(String(p.id));
       try {
-        const m = await refreshMarketData(String(p.id), p.cardName, hasMarket ? 3 : 1);
+        const m = await refreshMarketData(String(p.id), p.cardName, hasMarket ? 5 : 2);
         if (!m)               { unavailable++; fails++; }
         else if (m.price > 0) { saved++;  fails = 0; }
         else                  { noData++; fails = 0; }

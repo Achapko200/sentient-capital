@@ -352,7 +352,7 @@ export type EbayMarket = {
 };
 
 // ONE live eBay search -> current price, newest listings, and 14-day candles
-export async function fetchEbayMarket(cardName: string, days = 14, maxPages = 3): Promise<EbayMarket> {
+export async function fetchEbayMarket(cardName: string, days = 14, maxPages = 5): Promise<EbayMarket> {
   const checkedAt = new Date().toISOString();
   const found = await searchPSA10(cardName, { sort: "newlyListed", maxPages, until: Date.now() - days * 86_400_000 });
   if (!found) return { status: "unavailable", price: 0, listings: [], candles: [], checkedAt };

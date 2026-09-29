@@ -2,14 +2,14 @@
 import { getOrderBook, getRecentTrades }  from "@/lib/orderbook";
 import { getWatchlist, getPlayer }        from "@/lib/players";
 import { fetchMLBStats }                  from "@/lib/mlb";
-import { priceFromStats }                 from "@/lib/cardToken";
+import { priceFromStats, getCandleTimestamp } from "@/lib/cardToken";
 import type { CardToken }                 from "@/lib/cardToken";
 import { checkRateLimit }                 from "@/lib/ratelimit";
 import { getCandles }                     from "@/lib/price-history";
 import { getMarketPrices }                from "@/lib/market-prices";
 import { getMarketData }                  from "@/lib/market-cache";
 
-const MIN_CANDLES = 1;
+const CHART_DAYS = 14;
 
 function tokenFor(player: any, pricePerShare: number, extra: Partial<CardToken> = {}): CardToken {
   return {
@@ -32,6 +32,19 @@ function tokenFor(player: any, pricePerShare: number, extra: Partial<CardToken> 
   } as CardToken;
 }
 
+const dayOf = (c: any) => new Date(getCandleTimestamp(c)).toISOString().slice(0, 10);
+
+// One 14-day series: eBay new-listing candles per day, saved daily prices fill the gaps
+function mergeCandles(listing: any[], saved: any[]) {
+  const cutoff = Date.now() - CHART_DAYS * 86_400_000;
+  const byDay  = new Map<string, any>();
+  for (const c of listing) byDay.set(dayOf(c), c);
+  for (const c of saved)   if (!byDay.has(dayOf(c))) byDay.set(dayOf(c), c);
+  return [...byDay.values()]
+    .filter(c => getCandleTimestamp(c) >= cutoff && Number(c.close) > 0)
+    .sort((a, b) => getCandleTimestamp(a) - getCandleTimestamp(b));
+}
+
 export async function GET(req: Request) {
   const limited = await checkRateLimit(req, "read");
   if (limited) return limited;
@@ -42,7 +55,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    // One card: cached market data + chart (instant)
+    // One card: cached market data + 14-day chart (instant)
     if (cardId) {
       const player: any = await getPlayer(cardId);
       if (!player) return Response.json({ error: "Card not found" }, { status: 404 });
@@ -52,13 +65,13 @@ export async function GET(req: Request) {
         getMarketData(String(player.id), player.cardName ?? player.name),
         getOrderBook(cardId),
         getRecentTrades(cardId),
-        getCandles(cardId, 14),
+        getCandles(cardId, CHART_DAYS),
       ]);
 
-      const recentTrades  = trades.slice(0, 50);
-      const prices        = recentTrades.map((t: any) => t.price);
-      const firstPrice    = prices[prices.length - 1];
-      const lastPrice     = prices[0];
+      const recentTrades = trades.slice(0, 50);
+      const prices       = recentTrades.map((t: any) => t.price);
+      const firstPrice   = prices[prices.length - 1];
+      const lastPrice    = prices[0];
       const token = tokenFor(player, market.price > 0 ? priceFromStats(stats, market.price) : 0, {
         askPrice:     book.asks[0]?.price ?? null,
         bidPrice:     book.bids[0]?.price ?? null,
@@ -66,18 +79,12 @@ export async function GET(req: Request) {
         changePct24h: firstPrice > 0 && lastPrice > 0 ? Math.round(((lastPrice - firstPrice) / firstPrice) * 1000) / 10 : 0,
       });
 
-      // Whichever real source covers more days: saved daily prices, or the last 14 days of new eBay listings
-      let candles: any[]              = [];
-      let candleSource: string | null = null;
-      if (savedCandles.length >= MIN_CANDLES && savedCandles.length >= market.candles.length) {
-        candles = savedCandles; candleSource = "daily_prices";
-      } else if (market.candles.length >= MIN_CANDLES) {
-        candles = market.candles; candleSource = "new_listings";
-      }
+      const candles      = mergeCandles(market.candles, savedCandles);
+      const candleSource = candles.length === 0 ? null : market.candles.length > 0 ? "new_listings" : "daily_prices";
       return Response.json({ token, book, trades, candles, candleSource, hasHistory: candles.length > 0, marketUpdatedAt: market.updatedAt });
     }
 
-    // All cards: from saved daily prices only (fast, no live eBay calls)
+    // All cards: from saved prices only (fast, no live eBay calls)
     const [players, prices] = await Promise.all([getWatchlist(), getMarketPrices()]);
     const tokens = players
       .filter((p: any) => prices.has(String(p.id)))
