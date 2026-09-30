@@ -37,7 +37,7 @@ export default function PlayerNews({ playerId, playerName }: { playerId: string;
       )}
 
       {articles?.length === 0 && (
-        <p className="text-sm" style={{ color: "#8A8F98" }}>No recent news about {playerName} from major outlets.</p>
+        <p className="text-sm" style={{ color: "#8A8F98" }}>No news about {playerName} in the last 30 days.</p>
       )}
 
       {articles && articles.length > 0 && (
