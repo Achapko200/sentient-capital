@@ -8,7 +8,7 @@ const WATCHLIST_TTL  = 6 * 60 * 60 * 1000; // rebuild at most every 6 hours per 
 const DEFAULT_COLORS = { cardColor: "#1a1a2e", teamColor: "#16213e" };
 
 function headshotUrl(playerId: string): string {
-  return `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${playerId}/headshot/67/current`;
+  return `/api/headshot/${playerId}`;   // MLB photo, or initials avatar when MLB has none
 }
 
 const MLB_COLORS: Record<string, { cardColor: string; teamColor: string }> = {
@@ -46,7 +46,7 @@ function toPlayer(p: any, team?: { name: string; abbr: string }): Player {
   return {
     id:        String(p.id),
     name:      p.fullName,
-    team:      team?.name ?? (p.active === false ? "Retired" : "Free agent"),
+    team:      p.active === false ? "Retired" : team?.name ?? "Free agent",
     position:  p.primaryPosition?.abbreviation ?? "—",
     cardName:  buildCardName(p),
     image:     "⚾",
