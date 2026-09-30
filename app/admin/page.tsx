@@ -171,22 +171,7 @@ export default function AdminDashboard() {
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-              <h3 className="font-bold mb-4">Quick actions</h3>
-              <div className="space-y-2">
-                {[
-                  { label: "View all listings", href: "/api/admin/listings" },
-                  { label: "View all trades",   href: "/api/admin/trades"   },
-                  { label: "View all alerts",   href: "/api/admin/alerts"   },
-                  { label: "View all orders",   href: "/api/admin/orders"   },
-                ].map(a => (
-                  <a key={a.label} href={a.href} target="_blank" rel="noopener noreferrer"
-                    className="block w-full py-2.5 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-sm transition text-gray-300">
-                    {a.label} ↗
-                  </a>
-                ))}
-              </div>
-            </div>
+            
           </div>
         )}
       </div>
