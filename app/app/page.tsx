@@ -20,6 +20,7 @@ import SearchPlayers              from "@/components/cards/SearchPlayers";
 import PriceAlerts                from "@/components/cards/PriceAlerts";
 import AIAssistant                from "@/components/cards/AIAssistant";
 import CardPurchasePanel           from "@/components/cards/CardPurchasePanel";
+import PlayerNews                  from "@/components/cards/PlayerNews";
 import MyCards                     from "@/components/cards/MyCards";
 import AuthGate                   from "@/components/AuthGate";
 import { DynamicWidget }          from "@dynamic-labs/sdk-react-core";
@@ -579,7 +580,10 @@ export default function Home() {
                 )}
               </div>
               {tradePlayer ? (
-                <CardPurchasePanel player={tradePlayer} />
+                <>
+                  <CardPurchasePanel player={tradePlayer} />
+                  <PlayerNews playerId={String(tradePlayer.id)} playerName={tradePlayer.name} />
+                </>
               ) : (
                 <>
                   <p className="text-gray-500 text-sm">Select a card to buy or sell:</p>
