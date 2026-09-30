@@ -145,10 +145,6 @@ function ticketEmail(t: {
         <td style="border-radius:8px;background:${BRAND};">
           <a href="mailto:${esc(t.email)}?subject=${replySubject}" style="display:inline-block;padding:12px 22px;font-size:14px;font-weight:600;color:#FFFFFF;text-decoration:none;">Reply to Customer</a>
         </td>
-        <td width="10"></td>
-        <td style="border-radius:8px;border:1px solid #D0D5DD;">
-          <a href="${APP_URL}/admin" style="display:inline-block;padding:11px 20px;font-size:14px;font-weight:600;color:#344054;text-decoration:none;">Open Admin Dashboard</a>
-        </td>
       </tr></table>
       <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#667085;">Replying to this email also reaches the customer directly. Please reference <strong>${t.ref}</strong> in all correspondence.</p>
       <p style="margin:12px 0 0;font-size:12px;line-height:1.6;color:#98A2B3;">Confidential: this message contains customer information. Do not forward outside Card Tracker.</p>`,
