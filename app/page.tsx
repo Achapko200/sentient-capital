@@ -41,7 +41,7 @@ export default function Landing() {
             className="text-sm font-bold px-4 py-2 rounded-xl border border-gray-700 hover:border-gray-500 transition hidden md:block">
             Sign in
           </button>
-          <button onClick={() => router.push("/login")}
+          <button onClick={() => router.push("/login?mode=signup")}
             className="text-sm font-bold px-5 py-2.5 rounded-xl transition"
             style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
             Get started free
@@ -199,7 +199,7 @@ export default function Landing() {
       <section className="relative z-10 max-w-3xl mx-auto px-6 md:px-12 py-24 text-center border-t border-gray-800">
         <h2 className="text-4xl md:text-5xl font-black mb-4">Start trading today</h2>
         <p className="text-gray-400 mb-8 text-lg">Free to sign up. No credit card required.</p>
-        <button onClick={() => router.push("/login")}
+        <button onClick={() => router.push("/login?mode=signup")}
           className="px-10 py-4 rounded-2xl font-black text-lg transition hover:opacity-90"
           style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
           Get started free →

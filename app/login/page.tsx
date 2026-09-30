@@ -12,6 +12,9 @@ export default function LoginPage() {
   const router                         = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const [mode,     setMode]            = useState<Mode>("login");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") === "signup") setMode("signup");
+  }, []);
   const [email,    setEmail]           = useState("");
   const [password, setPassword]        = useState("");
   const [name,     setName]            = useState("");
