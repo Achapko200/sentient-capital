@@ -170,27 +170,7 @@ export default function AdminDashboard() {
         {/* Overview */}
         {tab === "overview" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-              <h3 className="font-bold mb-4">Platform health</h3>
-              <div className="space-y-3">
-                {[
-                  { label: "MLB Stats API",  status: "Live",    color: "bg-green-500"  },
-                  { label: "ESPN News",      status: "Live",    color: "bg-green-500"  },
-                  { label: "Supabase DB",    status: "Live",    color: "bg-green-500"  },
-                  { label: "eBay Prices",    status: "Mock",    color: "bg-yellow-500" },
-                  { label: "ENS Resolution", status: "Live",    color: "bg-green-500"  },
-                  { label: "USDC / Base",    status: "Live",    color: "bg-green-500"  },
-                ].map(s => (
-                  <div key={s.label} className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">{s.label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${s.color} animate-pulse`} />
-                      <span className="text-xs font-semibold text-gray-300">{s.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            
             <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
               <h3 className="font-bold mb-4">Quick actions</h3>
               <div className="space-y-2">
