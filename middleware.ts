@@ -100,13 +100,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // ── Admin protection ───────────────────────────────────────────────────────
-  if (pathname.startsWith("/admin")) {
-    const adminKey = req.cookies.get("admin_key")?.value;
-    if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-  }
+  // ── Admin: data is protected server-side in /api/admin/* (requireAdmin) ──
 
   // ── Stripe webhook ─────────────────────────────────────────────────────────
   if (pathname === "/api/stripe/webhook") {

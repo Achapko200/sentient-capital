@@ -35,7 +35,6 @@ export default function AdminDashboard() {
         fetch("/api/admin/trades",   { headers }).then(r => r.json()),
       ]).then(([s, l, t]) => {
         if (!s?.stats) { router.push("/app"); return; }   // not an admin
-        if (!s?.stats) { router.push("/app"); return; }   // not an admin
         setStats(s.stats);
         setListings(l.listings ?? []);
         setTrades(t.trades ?? []);
