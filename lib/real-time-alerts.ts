@@ -24,7 +24,7 @@ export async function sendSecurityAlert(
       },
       body: JSON.stringify({
         from:    "Card Tracker Security <onboarding@resend.dev>",
-        to:      ["anna.chapko.2004@gmail.com"],
+        to:      [(process.env.ADMIN_NOTIFY_EMAIL ?? "achapko22@gmail.com")],
         subject: `🚨 [${severity.toUpperCase()}] Security Alert: ${event}`,
         html: `
           <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">

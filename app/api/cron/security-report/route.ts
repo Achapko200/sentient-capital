@@ -32,7 +32,7 @@ export async function GET(req: Request) {
       },
       body: JSON.stringify({
         from:    "Card Tracker Security <onboarding@resend.dev>",
-        to:      ["anna.chapko.2004@gmail.com"],
+        to:      [(process.env.ADMIN_NOTIFY_EMAIL ?? "achapko22@gmail.com")],
         subject: `🔐 Weekly Security Report — Card Tracker`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0d0d0d; color: #fff; padding: 32px; border-radius: 12px;">

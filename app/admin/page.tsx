@@ -4,6 +4,8 @@
 import { useState, useEffect } from "react";
 import { useRouter }           from "next/navigation";
 import { supabase }            from "@/lib/supabase";
+import PlatformHealth           from "@/components/admin/PlatformHealth";
+import SupportTickets           from "@/components/admin/SupportTickets";
 
 type Stats = {
   totalListings:  number;
@@ -56,6 +58,10 @@ export default function AdminDashboard() {
             ← Back to app
           </a>
         </div>
+
+        <PlatformHealth />
+        <SupportTickets />
+
 
         {/* Stats */}
         {loading ? (

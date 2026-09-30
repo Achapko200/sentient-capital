@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Get help with your Card Tracker account, subscriptions, market data, and card trades.",
 };
 
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "anna.chapko.2004@gmail.com";
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? (process.env.ADMIN_NOTIFY_EMAIL ?? "achapko22@gmail.com");
 
 const TOPICS = [
   {

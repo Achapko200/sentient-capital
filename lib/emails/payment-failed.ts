@@ -4,7 +4,7 @@
 import type Stripe from "stripe";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sentient-capital.vercel.app";
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "anna.chapko.2004@gmail.com";
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? (process.env.ADMIN_NOTIFY_EMAIL ?? "achapko22@gmail.com");
 const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS ?? "New York, NY";
 const MAX_ATTEMPTS = 5; // must match Stripe > Revenue recovery > Retries (first charge + retries)
 

@@ -212,7 +212,7 @@ async function handleCheckoutCompleted(
 
     // Email admin
     await sendEmail({
-      to:      "anna.chapko.2004@gmail.com",
+      to:      (process.env.ADMIN_NOTIFY_EMAIL ?? "achapko22@gmail.com"),
       subject: `🎉 New Card Sale — ${playerName}`,
       html:    buildAdminEmailHTML({ playerName, pricePerShare, buyerName, buyerEmail, addressStr, shippingSpeed }),
     });
@@ -292,7 +292,7 @@ async function logSecurityEvent(event: string, req: Request, meta?: any) {
 
 async function notifyAdmin(event: string, data: any) {
   await sendEmail({
-    to:      "anna.chapko.2004@gmail.com",
+    to:      (process.env.ADMIN_NOTIFY_EMAIL ?? "achapko22@gmail.com"),
     subject: `🚨 Security Alert: ${event}`,
     html:    `<pre>${JSON.stringify(data, null, 2)}</pre>`,
   });
