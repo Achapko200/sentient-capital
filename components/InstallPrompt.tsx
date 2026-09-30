@@ -1,107 +1,70 @@
 "use client";
+// iPhone-only choice: "Get the app" or "Continue on website".
+// With NEXT_PUBLIC_IOS_APP_ID set, Safari's Smart App Banner shows "Open" if the app is installed, "Get" if not.
+// Without it, "Get the app" shows Add to Home Screen steps. Never shown inside the installed app or on other devices.
+import { useEffect, useState } from "react";
 
-import { useState, useEffect } from "react";
+const APP_ID = process.env.NEXT_PUBLIC_IOS_APP_ID ?? "";
+const KEY    = "ct-app-choice";
 
 export default function InstallPrompt() {
-  const [show,        setShow]        = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isIOS,       setIsIOS]       = useState(false);
+  const [show,  setShow]  = useState(false);
+  const [howTo, setHowTo] = useState(false);
 
   useEffect(() => {
-    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(ios);
-
-    // Don't show if already installed as PWA
-    const isInstalled = window.matchMedia("(display-mode: standalone)").matches;
-    if (isInstalled) return;
-
-    // Show after 2 seconds on every page load
-    if (ios) {
-      const timer = setTimeout(() => setShow(true), 2000);
-      return () => clearTimeout(timer);
-    }
-
-    // Listen for Chrome/Android install prompt
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setTimeout(() => setShow(true), 2000);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    const iphone     = /iPhone|iPod/.test(navigator.userAgent);
+    const standalone = (navigator as any).standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+    let chosen = false;
+    try { chosen = !!localStorage.getItem(KEY); } catch {}
+    if (iphone && !standalone && !chosen) setShow(true);
   }, []);
 
-  const handleInstall = async () => {
-    if (isIOS) {
-      // iOS — show instructions since app isn't on App Store yet
-      alert("To install: tap the Share button (□↑) at the bottom of Safari, then tap 'Add to Home Screen'");
-      setShow(false);
-      return;
-    }
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
-        setShow(false);
-        return;
-      }
-      setDeferredPrompt(null);
-    }
-    setShow(false);
-  };
-
-  const handleDismiss = () => {
-    // Just close — will show again on next page load
-    setShow(false);
-  };
-
-  if (!show) return null;
+  const remember = (choice: string) => { try { localStorage.setItem(KEY, choice); } catch {} };
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-end justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
-      onClick={handleDismiss}>
-      <div className="w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}
-        style={{ backgroundColor: "#1a1a1a", border: "1px solid #2a2a2a" }}>
+    <>
+      {APP_ID && <meta name="apple-itunes-app" content={`app-id=${APP_ID}`} />}
 
-        {/* Header */}
-        <div className="p-6 text-center">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4"
-            style={{ background: "linear-gradient(135deg, #2563eb, #7c3aed)" }}>
-            ⚾
+      {show && (
+        <div className="fixed inset-0 z-[200] flex items-end bg-black/40" onClick={() => { remember("web"); setShow(false); }}>
+          <div className="w-full rounded-t-3xl bg-white p-6 pb-10 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="mx-auto mb-5 h-1.5 w-10 rounded-full bg-gray-200" />
+            <div className="flex items-center gap-3">
+              <img src="/icon-192.png" alt="" className="h-14 w-14 rounded-2xl" />
+              <div>
+                <p className="text-lg font-bold text-gray-900">Card Tracker for iPhone</p>
+                <p className="text-sm text-gray-500">Faster, full-screen, one tap from your home screen.</p>
+              </div>
+            </div>
+
+            {!howTo ? (
+              <div className="mt-6 space-y-3">
+                {APP_ID ? (
+                  <a href={`https://apps.apple.com/app/id${APP_ID}`} onClick={() => remember("app")}
+                    className="block w-full rounded-2xl bg-blue-600 py-3.5 text-center text-base font-bold text-white">Get the app</a>
+                ) : (
+                  <button onClick={() => setHowTo(true)}
+                    className="w-full rounded-2xl bg-blue-600 py-3.5 text-base font-bold text-white">Get the app</button>
+                )}
+                <button onClick={() => { remember("web"); setShow(false); }}
+                  className="w-full rounded-2xl border border-gray-200 py-3.5 text-base font-semibold text-gray-700">Continue on website</button>
+                {APP_ID && <p className="text-center text-xs text-gray-400">Already have it? Tap <b>Open</b> in the banner at the top of Safari.</p>}
+              </div>
+            ) : (
+              <div className="mt-6">
+                <ol className="space-y-3 text-[15px] text-gray-700">
+                  <li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">1</span>
+                    Tap the <b>Share</b> button <span aria-hidden>⬆︎</span> at the bottom of Safari.</li>
+                  <li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">2</span>
+                    Choose <b>Add to Home Screen</b>, then tap <b>Add</b>.</li>
+                </ol>
+                <button onClick={() => { remember("app"); setShow(false); }}
+                  className="mt-6 w-full rounded-2xl bg-gray-900 py-3.5 text-base font-bold text-white">Got it</button>
+              </div>
+            )}
           </div>
-          <h3 className="font-black text-white text-lg mb-1">Card Tracker</h3>
-          <p className="text-sm" style={{ color: "#888" }}>
-            {isIOS
-              ? "Add to your Home Screen for the best experience"
-              : "Install the app for a faster, full-screen experience"}
-          </p>
         </div>
-
-        {/* iOS instructions */}
-        {isIOS && (
-          <div className="mx-4 mb-4 p-3 rounded-xl text-xs text-center"
-            style={{ backgroundColor: "#2a2a2a", color: "#ccc" }}>
-            Tap <strong>Share ↑</strong> then <strong>Add to Home Screen</strong>
-          </div>
-        )}
-
-        {/* Buttons */}
-        <div className="p-4 space-y-2">
-          {!isIOS && (
-            <button onClick={handleInstall}
-              className="w-full py-3 rounded-xl font-black text-sm text-black transition hover:opacity-90"
-              style={{ backgroundColor: "#00c278" }}>
-              📲 Install App
-            </button>
-          )}
-          <button onClick={handleDismiss}
-            className="w-full py-3 rounded-xl font-semibold text-sm transition"
-            style={{ backgroundColor: "#2a2a2a", color: "#aaa" }}>
-            Continue in Browser
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
