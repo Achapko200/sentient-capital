@@ -1,9 +1,10 @@
 // app/api/admin/listings/route.ts
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export async function GET(req: Request) {
-  const secret = req.headers.get("x-admin-secret");
-  if (secret !== process.env.ADMIN_SECRET_KEY) {
+  const denied = await requireAdmin(req);
+  if (denied) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {

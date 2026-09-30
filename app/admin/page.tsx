@@ -25,18 +25,17 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Check admin auth
-    supabase.auth.getUser().then(({ data }) => {
-      const adminEmail = "anna.chapko.2004@gmail.com";
-      if (!data.user || data.user.email !== adminEmail) {
-        router.push("/app");
-        return;
-      }
-      const headers = { "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "" };
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { router.push("/login"); return; }
+      const token   = (await supabase.auth.getSession()).data.session?.access_token ?? "";
+      const headers = { Authorization: `Bearer ${token}` };
       Promise.all([
         fetch("/api/admin/stats",    { headers }).then(r => r.json()),
         fetch("/api/admin/listings", { headers }).then(r => r.json()),
         fetch("/api/admin/trades",   { headers }).then(r => r.json()),
       ]).then(([s, l, t]) => {
+        if (!s?.stats) { router.push("/app"); return; }   // not an admin
+        if (!s?.stats) { router.push("/app"); return; }   // not an admin
         setStats(s.stats);
         setListings(l.listings ?? []);
         setTrades(t.trades ?? []);

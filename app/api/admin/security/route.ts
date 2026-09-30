@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { requireAdmin } from "@/lib/admin-auth";
 
 const redis = new Redis({
   url:   process.env.UPSTASH_REDIS_REST_URL!,
@@ -6,8 +7,8 @@ const redis = new Redis({
 });
 
 export async function GET(req: Request) {
-  const secret = req.headers.get("x-admin-secret");
-  if (secret !== process.env.ADMIN_SECRET_KEY) {
+  const denied = await requireAdmin(req);
+  if (denied) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
