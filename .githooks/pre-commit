@@ -1,0 +1,10 @@
+#!/bin/sh
+# Blocks commits that contain secret keys or .env files.
+if git diff --cached -U0 | grep -qE "sk_(live|test)_[A-Za-z0-9]{10,}|rk_(live|test)_[A-Za-z0-9]{10,}|re_[A-Za-z0-9]{20,}|whsec_[A-Za-z0-9]{10,}|gsk_[A-Za-z0-9]{10,}"; then
+  echo "✋ Commit blocked: it contains what looks like a secret key. Move it to an environment variable."
+  exit 1
+fi
+if git diff --cached --name-only | grep -qE "(^|/)\.env(\.|$)"; then
+  echo "✋ Commit blocked: .env files must never be committed."
+  exit 1
+fi

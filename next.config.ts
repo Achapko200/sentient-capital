@@ -16,7 +16,6 @@ const nextConfig = {
         { key: "Permissions-Policy",           value: "camera=(), microphone=(), geolocation=(), payment=()" },
         { key: "Report-To",                    value: JSON.stringify({ group: "csp-endpoint", max_age: 86400, endpoints: [{ url: "/api/csp-report" }] }) },
         { key: "NEL",                          value: JSON.stringify({ report_to: "csp-endpoint", max_age: 86400, include_subdomains: true }) },
-        { key: "Cross-Origin-Resource-Policy", value: "same-site" },
         { key: "Origin-Agent-Cluster",         value: "?1" },
         { key: "Strict-Transport-Security",    value: "max-age=63072000; includeSubDomains; preload" },
         {
@@ -56,6 +55,7 @@ const nextConfig = {
             ].join(" "),
             "frame-src https://*.dynamicauth.com https://*.walletconnect.com https://*.coinbase.com",
             "object-src 'none'",
+            "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
             "upgrade-insecure-requests",

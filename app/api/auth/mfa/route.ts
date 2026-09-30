@@ -5,6 +5,7 @@ import { checkRateLimit }  from "@/lib/ratelimit";
 import { generateSecret, verifyTotp } from "@/lib/mfa";
 import { supabaseAdmin }   from "@/lib/supabase-server";
 import { getVerifiedUser } from "@/lib/verify-user";
+import { mfaLocked, recordMfaFailure, clearMfaFailures } from "@/lib/security-guard";
 
 export const dynamic = "force-dynamic";
 const formatSecret = (s: string) => s.match(/.{1,4}/g)?.join(" ") ?? s;
@@ -61,14 +62,19 @@ export async function POST(req: Request) {
     if (!/^\d{6}$/.test(code)) return Response.json({ success: false, error: "Enter the 6-digit code." }, { status: 400 });
     const s = await settings(user.id);
     if (!s?.secret) return Response.json({ success: false, error: "Start two-factor setup first." }, { status: 400 });
-    return Response.json({ success: verifyTotp(s.secret, code) });
+    if (await mfaLocked(user.id)) return Response.json({ success: false, error: "Too many wrong codes. Try again in 15 minutes." }, { status: 429 });
+    const ok = verifyTotp(s.secret, code);
+    if (ok) await clearMfaFailures(user.id); else await recordMfaFailure(user.id, user.email);
+    return Response.json({ success: ok });
   }
 
   if (action === "enable") {
     const s = await settings(user.id);
     if (!s?.secret) return Response.json({ error: "Start two-factor setup first." }, { status: 400 });
     const code = payload?.code ? String(payload.code).replace(/\s/g, "") : "";
+    if (await mfaLocked(user.id)) return Response.json({ error: "Too many wrong codes. Try again in 15 minutes." }, { status: 429 });
     if (code ? !verifyTotp(s.secret, code) : payload?.secret !== s.secret) {
+      if (code) await recordMfaFailure(user.id, user.email);
       return Response.json({ error: "Setup could not be confirmed. Please start again." }, { status: 400 });
     }
     const { error } = await supabaseAdmin.from("mfa_settings").update({ enabled: true, method: "app" }).eq("user_id", user.id);
