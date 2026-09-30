@@ -38,7 +38,8 @@ for (const it of items) {
   else if (years.length && !years.some(y => t.includes(y))) why = "year";
   else if (/\b(rookie|rc)\b/i.test(cardName) && !/\b(rc|rookie)\b/.test(t)) why = "no RC";
   else { const m = t.match(NOT_BASE_RE); if (m && !cardNorm.includes(m[0])) why = `not base: ${m[0]}`;
-         else if (NUMBERED_RE.test(raw)) why = "numbered"; }
+         else if (NUMBERED_RE.test(raw)) why = "numbered";
+         else if (/[a-z]\s*\/\s*[a-z]|\s&\s/i.test(raw)) why = "multi-player"; }
   counts[why] = (counts[why] ?? 0) + 1;
   console.log(`${why.padEnd(22)} $${String(it.price?.value).padEnd(8)} ${String(it.itemCreationDate).slice(0, 10)}  ${raw.slice(0, 90)}`);
 }

@@ -112,6 +112,8 @@ function parseCardName(cardName: string) {
 // Real PSA 10 listings of this specific card. null = eBay unavailable.
 // Anything that makes it a different card than the plain base rookie
 const NOT_BASE_RE = /\b(auto|autos|autograph|autographed|signed|signature|signatures|patch|relic|jersey|memorabilia|refractor|refractors|prizm|xfractor|x fractor|mojo|wave|raywave|ray wave|atomic|sepia|negative|superfractor|printing plate|variation|var|ssp|sp|short print|parallel|insert|case hit|sapphire|heritage|bowman|national treasures|select|on demand|finest|stadium club|gold|orange|purple|green|pink|aqua|black|geometric|speckle|lava|shimmer|pulsar|helix|rainbow|foil|home field advantage|fortune 15|rookie debut|debut|celebration|celebracion|celebraci|radiating|power players|hidden gems|youthquake|future stars|all etch|ultra violet|lightboard|logofractor|kaiju|anime|fireworks|stars of mlb)\b/;
+// Multi-player cards ("WARD/DAVID ORTIZ/SEXSON", "Ward & Ortiz") are priced by the biggest name, not this player
+const MULTI_PLAYER_RE = /[a-z]\s*\/\s*[a-z]|\s&\s/i;
 const NUMBERED_RE = /(\/\s*\d{1,4}\b|\b1\s*of\s*1\b)/;
 
 // Real PSA 10 listings of THIS specific base card. null = eBay unavailable.
@@ -163,6 +165,7 @@ async function searchPSA10(
           const notBase = t.match(NOT_BASE_RE);
           if (notBase && !cardNorm.includes(notBase[0]))                 continue; // parallels, autos, other sets
           if (NUMBERED_RE.test(rawTitle))                                continue; // numbered parallels
+          if (MULTI_PLAYER_RE.test(rawTitle))                            continue; // multi-player cards
 
           const id    = String(it.itemId);
           const price = parseFloat(it.price?.value ?? "0");
