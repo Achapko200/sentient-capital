@@ -48,7 +48,7 @@ export async function GET(req: Request) {
       })
     );
 
-    const result = [...enriched, ...rest];
+    const result = [...enriched, ...rest.slice(0, 500)];
 
     // Cache for 30 minutes
     await redis.set(CACHE_KEY, result, { ex: CACHE_TTL });

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase }            from '@/lib/supabase';
+import { authFetch } from "@/lib/auth-fetch";
 
 export function usePushNotifications() {
   const [supported,  setSupported]  = useState(false);
@@ -22,7 +23,7 @@ export function usePushNotifications() {
       });
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not signed in');
-      await fetch('/api/push', {
+      await authFetch('/api/push', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ action: 'subscribe', subscription: sub, userId: user.id }),

@@ -2,6 +2,7 @@
 import { getListings, addListing } from "@/lib/listings";
 import { ListingSchema }           from "@/lib/validators";
 import { checkRateLimit }          from "@/lib/ratelimit";
+import { getVerifiedUser } from "@/lib/verify-user";
 
 export async function GET(req: Request) {
   const limited = await checkRateLimit(req, "read");
@@ -18,6 +19,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const limited = await checkRateLimit(req, "write");
   if (limited) return limited;
+  // Must be signed in to list a card
+  const seller = await getVerifiedUser(req);
+  if (!seller) return Response.json({ error: "Please sign in to list a card." }, { status: 401 });
 
   let body: unknown;
   try {

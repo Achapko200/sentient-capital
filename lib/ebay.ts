@@ -214,40 +214,11 @@ export async function fetchEbayMarketSnapshot(cardName: string): Promise<EbayMar
 }
 
 // Returns current PSA 10 listings for the card, newest first.
-export async function fetchEbaySales(
-  playerId: string,
-  cardName: string,
-): Promise<EbaySale[]> {
-  const live = (await fetchEbayMarketSnapshot(cardName)).listings;
-  if (live.length > 0) return live;
-
-  try {
-    const { supabaseAdmin } = await import("@/lib/supabase-server");
-    const { data, error } = await supabaseAdmin
-      .from("price_snapshots")
-      .select("player_id, close, day")
-      .eq("player_id", String(playerId))
-      .gt("close", 0)
-      .order("day", { ascending: false })
-      .limit(1);
-
-    if (!error && data && data.length > 0) {
-      const latest = Number(data[0].close);
-      if (Number.isFinite(latest) && latest > 0) {
-        return [{
-          id: `cached-${playerId}-${data[0].day}`,
-          date: String(data[0].day),
-          price: latest,
-          condition: "PSA 10",
-          title: `Cached live eBay asking price for ${cardName}`,
-        }];
-      }
-    }
-  } catch {
-    // ignore cache fallback failures; real eBay data should still surface when available
-  }
-
-  return [];
+// Current PSA 10 listings for a card, served from the shared market cache,
+// so every caller respects the 30-minute cache and the daily eBay call limit.
+export async function fetchEbaySales(playerId: string, cardName: string): Promise<EbaySale[]> {
+  const { getMarketData } = await import("@/lib/market-cache");
+  return (await getMarketData(String(playerId), cardName)).listings;
 }
 
 export type ListingCandle = {

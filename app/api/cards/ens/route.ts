@@ -1,6 +1,7 @@
 import { NextResponse }             from "next/server";
 import { createPublicClient, http } from "viem";
 import { mainnet }                  from "viem/chains";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 const client = createPublicClient({
   chain:     mainnet,
@@ -10,6 +11,8 @@ const client = createPublicClient({
 const WALLET_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
 export async function POST(req: Request) {
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await req.json();

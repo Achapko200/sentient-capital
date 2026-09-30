@@ -1,51 +1,60 @@
-import { checkRateLimit } from "@/lib/ratelimit";
-import { supabaseAdmin } from '@/lib/supabase-server';
+// Push notifications. "subscribe" = signed-in user registers their own device.
+// "notify" = server-only (price-alert job), authenticated with CRON_SECRET.
+import { timingSafeEqual } from "crypto";
+import { checkRateLimit }  from "@/lib/ratelimit";
+import { supabaseAdmin }   from "@/lib/supabase-server";
+import { getVerifiedUser } from "@/lib/verify-user";
 
-const vapidEmail     = process.env.VAPID_EMAIL!;
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY!;
+export const dynamic = "force-dynamic";
 
-async function sendPushNotification(subscription: any, payload: string) {
-  const { endpoint, keys } = subscription;
-  const { p256dh, auth }   = keys;
+function isServerCall(req: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  const a = Buffer.from(req.headers.get("authorization") ?? ""), b = Buffer.from(`Bearer ${secret}`);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
-  const webpush = await import('web-push');
-  webpush.default.setVapidDetails(`mailto:${vapidEmail}`, vapidPublicKey, vapidPrivateKey);
-  return webpush.default.sendNotification(subscription, payload);
+async function send(subscription: any, payload: string) {
+  const webpush = (await import("web-push")).default;
+  webpush.setVapidDetails(`mailto:${process.env.VAPID_EMAIL}`, process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!);
+  return webpush.sendNotification(subscription, payload);
 }
 
 export async function POST(req: Request) {
   const limited = await checkRateLimit(req, "write");
   if (limited) return limited;
-  try {
-    const { action, subscription, userId, title, body, url } = await req.json();
 
-    if (action === 'subscribe') {
-      await supabaseAdmin.from('push_subscriptions').upsert({
-        user_id:      userId,
-        subscription: JSON.stringify(subscription),
-        updated_at:   new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-      return Response.json({ success: true });
+  let body: any;
+  try { body = await req.json(); } catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
+
+  if (body?.action === "subscribe") {
+    const user: any = await getVerifiedUser(req);
+    if (!user) return Response.json({ error: "Please sign in again." }, { status: 401 });
+    const mine   = [user.id, user.email ? `email:${user.email}` : null].filter(Boolean);
+    const userId = mine.includes(body.userId) ? body.userId : user.id;
+    const sub    = body.subscription;
+    if (!sub || typeof sub.endpoint !== "string" || !sub.endpoint.startsWith("https://") || !sub.keys?.p256dh || !sub.keys?.auth
+        || JSON.stringify(sub).length > 4000) {
+      return Response.json({ error: "Invalid subscription" }, { status: 400 });
     }
-
-    if (action === 'notify') {
-      const { data } = await supabaseAdmin
-        .from('push_subscriptions')
-        .select('subscription')
-        .eq('user_id', userId)
-        .single();
-      if (!data) return Response.json({ error: 'No subscription' }, { status: 404 });
-      await sendPushNotification(
-        JSON.parse(data.subscription),
-        JSON.stringify({ title, body, url: url ?? '/app' })
-      );
-      return Response.json({ success: true });
-    }
-
-    return Response.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (err: any) {
-    console.error('Push error:', err);
-    return Response.json({ error: err.message }, { status: 500 });
+    const { error } = await supabaseAdmin.from("push_subscriptions")
+      .upsert({ user_id: userId, subscription: JSON.stringify(sub), updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    if (error) return Response.json({ error: "Could not save subscription" }, { status: 500 });
+    return Response.json({ success: true });
   }
+
+  if (body?.action === "notify") {
+    if (!isServerCall(req)) return Response.json({ error: "Not authorized" }, { status: 403 });
+    const { data } = await supabaseAdmin.from("push_subscriptions").select("subscription").eq("user_id", String(body.userId ?? "")).maybeSingle();
+    if (!data) return Response.json({ error: "No subscription" }, { status: 404 });
+    const url = typeof body.url === "string" && body.url.startsWith("/") ? body.url : "/app";
+    await send(JSON.parse(data.subscription), JSON.stringify({
+      title: String(body.title ?? "Card Tracker").slice(0, 120),
+      body:  String(body.body ?? "").slice(0, 300),
+      url,
+    }));
+    return Response.json({ success: true });
+  }
+
+  return Response.json({ error: "Invalid action" }, { status: 400 });
 }

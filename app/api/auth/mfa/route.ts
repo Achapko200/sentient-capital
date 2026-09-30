@@ -1,168 +1,80 @@
-import { checkRateLimit } from "@/lib/ratelimit";
-import { generateSecret, generateTotp, verifyTotp } from "@/lib/mfa";
-import { supabaseAdmin } from "@/lib/supabase-server";
+// Two-factor (authenticator app). Every action applies ONLY to the signed-in user.
+// The stored secret is never returned after setup; codes are checked on the server.
+import QRCode from "qrcode";
+import { checkRateLimit }  from "@/lib/ratelimit";
+import { generateSecret, verifyTotp } from "@/lib/mfa";
+import { supabaseAdmin }   from "@/lib/supabase-server";
+import { getVerifiedUser } from "@/lib/verify-user";
 
-function formatSecret(secret: string): string {
-  return secret.match(/.{1,4}/g)?.join(" ") ?? secret;
+export const dynamic = "force-dynamic";
+const formatSecret = (s: string) => s.match(/.{1,4}/g)?.join(" ") ?? s;
+
+async function me(req: Request) {
+  const u: any = await getVerifiedUser(req);
+  return u?.id ? u : null;
 }
-
-async function sendSmsCode(phone: string, code: string): Promise<{ delivered: boolean; message: string }> {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
-
-  if (!accountSid || !authToken || (!messagingServiceSid && !fromNumber)) {
-    return {
-      delivered: false,
-      message: `No SMS provider is configured yet. Use this demo code instead: ${code}`,
-    };
-  }
-
-  const body = new URLSearchParams({
-    To: phone,
-    Body: `Your Card Tracker verification code is ${code}`,
-  });
-
-  if (messagingServiceSid) {
-    body.set("MessagingServiceSid", messagingServiceSid);
-  } else if (fromNumber) {
-    body.set("From", fromNumber);
-  }
-
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    return {
-      delivered: false,
-      message: `SMS delivery failed: ${text}`,
-    };
-  }
-
-  return {
-    delivered: true,
-    message: "Verification code sent successfully.",
-  };
+async function settings(userId: string) {
+  const { data } = await supabaseAdmin.from("mfa_settings").select("enabled, method, secret").eq("user_id", userId).maybeSingle();
+  return data;
 }
+const publicStatus = (s: any) => ({ enabled: !!s?.enabled, method: s?.enabled ? s?.method ?? null : null, secret: null });
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId") ?? "";
-
-  if (!userId) {
-    return Response.json({ enabled: false, method: null, secret: null });
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("mfa_settings")
-    .select("enabled, method, secret")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error || !data) {
-    return Response.json({ enabled: false, method: null, secret: null });
-  }
-
-  return Response.json({ enabled: !!data.enabled, method: data.method ?? null, secret: data.secret ?? null });
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
+  const user = await me(req);
+  if (!user) return Response.json({ ...publicStatus(null), error: "Please sign in again." }, { status: 401 });
+  return Response.json(publicStatus(await settings(user.id)));
 }
 
 export async function POST(req: Request) {
-  try {
-    const payload = await req.json();
-    const { action, phone } = payload;
+  const limited = await checkRateLimit(req, "write");
+  if (limited) return limited;
+  const user = await me(req);
+  if (!user) return Response.json({ error: "Please sign in again." }, { status: 401 });
 
-    if (action === "totp") {
-      const secret = generateSecret();
-      const otpUri = `otpauth://totp/CardTracker?secret=${secret}&issuer=CardTracker&algorithm=SHA1&digits=6&period=30`;
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpUri)}`;
+  let payload: any;
+  try { payload = await req.json(); } catch { return Response.json({ error: "Invalid request" }, { status: 400 }); }
+  const action = payload?.action;
 
-      return Response.json({
-        success: true,
-        secret,
-        otpUri,
-        qrCodeUrl,
-        setupCode: formatSecret(secret),
-      });
-    }
+  if (action === "status") return Response.json(publicStatus(await settings(user.id)));
 
-    if (action === "sms") {
-      const phoneNumber = typeof phone === "string" ? phone.trim() : "";
-      if (!phoneNumber) {
-        return Response.json({ error: "Phone number is required" }, { status: 400 });
-      }
-
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const { delivered, message } = await sendSmsCode(phoneNumber, verificationCode);
-
-      return Response.json({
-        success: true,
-        delivered,
-        code: verificationCode,
-        message,
-      });
-    }
-
-    if (action === "verify") {
-      const { secret, code } = payload;
-      if (typeof secret !== "string" || typeof code !== "string") {
-        return Response.json({ error: "Invalid verification payload" }, { status: 400 });
-      }
-
-      return Response.json({ success: verifyTotp(secret, code) });
-    }
-
-    if (action === "enable") {
-      const { userId, method, secret } = payload;
-      if (typeof userId !== "string" || !userId.trim()) {
-        return Response.json({ error: "User is required" }, { status: 400 });
-      }
-      if (method !== "app" && method !== "sms") {
-        return Response.json({ error: "Unsupported MFA method" }, { status: 400 });
-      }
-
-      const { error } = await supabaseAdmin.from("mfa_settings").upsert({
-        user_id: userId,
-        enabled: true,
-        method,
-        secret: typeof secret === "string" ? secret : null,
-      }, { onConflict: "user_id" });
-
-      if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
-      }
-
-      return Response.json({ success: true });
-    }
-
-    if (action === "status") {
-      const { userId } = payload;
-      if (typeof userId !== "string" || !userId.trim()) {
-        return Response.json({ error: "User is required" }, { status: 400 });
-      }
-
-      const { data, error } = await supabaseAdmin
-        .from("mfa_settings")
-        .select("enabled, method, secret")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
-      }
-
-      return Response.json({ enabled: !!data?.enabled, method: data?.method ?? null, secret: data?.secret ?? null });
-    }
-
-    return Response.json({ error: "Unsupported action" }, { status: 400 });
-  } catch {
-    return Response.json({ error: "Unable to process MFA request" }, { status: 500 });
+  if (action === "totp") {
+    const current = await settings(user.id);
+    if (current?.enabled) return Response.json({ error: "Two-factor authentication is already on." }, { status: 409 });
+    const secret = generateSecret();
+    const { error } = await supabaseAdmin.from("mfa_settings")
+      .upsert({ user_id: user.id, enabled: false, method: "app", secret }, { onConflict: "user_id" });
+    if (error) return Response.json({ error: "Could not start setup" }, { status: 500 });
+    const label  = encodeURIComponent(`CardTracker:${user.email ?? user.id}`);
+    const otpUri = `otpauth://totp/${label}?secret=${secret}&issuer=CardTracker&algorithm=SHA1&digits=6&period=30`;
+    const qrCodeUrl = await QRCode.toDataURL(otpUri, { margin: 1, width: 180 });   // generated here, never sent to a third party
+    return Response.json({ success: true, secret, otpUri, qrCodeUrl, setupCode: formatSecret(secret) });
   }
+
+  if (action === "sms") {
+    return Response.json({ error: "Text-message codes aren't available. Please use an authenticator app." }, { status: 501 });
+  }
+
+  if (action === "verify") {
+    const code = String(payload?.code ?? "").replace(/\s/g, "");
+    if (!/^\d{6}$/.test(code)) return Response.json({ success: false, error: "Enter the 6-digit code." }, { status: 400 });
+    const s = await settings(user.id);
+    if (!s?.secret) return Response.json({ success: false, error: "Start two-factor setup first." }, { status: 400 });
+    return Response.json({ success: verifyTotp(s.secret, code) });
+  }
+
+  if (action === "enable") {
+    const s = await settings(user.id);
+    if (!s?.secret) return Response.json({ error: "Start two-factor setup first." }, { status: 400 });
+    const code = payload?.code ? String(payload.code).replace(/\s/g, "") : "";
+    if (code ? !verifyTotp(s.secret, code) : payload?.secret !== s.secret) {
+      return Response.json({ error: "Setup could not be confirmed. Please start again." }, { status: 400 });
+    }
+    const { error } = await supabaseAdmin.from("mfa_settings").update({ enabled: true, method: "app" }).eq("user_id", user.id);
+    if (error) return Response.json({ error: "Could not enable two-factor" }, { status: 500 });
+    return Response.json({ success: true });
+  }
+
+  return Response.json({ error: "Unsupported action" }, { status: 400 });
 }

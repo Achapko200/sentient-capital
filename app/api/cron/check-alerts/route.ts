@@ -113,7 +113,7 @@ export async function GET(req: Request) {
           if (pushSub) {
             await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/push`, {
               method:  "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.CRON_SECRET}` },
               body:    JSON.stringify({
                 action:  "notify",
                 userId:  alert.wallet,

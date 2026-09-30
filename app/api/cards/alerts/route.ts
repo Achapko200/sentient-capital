@@ -65,7 +65,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const alert = await createAlert(wallet, cardId, playerName, targetPrice, direction, email ?? undefined);
+    const alert = await createAlert(wallet, cardId, playerName, targetPrice, direction, user.email ?? undefined);
     return Response.json({ alert });
   } catch {
     return Response.json({ error: "Failed to create alert" }, { status: 500 });

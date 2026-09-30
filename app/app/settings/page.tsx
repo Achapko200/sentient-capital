@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTheme }            from "@/lib/useTheme";
 import { useRouter }           from "next/navigation";
 import { supabase }            from "@/lib/supabase";
+import { authFetch } from "@/lib/auth-fetch";
 
 type Section =
   | "general"
@@ -36,7 +37,7 @@ function MFAModal({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setError("Please sign in again"); setLoading(false); return; }
 
-      const res  = await fetch("/api/auth/mfa", {
+      const res  = await authFetch("/api/auth/mfa", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ action: "enroll", accessToken: session.access_token }),
@@ -49,7 +50,7 @@ function MFAModal({
       setFactorId(data.factorId);
 
       // Start challenge
-      const cRes  = await fetch("/api/auth/mfa", {
+      const cRes  = await authFetch("/api/auth/mfa", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ action: "challenge", accessToken: session.access_token, factorId: data.factorId }),
@@ -72,7 +73,7 @@ function MFAModal({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setError("Please sign in again"); return; }
 
-      const res  = await fetch("/api/auth/mfa", {
+      const res  = await authFetch("/api/auth/mfa", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ action: "verify", accessToken: session.access_token, factorId, challengeId, code }),

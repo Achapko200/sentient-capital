@@ -2,10 +2,14 @@
 import { placeOrder, cancelOrder } from "@/lib/orderbook";
 import { TradeSchema }             from "@/lib/validators";
 import { checkRateLimit }          from "@/lib/ratelimit";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export async function POST(req: Request) {
   const limited = await checkRateLimit(req, "trade");
   if (limited) return limited;
+  // Legacy crypto trading is disabled: it trusted any wallet address without proof of ownership.
+  const notAdmin = await requireAdmin(req);
+  if (notAdmin) return Response.json({ error: "This feature is not available." }, { status: 403 });
 
   let body: unknown;
   try {

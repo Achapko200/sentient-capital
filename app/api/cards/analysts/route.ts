@@ -1,38 +1,26 @@
-import { checkRateLimit } from "@/lib/ratelimit";
-import { getWatchlist }  from "@/lib/players";
-import { fetchMLBStats } from "@/lib/mlb";
-import { fetchEbaySales, calcAvgPrice } from "@/lib/ebay";
-import { getAnalysis }   from "@/lib/analyst";
+import { checkRateLimit }  from "@/lib/ratelimit";
+import { getWatchlist }    from "@/lib/players";
+import { fetchMLBStats }   from "@/lib/mlb";
+import { getAnalysis }     from "@/lib/analyst";
+import { getMarketPrices } from "@/lib/market-prices";
 
-export async function GET() {
+export const revalidate = 1800;
+const MAX_PLAYERS = 40;
+
+export async function GET(req: Request) {
+  const limited = await checkRateLimit(req, "read");
+  if (limited) return limited;
   try {
-    const players = await getWatchlist();
-
-    if (players.length === 0) {
-      return Response.json({ analyses: [] });
-    }
-
-    const analyses = await Promise.all(
-      players.map(async (player) => {
-        try {
-          // Fetch stats first to estimate card price
-          const stats = await fetchMLBStats(player.id);
-
-          const estimatedPrice = stats
-            ? Math.round(50 + (stats.hr ?? 0) * 8 + (stats.ops ?? 0) * 200)
-            : 150;
-
-          const sales    = await fetchEbaySales(player.id, player.cardName);
-          const avgPrice = calcAvgPrice(sales);
-
-          return getAnalysis(player.id, player.name, stats, avgPrice);
-        } catch {
-          // Don't let one player failure break the whole panel
-          return getAnalysis(player.id, player.name, null, 150);
-        }
-      })
-    );
-
+    const [players, prices] = await Promise.all([getWatchlist(), getMarketPrices()]);
+    const priced = players
+      .filter((p: any) => (prices.get(String(p.id)) ?? 0) > 0)
+      .sort((a: any, b: any) => prices.get(String(b.id))! - prices.get(String(a.id))!)
+      .slice(0, MAX_PLAYERS);
+    const analyses = await Promise.all(priced.map(async (p: any) => {
+      const price = prices.get(String(p.id))!;
+      try { return getAnalysis(p.id, p.name, await fetchMLBStats(p.id), price); }
+      catch { return getAnalysis(p.id, p.name, null, price); }
+    }));
     return Response.json({ analyses });
   } catch {
     return Response.json({ analyses: [] }, { status: 500 });
