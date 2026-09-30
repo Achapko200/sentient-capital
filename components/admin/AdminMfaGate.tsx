@@ -15,6 +15,14 @@ export default function AdminMfaGate({ children }: { children: React.ReactNode }
   const [code, setCode]     = useState("");
   const [error, setError]   = useState("");
   const [busy, setBusy]     = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
+
+  async function requestReset() {
+    setResetMsg("Sending…");
+    const token = (await supabase.auth.getSession()).data.session?.access_token ?? "";
+    const r = await fetch("/api/admin/mfa-reset", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    setResetMsg(r.ok ? "Check your email for a reset link (valid 15 minutes)." : "Couldn't send the reset email. Try again shortly.");
+  }
 
   useEffect(() => {
     (async () => {
@@ -66,6 +74,14 @@ export default function AdminMfaGate({ children }: { children: React.ReactNode }
               className="mt-5 w-full rounded-xl bg-blue-600 py-3 text-sm font-bold hover:bg-blue-500 disabled:opacity-50">
               {busy ? "Verifying…" : "Verify"}
             </button>
+            {stage === "challenge" && (
+              <div className="mt-4 text-center">
+                <button type="button" onClick={requestReset} className="text-xs text-gray-400 hover:text-white underline">
+                  Lost access to your authenticator app?
+                </button>
+                {resetMsg && <p className="mt-2 text-xs text-gray-400">{resetMsg}</p>}
+              </div>
+            )}
           </>
         )}
       </form>
